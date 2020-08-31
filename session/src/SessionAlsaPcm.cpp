@@ -375,12 +375,6 @@ exit:
     QAL_DBG(LOG_TAG,"exit status:%d ", status);
     return status;
 }
-/*
-int SessionAlsaPcm::getConfig(Stream * s)
-{
-   return 0;
-}
-*/
 
 int SessionAlsaPcm::setTKV(Stream * s __unused, configType type, effect_qal_payload_t *effectPayload)
 {

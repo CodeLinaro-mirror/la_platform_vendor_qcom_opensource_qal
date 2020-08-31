@@ -701,7 +701,9 @@ typedef enum {
     QAL_PARAM_ID_SLOW_TALK = 23,
     QAL_PARAM_ID_SPEAKER_RAS = 24,
     QAL_PARAM_ID_SP_SET_MODE = 25,
-}qal_param_id_type_t;
+    QAL_PARAM_ID_GAIN_LVL_MAP = 26,
+    QAL_PARAM_ID_GAIN_LVL_CAL = 27,
+} qal_param_id_type_t;
 
 /** HDMI/DP */
 // START: MST ==================================================
@@ -726,6 +728,12 @@ typedef union {
     struct qal_usb_device_address usb_addr;
 } qal_device_config_t;
 
+struct qal_amp_db_and_gain_table {
+    float    amp;
+    float    db;
+    uint32_t level;
+};
+
 /* Payload For ID: QAL_PARAM_ID_DEVICE_CONNECTION
  * Description   : Device Connection
 */
@@ -733,7 +741,23 @@ typedef struct qal_param_device_connection {
     qal_device_id_t   id;
     bool              connection_state;
     qal_device_config_t device_config;
-}qal_param_device_connection_t;
+} qal_param_device_connection_t;
+
+/* Payload For ID: QAL_PARAM_ID_GAIN_LVL_MAP
+ * Description   : get gain level mapping
+*/
+typedef struct qal_param_gain_lvl_map {
+    struct qal_amp_db_and_gain_table *mapping_tbl;
+    int                              table_size;
+    int                              filled_size;
+} qal_param_gain_lvl_map_t;
+
+/* Payload For ID: QAL_PARAM_ID_GAIN_LVL_CAL
+ * Description   : set gain level calibration
+*/
+typedef struct qal_param_gain_lvl_cal {
+    int level;
+} qal_param_gain_lvl_cal_t;
 
 /* Payload For ID: QAL_PARAM_ID_DEVICE_CAPABILITY
  * Description   : get Device Capability
@@ -743,7 +767,7 @@ typedef struct qal_param_device_connection {
   struct qal_usb_device_address addr;
   bool              is_playback;
   struct dynamic_media_config *config;
-}qal_param_device_capability_t;
+} qal_param_device_capability_t;
 
 /* Payload For ID: QAL_PARAM_ID_SCREEN_STATE
  * Description   : Screen State

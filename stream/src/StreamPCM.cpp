@@ -55,6 +55,7 @@ StreamPCM::StreamPCM(const struct qal_stream_attributes *sattr, struct qal_devic
     }
 
     session = NULL;
+    mGainLevel = -1;
     std::shared_ptr<Device> dev = nullptr;
     mStreamAttr = (struct qal_stream_attributes *)nullptr;
     inBufSize = BUF_SIZE_CAPTURE;
