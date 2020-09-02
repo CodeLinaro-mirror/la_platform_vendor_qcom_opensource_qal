@@ -505,8 +505,7 @@ int32_t qal_add_remove_effect(qal_stream_handle_t *stream_handle,
                        qal_audio_effect_t effect, bool enable)
 {
     Stream *s = NULL;
-    int status = EINVAL;
-    qal_stream_type_t type;
+    int status = 0;
 
     if (!stream_handle) {
         status = -EINVAL;
@@ -515,18 +514,11 @@ int32_t qal_add_remove_effect(qal_stream_handle_t *stream_handle,
     }
     QAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
 
-    status = s->getStreamType(&type);
+    s =  reinterpret_cast<Stream *>(stream_handle);
+    status = s->addRemoveEffect(effect, enable);
     if (0 != status) {
-        QAL_ERR(LOG_TAG, "getStreamType failed with status = %d", status);
+        QAL_ERR(LOG_TAG, "qal_add_effect failed with status %d", status);
         return status;
-    }
-    if (QAL_STREAM_VOIP_TX == type) {
-        s =  reinterpret_cast<Stream *>(stream_handle);
-        status = s->addRemoveEffect(effect, enable);
-        if (0 != status) {
-            QAL_ERR(LOG_TAG, "qal_add_effect failed with status %d", status);
-            return status;
-        }
     }
     QAL_DBG(LOG_TAG, "Exit. status %d", status);
     return status;
