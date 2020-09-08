@@ -451,6 +451,7 @@ static const std::map<uint32_t, std::string> deviceNameLUT {
 typedef enum {
     QAL_STREAM_CBK_EVENT_WRITE_READY, /* non blocking write completed */
     QAL_STREAM_CBK_EVENT_DRAIN_READY,  /* drain completed */
+    QAL_STREAM_CBK_EVENT_PARTIAL_DRAIN_READY, /* partial drain completed */
     QAL_STREAM_CBK_EVENT_ERROR, /* stream hit some error, let AF take action */
 } qal_stream_callback_event_t;
 
@@ -703,7 +704,8 @@ typedef enum {
     QAL_PARAM_ID_SP_SET_MODE = 25,
     QAL_PARAM_ID_GAIN_LVL_MAP = 26,
     QAL_PARAM_ID_GAIN_LVL_CAL = 27,
-} qal_param_id_type_t;
+    QAL_PARAM_ID_GAPLESS_MDATA = 28,
+}qal_param_id_type_t;
 
 /** HDMI/DP */
 // START: MST ==================================================
@@ -1025,6 +1027,11 @@ struct ffv_doa_tracking_monitor_t
     int16_t target_angle_L16[2];
     int16_t interf_angle_L16[2];
     int8_t polarActivityGUI[360];
+};
+
+struct qal_compr_gapless_mdata {
+       uint32_t encoderDelay;
+       uint32_t encoderPadding;
 };
 
 /** @brief Callback function prototype to be given for
