@@ -1147,24 +1147,38 @@ int32_t ResourceManager::getDeviceConfig(struct qal_device *deviceattr,
             break;
         case QAL_DEVICE_OUT_PROXY:
             {
-            std::shared_ptr<Device> dev = nullptr;
-            struct qal_device proxyIn_dattr;
-            proxyIn_dattr.id = QAL_DEVICE_IN_PROXY;
-            dev = Device::getInstance(&proxyIn_dattr, rm);
-            if (dev) {
-                status = dev->getDeviceAttributes(&proxyIn_dattr);
-                if (status) {
-                    QAL_ERR(LOG_TAG, "OUT_PROXY getDeviceAttributes failed %d", status);
-                    break;
+            if (sAttr->info.opt_stream_info.tx_proxy_type == QAL_STREAM_PROXY_TX_WFD)
+            {
+                std::shared_ptr<Device> dev = nullptr;
+                struct qal_device proxyIn_dattr;
+                proxyIn_dattr.id = QAL_DEVICE_IN_PROXY;
+                dev = Device::getInstance(&proxyIn_dattr, rm);
+                if (dev) {
+                    status = dev->getDeviceAttributes(&proxyIn_dattr);
+                    if (status) {
+                        QAL_ERR(LOG_TAG, "OUT_PROXY getDeviceAttributes failed %d", status);
+                        break;
+                    }
+                    deviceattr->config.ch_info = proxyIn_dattr.config.ch_info;
+                    deviceattr->config.sample_rate = proxyIn_dattr.config.sample_rate;
+                    deviceattr->config.bit_width = proxyIn_dattr.config.bit_width;
+                    deviceattr->config.aud_fmt_id = QAL_AUDIO_FMT_DEFAULT_PCM;
+                    QAL_DBG(LOG_TAG, "QAL_DEVICE_OUT_PROXY samplereate %d bitwidth %d",
+                            deviceattr->config.sample_rate, deviceattr->config.bit_width);
+                } else {
+                    deviceattr->config.ch_info = sAttr->out_media_config.ch_info;
+                    deviceattr->config.sample_rate = sAttr->out_media_config.sample_rate;
+                    deviceattr->config.bit_width = sAttr->out_media_config.bit_width;
+                    deviceattr->config.aud_fmt_id = QAL_AUDIO_FMT_DEFAULT_PCM;
+
+                    QAL_DBG(LOG_TAG, "QAL_DEVICE_OUT_PROXY sample rate %d bitwidth %d",
+                            deviceattr->config.sample_rate, deviceattr->config.bit_width);
                 }
-                deviceattr->config.ch_info = proxyIn_dattr.config.ch_info;
-                deviceattr->config.sample_rate = proxyIn_dattr.config.sample_rate;
-                deviceattr->config.bit_width = proxyIn_dattr.config.bit_width;
-                deviceattr->config.aud_fmt_id = QAL_AUDIO_FMT_DEFAULT_PCM;
-                QAL_DBG(LOG_TAG, "QAL_DEVICE_OUT_PROXY samplereate %d bitwidth %d",
-                        deviceattr->config.sample_rate, deviceattr->config.bit_width);
-            } else {
-                deviceattr->config.ch_info = sAttr->out_media_config.ch_info;
+            }
+            else
+            {
+                /* For QAL_DEVICE_OUT_PROXY, copy all config from stream attributes */
+                deviceattr->config.ch_info =sAttr->out_media_config.ch_info;
                 deviceattr->config.sample_rate = sAttr->out_media_config.sample_rate;
                 deviceattr->config.bit_width = sAttr->out_media_config.bit_width;
                 deviceattr->config.aud_fmt_id = QAL_AUDIO_FMT_DEFAULT_PCM;
