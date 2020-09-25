@@ -1717,6 +1717,7 @@ int ResourceManager::registerDevice(std::shared_ptr<Device> d, Stream *s)
             }
         }
     } else if (sAttr.direction == QAL_AUDIO_OUTPUT &&
+        sAttr.type != QAL_STREAM_PROXY &&
         sAttr.type != QAL_STREAM_ULTRA_LOW_LATENCY) {
         status = s->getAssociatedDevices(associatedDevices);
         if (0 != status) {
