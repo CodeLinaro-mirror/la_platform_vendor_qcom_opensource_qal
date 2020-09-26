@@ -354,9 +354,9 @@ int32_t qal_stream_set_mute(qal_stream_handle_t *stream_handle, bool state)
     }
     QAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
     s =  reinterpret_cast<Stream *>(stream_handle);
-    status = s->setMute(state);
+    status = s->mute(state);
     if (0 != status) {
-        QAL_ERR(LOG_TAG, "setMute failed with status %d", status);
+        QAL_ERR(LOG_TAG, "mute failed with status %d", status);
         return status;
     }
     QAL_DBG(LOG_TAG, "Exit. status %d", status);
@@ -374,7 +374,7 @@ int32_t qal_stream_pause(qal_stream_handle_t *stream_handle)
     }
     QAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
     s =  reinterpret_cast<Stream *>(stream_handle);
-    status = s->setPause();
+    status = s->pause();
     if (0 != status) {
         QAL_ERR(LOG_TAG, "qal_stream_pause failed with status %d", status);
         return status;
@@ -397,7 +397,7 @@ int32_t qal_stream_resume(qal_stream_handle_t *stream_handle)
     QAL_INFO(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
     s =  reinterpret_cast<Stream *>(stream_handle);
 
-    status = s->setResume();
+    status = s->resume();
     if (0 != status) {
         QAL_ERR(LOG_TAG, "resume failed with status %d", status);
         return status;

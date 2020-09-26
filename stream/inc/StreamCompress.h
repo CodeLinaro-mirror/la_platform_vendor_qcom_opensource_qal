@@ -53,9 +53,7 @@ public:
     int32_t flush();
     int32_t setStreamAttributes(struct qal_stream_attributes *sattr) override;
     int32_t setVolume( struct qal_volume_data *volume) override;
-    int32_t setMute( bool state) override;
-    int32_t setPause() override;
-    int32_t setResume() override;
+    int32_t mute(bool state) override;
     int32_t read(struct qal_buffer *buf) override;
     int32_t write(struct qal_buffer *buf) override;
     int32_t registerCallBack(qal_stream_callback cb, void *cookie) override;

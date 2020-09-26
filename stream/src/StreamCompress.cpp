@@ -389,36 +389,6 @@ int32_t StreamCompress::prepare()
     return status;
 }
 
-int32_t StreamCompress::pause()
-{
-    int32_t status = 0;
-
-    QAL_VERBOSE(LOG_TAG, "Enter, session handle - %p",  session);
-    mStreamMutex.lock();
-    status = session->pause(this);
-    if (status)
-       QAL_ERR(LOG_TAG,"session pause failed with status = %d", status);
-
-    mStreamMutex.unlock();
-    QAL_VERBOSE(LOG_TAG,"Exit, status - %d", status);
-    return status;
-}
-
-int32_t StreamCompress::resume()
-{
-    int32_t status = 0;
-
-    QAL_VERBOSE(LOG_TAG, "Enter, session handle - %p", session);
-    mStreamMutex.lock();
-    status = session->resume(this);
-    if (status)
-       QAL_ERR(LOG_TAG,"session resume failed with status = %d", status);
-
-    mStreamMutex.unlock();
-    QAL_VERBOSE(LOG_TAG,"Exit, status - %d", status);
-    return status;
-}
-
 int32_t StreamCompress::setStreamAttributes(struct qal_stream_attributes *sattr)
 {
     int32_t status = 0;
@@ -588,7 +558,7 @@ exit:
     return status;
 }
 
-int32_t  StreamCompress::setMute( bool state)
+int32_t StreamCompress::mute(bool state)
 {
     int32_t status = 0;
 
@@ -601,12 +571,12 @@ int32_t  StreamCompress::setMute( bool state)
        QAL_ERR(LOG_TAG,"session setConfig for mute failed with status %d",status);
        goto exit;
     }
-    QAL_VERBOSE(LOG_TAG,"session setMute successful");
+    QAL_VERBOSE(LOG_TAG,"session mute successful");
 exit:
     return status;
 }
 
-int32_t  StreamCompress::setPause()
+int32_t StreamCompress::pause()
 {
     int32_t status = 0;
 
@@ -629,13 +599,13 @@ int32_t  StreamCompress::setPause()
     usleep(VOLUME_RAMP_PERIOD);
     isPaused = true;
     currentState = STREAM_PAUSED;
-    QAL_VERBOSE(LOG_TAG,"session setPause successful, state %d", currentState);
+    QAL_VERBOSE(LOG_TAG,"session pause successful, state %d", currentState);
 
 exit:
     return status;
 }
 
-int32_t  StreamCompress::setResume()
+int32_t StreamCompress::resume()
 {
     int32_t status = 0;
 
@@ -656,7 +626,7 @@ int32_t  StreamCompress::setResume()
 
     isPaused = false;
     currentState = STREAM_STARTED;
-    QAL_VERBOSE(LOG_TAG,"session setResume successful, state %d", currentState);
+    QAL_VERBOSE(LOG_TAG,"session resume successful, state %d", currentState);
 
 exit:
     return status;

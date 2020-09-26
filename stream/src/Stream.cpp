@@ -756,7 +756,7 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct qal_d
 
     if (a2dp_compress_mute && (mStreamAttr->type == QAL_STREAM_COMPRESSED) &&
         !isNewDeviceA2dp) {
-        setMute(false);
+        mute(false);
         a2dp_compress_mute = false;
     }
 
