@@ -4649,7 +4649,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
 {
     int status = 0;
 
-    QAL_INFO(LOG_TAG, "xsang param_id=%d", param_id);
+    QAL_INFO(LOG_TAG, "param_id=%d", param_id);
 
     mResourceManagerMutex.lock();
     switch (param_id) {
