@@ -4674,7 +4674,7 @@ setdevparam:
 
             qal_param_gain_lvl_cal_t *gain_lvl_cal = (qal_param_gain_lvl_cal_t *) param_payload;
             if (payload_size != sizeof(qal_param_gain_lvl_cal_t)) {
-                QAL_ERR(LOG_TAG, "incorrect payload size : expected (%d), received(%d)",
+                QAL_ERR(LOG_TAG, "incorrect payload size : expected (%zu), received(%zu)",
                       sizeof(qal_param_gain_lvl_cal_t), payload_size);
                 status = -EINVAL;
                 goto exit;
