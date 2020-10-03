@@ -56,6 +56,7 @@ StreamInCall::StreamInCall(const struct qal_stream_attributes *sattr, struct qal
     }
 
     session = NULL;
+    mGainLevel = -1;
     mStreamAttr = (struct qal_stream_attributes *)nullptr;
     inBufSize = BUF_SIZE_CAPTURE;
     outBufSize = BUF_SIZE_PLAYBACK;
@@ -691,7 +692,7 @@ error:
     return status;
 }
 
-int32_t  StreamInCall::setMute( bool state)
+int32_t StreamInCall::mute(bool state)
 {
     int32_t status = 0;
     QAL_DBG(LOG_TAG, "Enter. session handle - %pK state %d", session, state);
@@ -712,7 +713,7 @@ exit:
     return status;
 }
 
-int32_t  StreamInCall::setPause()
+int32_t StreamInCall::pause()
 {
     int32_t status = 0;
     QAL_DBG(LOG_TAG, "Enter. session handle - %pK", session);
@@ -739,7 +740,7 @@ exit:
     return status;
 }
 
-int32_t  StreamInCall::setResume()
+int32_t StreamInCall::resume()
 {
     int32_t status = 0;
     QAL_DBG(LOG_TAG, "Enter. session handle - %pK", session);
@@ -970,7 +971,7 @@ int32_t StreamInCall::ssrUpHandler()
             QAL_ERR(LOG_TAG, "stream start failed. status %d", status);
             goto exit;
         }
-        status = setPause();
+        status = pause();
         if (0 != status) {
            QAL_ERR(LOG_TAG, "stream set pause failed. status %d", status);
             goto exit;

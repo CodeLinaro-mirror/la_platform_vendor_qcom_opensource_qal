@@ -30,6 +30,7 @@
         <param key="max_sessions" value="128"/>
         <param key="logging_level" value ="3" />
     </config_params>
+    <config_gapless key="gapless_supported" value="1"/>
     <bt_codecs>
         <codec codec_format="CODEC_TYPE_AAC" codec_type="enc|dec" codec_library="lib_bt_bundle.so" />
         <codec codec_format="CODEC_TYPE_SBC" codec_type="enc|dec" codec_library="lib_bt_bundle.so" />
@@ -422,7 +423,6 @@
                 <policies>
                     <ec_ref>
                         <disabled_stream>QAL_STREAM_LOW_LATENCY</disabled_stream>
-                        <disabled_stream>QAL_STREAM_VOIP_RX</disabled_stream>
                     </ec_ref>
                 </policies>
         </in_stream>
@@ -631,7 +631,7 @@
                 <param sm_id="0x2" />
                 <param module_lib="libcapiv2svacnn.so"/>
                 <param sample_rate="16000"/>
-                <param bit_wdith="16"/>
+                <param bit_width="16"/>
                 <param channel_count="1"/>
             </arm_ss_usecase>
             <arm_ss_usecase>
@@ -639,7 +639,7 @@
                 <param sm_id="0x4" />
                 <param module_lib="libcapiv2vop.so"/>
                 <param sample_rate="16000"/>
-                <param bit_wdith="16"/>
+                <param bit_width="16"/>
                 <param channel_count="1"/>
             </arm_ss_usecase>
             <arm_ss_usecase>
@@ -647,7 +647,7 @@
                 <param sm_id="0x8" />
                 <param module_lib="libcapiv2svarnn.so"/>
                 <param sample_rate="16000"/>
-                <param bit_wdith="16"/>
+                <param bit_width="16"/>
                 <param channel_count="1"/>
             </arm_ss_usecase>
         </sound_model_config>

@@ -375,12 +375,6 @@ exit:
     QAL_DBG(LOG_TAG,"exit status:%d ", status);
     return status;
 }
-/*
-int SessionAlsaPcm::getConfig(Stream * s)
-{
-   return 0;
-}
-*/
 
 int SessionAlsaPcm::setTKV(Stream * s __unused, configType type, effect_qal_payload_t *effectPayload)
 {
@@ -1596,7 +1590,7 @@ int SessionAlsaPcm::setECRef(Stream *s, std::shared_ptr<Device> rx_dev, bool is_
         status = SessionAlsaUtils::setECRefPath(mixer, pcmDevIds.at(0),
             backendNames[0].c_str());
         if (status) {
-            QAL_ERR(LOG_TAG, "Failed to disable EC Ref, status %d", status);
+            QAL_ERR(LOG_TAG, "Failed to enable EC Ref, status %d", status);
             return status;
         }
         ecRefDevId = static_cast<qal_device_id_t>(rx_dev->getSndDeviceId());
@@ -1604,7 +1598,6 @@ int SessionAlsaPcm::setECRef(Stream *s, std::shared_ptr<Device> rx_dev, bool is_
         QAL_ERR(LOG_TAG, "Invalid operation");
         return -EINVAL;
     }
-
     QAL_DBG(LOG_TAG, "Exit, status %d", status);
 
     return status;

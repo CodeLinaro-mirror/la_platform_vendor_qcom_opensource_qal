@@ -262,7 +262,7 @@ int32_t Stream::getAssociatedDevices(std::vector <std::shared_ptr<Device>> &aDev
     return status;
 }
 
-int32_t  Stream::getAssociatedSession(Session **s)
+int32_t Stream::getAssociatedSession(Session **s)
 {
     int32_t status = 0;
 
@@ -277,7 +277,7 @@ exit:
     return status;
 }
 
-int32_t  Stream::getVolumeData(struct qal_volume_data *vData)
+int32_t Stream::getVolumeData(struct qal_volume_data *vData)
 {
     int32_t status = 0;
 
@@ -305,6 +305,7 @@ int32_t  Stream::getVolumeData(struct qal_volume_data *vData)
 exit:
     return status;
 }
+
 int32_t Stream::setBufInfo(size_t *in_buf_size, size_t in_buf_count,
                            size_t *out_buf_size, size_t out_buf_count)
 {
@@ -573,8 +574,6 @@ int32_t Stream::connectStreamDevice_l(Stream* streamHandle, struct qal_device *d
         goto error_1;
     }
 
-    rm->registerDevice(dev, this);
-
     status = dev->start();
     if (0 != status) {
         QAL_ERR(LOG_TAG, "device %d name %s, start failed with status %d",
@@ -586,7 +585,7 @@ int32_t Stream::connectStreamDevice_l(Stream* streamHandle, struct qal_device *d
         QAL_ERR(LOG_TAG, "connectSessionDevice failed:%d", status);
         goto error_2;
     }
-
+    rm->registerDevice(dev, this);
     goto error_1;
 
 error_2:
@@ -756,7 +755,7 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct qal_d
 
     if (a2dp_compress_mute && (mStreamAttr->type == QAL_STREAM_COMPRESSED) &&
         !isNewDeviceA2dp) {
-        setMute(false);
+        mute(false);
         a2dp_compress_mute = false;
     }
 

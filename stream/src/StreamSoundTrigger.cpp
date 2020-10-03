@@ -826,7 +826,7 @@ int32_t StreamSoundTrigger::LoadSoundModel(
                        engine_id, gsl_engine_, (void *) sm_data, sm_size));
 
                     AddEngine(engine_cfg);
-                } else {
+                } else if (big_sm->type != SML_ID_SVA_S_STAGE_UBM) {
                     sm_size = big_sm->size;
                     ptr = (uint8_t *)sm_payload +
                         sizeof(SML_GlobalHeaderType) +
@@ -911,10 +911,20 @@ int32_t StreamSoundTrigger::LoadSoundModel(
     return status;
 
 error_exit:
+    /*
+     * Free sm_data allocated for engine which fails
+     * to create or load sound model first, and then
+     * release other engines which created or loaded
+     * successfully.
+     */
+    if (sm_data) {
+        free(sm_data);
+    }
     for (auto &eng: engines_) {
         if (eng->sm_data_) {
             free(eng->sm_data_);
         }
+        eng->GetEngine()->UnloadSoundModel(this);
     }
     engines_.clear();
     gsl_engine_.reset();
@@ -2518,6 +2528,9 @@ int32_t StreamSoundTrigger::StLoaded::ProcessEvent(
                         dev->getSndDeviceId(), status);
                 st_stream_.mDevices.pop_back();
                 dev->close();
+            } else {
+                QAL_DBG(LOG_TAG, "Update capture profile after device switch");
+                st_stream_.cap_prof_ = st_stream_.GetCurrentCaptureProfile();
             }
 
         connect_err:
@@ -2782,6 +2795,9 @@ int32_t StreamSoundTrigger::StActive::ProcessEvent(
                         dev->getSndDeviceId(), status);
                 st_stream_.mDevices.pop_back();
                 dev->close();
+            } else {
+                QAL_DBG(LOG_TAG, "Update capture profile after device switch");
+                st_stream_.cap_prof_ = st_stream_.GetCurrentCaptureProfile();
             }
 
         connect_err:

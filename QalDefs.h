@@ -290,8 +290,8 @@ typedef enum {
 
 /** Audio Voip TX Effect enumeration */
 typedef enum {
-    QAL_AUDIO_EFFECT_EC        = 0x1, /**< Echo Cancellation*/
-    QAL_AUDIO_EFFECT_NS        = 0x2, /**< Noise Suppression*/
+    QAL_AUDIO_EFFECT_EC        = 0x1, /**< Echo Cancellation ie., EC_ON_NS_OFF*/
+    QAL_AUDIO_EFFECT_NS        = 0x2, /**< Noise Suppression ie., NS_ON_EC_OFF*/
     QAL_AUDIO_EFFECT_ECNS      = 0x3, /**< EC + NS*/
 } qal_audio_effect_t;
 
@@ -451,6 +451,7 @@ static const std::map<uint32_t, std::string> deviceNameLUT {
 typedef enum {
     QAL_STREAM_CBK_EVENT_WRITE_READY, /* non blocking write completed */
     QAL_STREAM_CBK_EVENT_DRAIN_READY,  /* drain completed */
+    QAL_STREAM_CBK_EVENT_PARTIAL_DRAIN_READY, /* partial drain completed */
     QAL_STREAM_CBK_EVENT_ERROR, /* stream hit some error, let AF take action */
 } qal_stream_callback_event_t;
 
@@ -676,7 +677,7 @@ typedef enum {
 typedef enum {
     QAL_PARAM_ID_LOAD_SOUND_MODEL = 0,
     QAL_PARAM_ID_RECOGNITION_CONFIG = 1,
-    QAL_PARAM_ID_FLUENCE_ON_OFF = 2,
+    QAL_PARAM_ID_ECNS_ON_OFF = 2,
     QAL_PARAM_ID_DIRECTION_OF_ARRIVAL = 3,
     QAL_PARAM_ID_UIEFFECT = 4,
     QAL_PARAM_ID_STOP_BUFFERING = 5,
@@ -701,6 +702,9 @@ typedef enum {
     QAL_PARAM_ID_SLOW_TALK = 23,
     QAL_PARAM_ID_SPEAKER_RAS = 24,
     QAL_PARAM_ID_SP_SET_MODE = 25,
+    QAL_PARAM_ID_GAIN_LVL_MAP = 26,
+    QAL_PARAM_ID_GAIN_LVL_CAL = 27,
+    QAL_PARAM_ID_GAPLESS_MDATA = 28,
 }qal_param_id_type_t;
 
 /** HDMI/DP */
@@ -726,6 +730,12 @@ typedef union {
     struct qal_usb_device_address usb_addr;
 } qal_device_config_t;
 
+struct qal_amp_db_and_gain_table {
+    float    amp;
+    float    db;
+    uint32_t level;
+};
+
 /* Payload For ID: QAL_PARAM_ID_DEVICE_CONNECTION
  * Description   : Device Connection
 */
@@ -733,7 +743,23 @@ typedef struct qal_param_device_connection {
     qal_device_id_t   id;
     bool              connection_state;
     qal_device_config_t device_config;
-}qal_param_device_connection_t;
+} qal_param_device_connection_t;
+
+/* Payload For ID: QAL_PARAM_ID_GAIN_LVL_MAP
+ * Description   : get gain level mapping
+*/
+typedef struct qal_param_gain_lvl_map {
+    struct qal_amp_db_and_gain_table *mapping_tbl;
+    int                              table_size;
+    int                              filled_size;
+} qal_param_gain_lvl_map_t;
+
+/* Payload For ID: QAL_PARAM_ID_GAIN_LVL_CAL
+ * Description   : set gain level calibration
+*/
+typedef struct qal_param_gain_lvl_cal {
+    int level;
+} qal_param_gain_lvl_cal_t;
 
 /* Payload For ID: QAL_PARAM_ID_DEVICE_CAPABILITY
  * Description   : get Device Capability
@@ -743,7 +769,7 @@ typedef struct qal_param_device_connection {
   struct qal_usb_device_address addr;
   bool              is_playback;
   struct dynamic_media_config *config;
-}qal_param_device_capability_t;
+} qal_param_device_capability_t;
 
 /* Payload For ID: QAL_PARAM_ID_SCREEN_STATE
  * Description   : Screen State
@@ -1001,6 +1027,11 @@ struct ffv_doa_tracking_monitor_t
     int16_t target_angle_L16[2];
     int16_t interf_angle_L16[2];
     int8_t polarActivityGUI[360];
+};
+
+struct qal_compr_gapless_mdata {
+       uint32_t encoderDelay;
+       uint32_t encoderPadding;
 };
 
 /** @brief Callback function prototype to be given for

@@ -72,10 +72,10 @@ typedef enum {
 #define MFC_SR_96K 9
 #define MFC_SR_192K 10
 #define MFC_SR_384K 11
-#define FLUENCE_ON_TAG 12
-#define FLUENCE_OFF_TAG 13
-#define FLUENCE_EC_TAG 14
-#define FLUENCE_NS_TAG 15
+#define ECNS_ON_TAG 12
+#define ECNS_OFF_TAG 13
+#define EC_ON_TAG 14
+#define NS_ON_TAG 15
 #define CHS_1 16
 #define CHS_2 17
 #define CHS_3 18
@@ -124,6 +124,7 @@ protected:
     Session* session;
     struct qal_stream_attributes* mStreamAttr;
     struct qal_volume_data* mVolumeData = NULL;
+    int mGainLevel;
     std::mutex mStreamMutex;
     static std::mutex mBaseStreamMutex; //TBD change this. as having a single static mutex for all instances of Stream is incorrect. Replace
     static std::shared_ptr<ResourceManager> rm;
@@ -152,14 +153,12 @@ public:
     virtual int32_t start() = 0;
     virtual int32_t stop() = 0;
     virtual int32_t prepare() = 0;
-    virtual int32_t pause() {return 0;}
-    virtual int32_t resume() {return 0;}
     virtual int32_t drain(qal_drain_type_t type __unused) {return 0;}
     virtual int32_t setStreamAttributes(struct qal_stream_attributes *sattr) = 0;
-    virtual int32_t setVolume( struct qal_volume_data *volume) = 0;
-    virtual int32_t setMute( bool state) = 0;
-    virtual int32_t setPause() = 0;
-    virtual int32_t setResume()= 0;
+    virtual int32_t setVolume(struct qal_volume_data *volume) = 0;
+    virtual int32_t mute(bool state) = 0;
+    virtual int32_t pause() = 0;
+    virtual int32_t resume() = 0;
     virtual int32_t flush() {return 0;}
     virtual int32_t read(struct qal_buffer *buf) = 0;
     virtual int32_t standby() {return 0;};
@@ -191,6 +190,8 @@ public:
     int32_t getBufInfo(size_t *in_buf_size, size_t *in_buf_count,
                        size_t *out_buf_size, size_t *out_buf_count);
     int32_t getVolumeData(struct qal_volume_data *vData);
+    void setGainLevel(int level) { mGainLevel = level; };
+    int getGainLevel() { return mGainLevel; };
     /* static so that this method can be accessed wihtout object */
     static Stream* create(struct qal_stream_attributes *sattr, struct qal_device *dattr,
          uint32_t no_of_devices, struct modifier_kv *modifiers, uint32_t no_of_modifiers);

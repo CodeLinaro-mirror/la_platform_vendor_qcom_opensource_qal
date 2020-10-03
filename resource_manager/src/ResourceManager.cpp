@@ -330,6 +330,7 @@ static int max_session_num;
 bool ResourceManager::isSpeakerProtectionEnabled;
 bool ResourceManager::isRasEnabled = false;
 int ResourceManager::spQuickCalTime;
+bool ResourceManager::isGaplessEnabled = false;
 
 //TODO:Needs to define below APIs so that functionality won't break
 #ifdef FEATURE_IPQ_OPENWRT
@@ -347,7 +348,7 @@ void str_parms_destroy(struct str_parms *str_parms){return;}
 std::vector<deviceIn> ResourceManager::deviceInfo;
 std::vector<tx_ecinfo> ResourceManager::txEcInfo;
 struct vsid_info ResourceManager::vsidInfo;
-
+std::vector<struct qal_amp_db_and_gain_table> ResourceManager::gainLvlMap;
 std::map<std::pair<uint32_t, std::string>, std::string> ResourceManager::btCodecMap;
 
 #define MAKE_STRING_FROM_ENUM(string) { {#string}, string }
@@ -1685,6 +1686,9 @@ int ResourceManager::registerDevice(std::shared_ptr<Device> d, Stream *s)
     std::shared_ptr<Device> dev = nullptr;
     std::vector<std::shared_ptr<Device>> associatedDevices;
     std::vector<Stream*> str_list;
+    std::vector <Stream *> activeStreams;
+    int rxdevcount = 0;
+    struct qal_stream_attributes rx_attr;
 
     QAL_DBG(LOG_TAG, "Enter.");
     status = s->getStreamAttributes(&sAttr);
@@ -1702,12 +1706,33 @@ int ResourceManager::registerDevice(std::shared_ptr<Device> d, Stream *s)
         if (dev) {
             // use setECRef_l to avoid deadlock
             mResourceManagerMutex.unlock();
+            getActiveStream_l(dev, activeStreams);
+            for (auto& rx_str: activeStreams) {
+                 rx_str->getStreamAttributes(&rx_attr);
+                 if (rx_attr.direction != QAL_AUDIO_INPUT) {
+                     if (getEcRefStatus(sAttr.type, rx_attr.type)) {
+                         rxdevcount++;
+                     } else {
+                         QAL_DBG(LOG_TAG, "rx stream is disabled for ec ref %d", rx_attr.type);
+                         continue;
+                     }
+                 } else {
+                     QAL_DBG(LOG_TAG, "Not rx stream type %d", rx_attr.type);
+                     continue;
+                 }
+            }
             status = s->setECRef_l(dev, true);
             mResourceManagerMutex.lock();
-            if (status)
+            if (status) {
                 QAL_ERR(LOG_TAG, "Failed to enable EC Ref");
+            } else {
+               for (int i = 0; i < rxdevcount; i++) {
+                    dev->setEcRefDevCount(true, false);
+               }
+            }
         }
     } else if (sAttr.direction == QAL_AUDIO_OUTPUT &&
+        sAttr.type != QAL_STREAM_PROXY &&
         sAttr.type != QAL_STREAM_ULTRA_LOW_LATENCY) {
         status = s->getAssociatedDevices(associatedDevices);
         if (0 != status) {
@@ -1725,6 +1750,8 @@ int ResourceManager::registerDevice(std::shared_ptr<Device> d, Stream *s)
                     mResourceManagerMutex.lock();
                     if (status) {
                         QAL_ERR(LOG_TAG, "Failed to enable EC Ref");
+                    } else if (dev) {
+                       dev->setEcRefDevCount(true, false);
                     }
                 }
             }
@@ -1768,13 +1795,16 @@ int ResourceManager::deregisterDevice(std::shared_ptr<Device> d, Stream *s)
     }
 
     mResourceManagerMutex.lock();
-    deregisterDevice_l(d, s);
     if (sAttr.direction == QAL_AUDIO_INPUT) {
+        dev = getActiveEchoReferenceRxDevices_l(s);
         mResourceManagerMutex.unlock();
-        status = s->setECRef_l(nullptr, false);
+        status = s->setECRef_l(dev, false);
         mResourceManagerMutex.lock();
-        if (status)
+        if (status) {
             QAL_ERR(LOG_TAG, "Failed to disable EC Ref");
+        } else if (dev) {
+           dev->setEcRefDevCount(false, true);
+        }
     } else if (sAttr.direction == QAL_AUDIO_OUTPUT) {
         status = s->getAssociatedDevices(associatedDevices);
         if (0 != status) {
@@ -1789,7 +1819,7 @@ int ResourceManager::deregisterDevice(std::shared_ptr<Device> d, Stream *s)
                  * NOTE: this check works based on sequence that
                  * Rx stream stops device after stopping session
                  */
-                if (dev->getDeviceCount() != 1) {
+                if (dev->getEcRefDevCount() > 1) {
                     QAL_DBG(LOG_TAG, "Rx dev still active, ignore set ECRef");
                 } else if (str && isStreamActive(str, mActiveStreams)) {
                     mResourceManagerMutex.unlock();
@@ -1797,11 +1827,14 @@ int ResourceManager::deregisterDevice(std::shared_ptr<Device> d, Stream *s)
                     mResourceManagerMutex.lock();
                     if (status) {
                         QAL_ERR(LOG_TAG, "Failed to disable EC Ref");
+                    } else if (dev) {
+                          dev->setEcRefDevCount(false, false);
                     }
                 }
             }
         }
     }
+    deregisterDevice_l(d, s);
     mResourceManagerMutex.unlock();
     return status;
 }
@@ -2091,7 +2124,6 @@ int ResourceManager::SwitchSVADevices(bool connect_state,
     qal_device_id_t dest_device;
     qal_device_id_t device_to_disconnect;
     qal_device_id_t device_to_connect;
-    std::shared_ptr<CaptureProfile> cap_prof = nullptr;
     std::shared_ptr<CaptureProfile> cap_prof_priority = nullptr;
     StreamSoundTrigger *st_str = nullptr;
 
@@ -2108,7 +2140,6 @@ int ResourceManager::SwitchSVADevices(bool connect_state,
         return status;
     }
 
-    SVACaptureProfile = nullptr;
     cap_prof_priority = GetCaptureProfileByPriority(nullptr);
 
     if (!cap_prof_priority) {
@@ -2428,6 +2459,7 @@ void ResourceManager::ConcurrentStreamStatus(qal_stream_type_t type,
     bool conc_en = true;
     bool do_switch = false;
     StreamSoundTrigger *st_str = nullptr;
+    std::shared_ptr<CaptureProfile> cap_prof_priority = nullptr;
 
     mResourceManagerMutex.lock();
     QAL_DBG(LOG_TAG, "Enter, type %d direction %d active %d", type, dir, active);
@@ -2521,9 +2553,6 @@ void ResourceManager::ConcurrentStreamStatus(qal_stream_type_t type,
         }
 
         if (do_switch) {
-            // reset SVA capture profile
-            SVACaptureProfile = nullptr;
-
             // update use_lpi_ for all sva streams
             for (int i = 0; i < active_streams_st.size(); i++) {
                 st_str = active_streams_st[i];
@@ -2535,6 +2564,18 @@ void ResourceManager::ConcurrentStreamStatus(qal_stream_type_t type,
                         QAL_ERR(LOG_TAG, "Failed to stop/unload SVA stream");
                     }
                 }
+            }
+
+            // update common SVA capture profile
+            SVACaptureProfile = nullptr;
+            cap_prof_priority = GetCaptureProfileByPriority(nullptr);
+
+            if (!cap_prof_priority) {
+                QAL_DBG(LOG_TAG, "No SVA session active, reset capture profile");
+                SVACaptureProfile = nullptr;
+            } else if (cap_prof_priority->ComparePriority(SVACaptureProfile) ==
+                    CAPTURE_PROFILE_PRIORITY_HIGH) {
+                SVACaptureProfile = cap_prof_priority;
             }
 
             // stop/unload all sva streams
@@ -2730,6 +2771,8 @@ bool ResourceManager::checkECRef(std::shared_ptr<Device> rx_dev,
     tx_dev_id = tx_dev->getSndDeviceId();
     // TODO: address all possible combinations
     if ((rx_dev_id == QAL_DEVICE_OUT_SPEAKER) ||
+        (rx_dev_id == QAL_DEVICE_OUT_SPEAKER &&
+         tx_dev_id == QAL_DEVICE_IN_SPEAKER_MIC) ||
         (rx_dev_id == QAL_DEVICE_OUT_HANDSET &&
          tx_dev_id == QAL_DEVICE_IN_HANDSET_MIC) ||
         (rx_dev_id == QAL_DEVICE_OUT_WIRED_HEADSET &&
@@ -4083,8 +4126,8 @@ int32_t ResourceManager::a2dpSuspend()
                 struct qal_device speakerDattr;
 
                 QAL_DBG(LOG_TAG, "selecting speaker and muting stream");
-                (*sIter)->pause(); // compress_pause
-                (*sIter)->setMute(true); // mute the stream, unmute during a2dp_resume
+                (*sIter)->pause();
+                (*sIter)->mute(true); // mute the stream, unmute during a2dp_resume
                 (*sIter)->a2dp_compress_mute = true;
                 // force switch to speaker
                 speakerDattr.id = QAL_DEVICE_OUT_SPEAKER;
@@ -4100,7 +4143,7 @@ int32_t ResourceManager::a2dpSuspend()
                 mResourceManagerMutex.unlock();
                 forceDeviceSwitch(dev, &speakerDattr);
                 mResourceManagerMutex.lock();
-                (*sIter)->resume(); //compress_resume
+                (*sIter)->resume();
                 /* backup actual device name in stream class */
                 (*sIter)->suspendedDevId = QAL_DEVICE_OUT_BLUETOOTH_A2DP;
             }
@@ -4169,7 +4212,7 @@ int32_t ResourceManager::a2dpResume()
             mResourceManagerMutex.lock();
             (*sIter)->suspendedDevId = QAL_DEVICE_NONE;
             if ((*sIter)->a2dp_compress_mute) {
-                (*sIter)->setMute(false);
+                (*sIter)->mute(false);
                 (*sIter)->a2dp_compress_mute = false;
             }
         }
@@ -4226,6 +4269,17 @@ int ResourceManager::getParameter(uint32_t param_id, void **param_payload,
                 *param_payload = param_bt_a2dp;
                 *payload_size = sizeof(qal_param_bta2dp_t);
             }
+            break;
+        }
+        case QAL_PARAM_ID_GAIN_LVL_MAP:
+        {
+            qal_param_gain_lvl_map_t *param_gain_lvl_map =
+                (qal_param_gain_lvl_map_t *)param_payload;
+
+            param_gain_lvl_map->filled_size =
+                getGainLevelMapping(param_gain_lvl_map->mapping_tbl,
+                                    param_gain_lvl_map->table_size);
+            *payload_size = sizeof(qal_param_gain_lvl_map_t);
             break;
         }
         case QAL_PARAM_ID_DEVICE_CAPABILITY:
@@ -4621,6 +4675,49 @@ setdevparam:
                 if (status) {
                     QAL_ERR(LOG_TAG, "set Parameter %d failed\n", param_id);
                     goto exit;
+                }
+            }
+        }
+        break;
+        case QAL_PARAM_ID_GAIN_LVL_CAL:
+        {
+            struct qal_device dattr;
+            Stream *stream = NULL;
+            std::vector<Stream*> activestreams;
+            Session *session = NULL;
+
+            qal_param_gain_lvl_cal_t *gain_lvl_cal = (qal_param_gain_lvl_cal_t *) param_payload;
+            if (payload_size != sizeof(qal_param_gain_lvl_cal_t)) {
+                QAL_ERR(LOG_TAG, "incorrect payload size : expected (%zu), received(%zu)",
+                      sizeof(qal_param_gain_lvl_cal_t), payload_size);
+                status = -EINVAL;
+                goto exit;
+            }
+
+            for (int i = 0; i < active_devices.size(); i++) {
+                int deviceId = active_devices[i].first->getSndDeviceId();
+                status = active_devices[i].first->getDeviceAttributes(&dattr);
+                if (0 != status) {
+                   QAL_ERR(LOG_TAG,"getDeviceAttributes Failed");
+                   goto exit;
+                }
+                if ((QAL_DEVICE_OUT_SPEAKER == deviceId) ||
+                    (QAL_DEVICE_OUT_WIRED_HEADSET == deviceId) ||
+                    (QAL_DEVICE_OUT_WIRED_HEADPHONE == deviceId)) {
+                    status = getActiveStream_l(active_devices[i].first, activestreams);
+                    if ((0 != status) || (activestreams.size() == 0)) {
+                       QAL_ERR(LOG_TAG, "no other active streams found");
+                       status = -EINVAL;
+                       goto exit;
+                    }
+                    stream = static_cast<Stream *>(activestreams[0]);
+                    stream->setGainLevel(gain_lvl_cal->level);
+                    stream->getAssociatedSession(&session);
+                    status = session->setConfig(stream, CALIBRATION, TAG_DEVICE_PP_MBDRC);
+                    if (0 != status) {
+                        QAL_ERR(LOG_TAG, "session setConfig failed with status %d", status);
+                        goto exit;
+                    }
                 }
             }
         }
@@ -5266,6 +5363,63 @@ void ResourceManager::processDeviceCapability(struct xml_userdata *data, const X
     }
 }
 
+void ResourceManager::process_gain_db_to_level_map(struct xml_userdata *data, const XML_Char **attr)
+{
+    struct qal_amp_db_and_gain_table tbl_entry;
+
+    if (data->gain_lvl_parsed)
+        return;
+
+    if ((strcmp(attr[0], "db") != 0) ||
+        (strcmp(attr[2], "level") != 0)) {
+        QAL_ERR(LOG_TAG, "invalid attribute passed  %s %sexpected amp db level", attr[0], attr[2]);
+        goto done;
+    }
+
+    tbl_entry.db = atof(attr[1]);
+    tbl_entry.amp = exp(tbl_entry.db * 0.115129f);
+    tbl_entry.level = atoi(attr[3]);
+
+    // custome level should be > 0. Level 0 is fixed for default
+    if (tbl_entry.level <= 0) {
+        QAL_ERR(LOG_TAG, "amp [%f]  db [%f] level [%d]",
+               tbl_entry.amp, tbl_entry.db, tbl_entry.level);
+        goto done;
+    }
+
+    QAL_VERBOSE(LOG_TAG, "amp [%f]  db [%f] level [%d]",
+           tbl_entry.amp, tbl_entry.db, tbl_entry.level);
+
+    if (!gainLvlMap.empty() && (gainLvlMap.back().amp >= tbl_entry.amp)) {
+        QAL_ERR(LOG_TAG, "value not in ascending order .. rejecting custom mapping");
+        gainLvlMap.clear();
+        data->gain_lvl_parsed = true;
+    }
+
+    gainLvlMap.push_back(tbl_entry);
+
+done:
+    return;
+}
+
+int ResourceManager::getGainLevelMapping(struct qal_amp_db_and_gain_table *mapTbl, int tblSize)
+{
+    int size = 0;
+
+    if (gainLvlMap.empty()) {
+        QAL_DBG(LOG_TAG, "empty or currupted gain_mapping_table");
+        return 0;
+    }
+
+    for (; size < gainLvlMap.size() && size <= tblSize; size++) {
+        mapTbl[size] = gainLvlMap.at(size);
+        QAL_VERBOSE(LOG_TAG, "added amp[%f] db[%f] level[%d]",
+                mapTbl[size].amp, mapTbl[size].db, mapTbl[size].level);
+    }
+
+    return size;
+}
+
 void ResourceManager::snd_reset_data_buf(struct xml_userdata *data)
 {
     data->offs = 0;
@@ -5482,6 +5636,22 @@ void ResourceManager::snd_process_data_buf(struct xml_userdata *data, const XML_
     }
 }
 
+void ResourceManager::setGaplessMode(const XML_Char **attr)
+{
+    if (strcmp(attr[0], "key") != 0) {
+        QAL_ERR(LOG_TAG, "key not found");
+        return;
+    }
+    if (strcmp(attr[2], "value") != 0) {
+        QAL_ERR(LOG_TAG, "value not found");
+        return;
+    }
+    if (atoi(attr[3])) {
+       isGaplessEnabled = true;
+       return;
+    }
+}
+
 void ResourceManager::startTag(void *userdata, const XML_Char *tag_name,
     const XML_Char **attr)
 {
@@ -5507,6 +5677,9 @@ void ResourceManager::startTag(void *userdata, const XML_Char *tag_name,
     } else if (strcmp(tag_name, "codec") == 0) {
         processBTCodecInfo(attr);
         return;
+    } else if (strcmp(tag_name, "config_gapless") == 0) {
+        setGaplessMode(attr);
+        return;
     }
 
     if (data->card_parsed)
@@ -5523,6 +5696,11 @@ void ResourceManager::startTag(void *userdata, const XML_Char *tag_name,
     } else if (!strcmp(tag_name, "modepair")) {
         data->tag = TAG_CONFIG_MODE_PAIR;
         process_voicemode_info(attr);
+    } else if (!strcmp(tag_name, "gain_db_to_level_mapping")) {
+        data->tag = TAG_GAIN_LEVEL_MAP;
+    } else if (!strcmp(tag_name, "gain_level_map")) {
+        data->tag = TAG_GAIN_LEVEL_PAIR;
+        process_gain_db_to_level_map(data, attr);
     } else if (!strcmp(tag_name, "device_profile")) {
         data->tag = TAG_DEVICE_PROFILE;
     } else if (!strcmp(tag_name, "in-device")) {
