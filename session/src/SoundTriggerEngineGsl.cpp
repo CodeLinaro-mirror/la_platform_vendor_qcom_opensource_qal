@@ -125,7 +125,11 @@ int32_t SoundTriggerEngineGsl::StartBuffering() {
     QAL_DBG(LOG_TAG, "Enter");
     stream_handle_->getBufInfo(&input_buf_size, &input_buf_num,
                                &output_buf_size, &output_buf_num);
+#if defined(LINUX_ENABLED)
+    memset(&buf, 0, sizeof(struct qal_buffer));
+#else
     std::memset(&buf, 0, sizeof(struct qal_buffer));
+#endif
     buf.size = input_buf_size * input_buf_num;
     buf.buffer = (uint8_t *)calloc(1, buf.size);
     if (!buf.buffer) {
@@ -229,8 +233,11 @@ int32_t SoundTriggerEngineGsl::ParseDetectionPayload(void *event_data) {
         return -EINVAL;
     }
 
+#if defined(LINUX_ENABLED)
+    memset(&detection_event_info_, 0, sizeof(struct detection_event_info));
+#else
     std::memset(&detection_event_info_, 0, sizeof(struct detection_event_info));
-
+#endif
     generic_info =
         (struct event_id_detection_engine_generic_info_t *)event_data;
     payload_size = sizeof(struct event_id_detection_engine_generic_info_t);
@@ -338,7 +345,11 @@ SoundTriggerEngineGsl::SoundTriggerEngineGsl(
     reader_ = nullptr;
     buffer_ = nullptr;
 
+#if defined(LINUX_ENABLED)
+    memset(&detection_event_info_, 0, sizeof(struct detection_event_info));
+#else
     std::memset(&detection_event_info_, 0, sizeof(struct detection_event_info));
+#endif
 
     QAL_DBG(LOG_TAG, "Enter");
     StreamSoundTrigger *st_str = dynamic_cast<StreamSoundTrigger *>(s);

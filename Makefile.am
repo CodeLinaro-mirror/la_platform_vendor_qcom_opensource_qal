@@ -11,7 +11,7 @@ h_sources = ./stream/inc/Stream.h \
             ./device/inc/Device.h \
             ./device/inc/Speaker.h \
             ./device/inc/Bluetooth.h \
-            ./plugins/codecs/bt_plugin_intf.h \
+            ./plugins/codecs/bt_intf.h \
             ./device/inc/Headphone.h \
             ./device/inc/USBAudio.h \
             ./device/inc/SpeakerMic.h \
@@ -78,9 +78,8 @@ h_sources = ${top_srcdir}/stream/inc/Stream.h \
             ${top_srcdir}/device/inc/Speaker.h \
             ${top_srcdir}/device/inc/Headphone.h \
             ${top_srcdir}/device/inc/Bluetooth.h \
-            ${top_srcdir}/plugins/codecs/bt_plugin_intf.h \
+            ${top_srcdir}/plugins/codecs/bt_intf.h \
             ${top_srcdir}/device/inc/USBAudio.h \
-            ${top_srcdir}/device/inc/Device.h \
             ${top_srcdir}/device/inc/SpeakerMic.h \
             ${top_srcdir}/device/inc/HeadsetMic.h \
             ${top_srcdir}/device/inc/Handset.h \
@@ -102,7 +101,6 @@ h_sources = ${top_srcdir}/stream/inc/Stream.h \
             ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2_extn.h \
             ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2_properties.h \
             ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2_types.h \
-            ${WORKSPACE}/audio/mm-audio/capiv2_api/ar_defs.h \
             ${top_srcdir}/resource_manager/inc/ResourceManager.h \
             ${top_srcdir}/QalDefs.h \
             ${top_srcdir}/QalApi.h \
@@ -115,10 +113,13 @@ AM_CPPFLAGS += -I $(top_srcdir)/device/inc
 AM_CPPFLAGS += -I $(top_srcdir)/session/inc
 AM_CPPFLAGS += -I $(top_srcdir)/resource_manager/inc
 AM_CPPFLAGS += -I $(top_srcdir)/utils/inc
+AM_CPPFLAGS += -I $(top_srcdir)/plugins/codecs
 AM_CPPFLAGS += -I $(top_srcdir)/
 AM_CPPFLAGS += $(SPF_CFLAGS)/
 AM_CPPFLAGS += $(ACDBDATA_CFLAGS)
 AM_CPPFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/agm
+AM_CPPFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/spf
+AM_CPPFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/
 
 AM_CPPFLAGS += -I ${WORKSPACE}/audio/mm-audio/capiv2_api/
 
