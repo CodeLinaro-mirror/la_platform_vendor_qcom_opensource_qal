@@ -533,12 +533,14 @@ ResourceManager::ResourceManager()
             }
         }
     }
+#ifndef LINUX_ENABLED
     // Get AGM service handle
     ret = agm_register_service_crash_callback(&agmServiceCrashHandler,
                                                (uint64_t)this);
     if (ret) {
         QAL_ERR(LOG_TAG, "AGM service not up%d", ret);
     }
+#endif
 
     ResourceManager::loadAdmLib();
 
