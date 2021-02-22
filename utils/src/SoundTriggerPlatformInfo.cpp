@@ -47,7 +47,7 @@ const std::map<std::string, uint32_t> devicePPKeyLUT {
 const std::map<std::string, uint32_t> devicePPValueLUT {
     {std::string{ "DEVICEPP_TX_VOICE_UI_FLUENCE_FFNS" }, DEVICEPP_TX_VOICE_UI_FLUENCE_FFNS},
     {std::string{ "DEVICEPP_TX_VOICE_UI_FLUENCE_FFECNS" }, DEVICEPP_TX_VOICE_UI_FLUENCE_FFECNS},
-    {std::string{ "DEVICEPP_TX_VOICE_UI_RAW" }, DEVICEPP_TX_VOICE_UI_RAW},
+    {std::string{ "DEVICEPP_TX_VOICE_UI_RAW_LPI" }, DEVICEPP_TX_VOICE_UI_RAW_LPI},
 };
 
 const std::map<std::string, uint32_t> streamConfigKeyLUT {

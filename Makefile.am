@@ -72,20 +72,24 @@ qal_sources = ./stream/src/Stream.cpp \
 else
 h_sources = ${top_srcdir}/stream/inc/Stream.h \
             ${top_srcdir}/stream/inc/StreamCompress.h \
+            ${top_srcdir}/stream/inc/StreamInCall.h \
             ${top_srcdir}/stream/inc/StreamPCM.h \
             ${top_srcdir}/stream/inc/StreamSoundTrigger.h \
-            ${top_srcdir}/device/inc/Device.h \
-            ${top_srcdir}/device/inc/Speaker.h \
-            ${top_srcdir}/device/inc/Headphone.h \
             ${top_srcdir}/device/inc/Bluetooth.h \
-            ${top_srcdir}/plugins/codecs/bt_intf.h \
-            ${top_srcdir}/device/inc/USBAudio.h \
-            ${top_srcdir}/device/inc/SpeakerMic.h \
-            ${top_srcdir}/device/inc/HeadsetMic.h \
+            ${top_srcdir}/device/inc/Device.h \
+            ${top_srcdir}/device/inc/DisplayPort.h \
             ${top_srcdir}/device/inc/Handset.h \
             ${top_srcdir}/device/inc/HandsetMic.h \
             ${top_srcdir}/device/inc/HandsetVaMic.h \
-            ${top_srcdir}/device/inc/DisplayPort.h \
+            ${top_srcdir}/device/inc/Headphone.h \
+            ${top_srcdir}/device/inc/HeadsetMic.h \
+            ${top_srcdir}/device/inc/HeadsetVaMic.h \
+            ${top_srcdir}/device/inc/RTProxy.h \
+            ${top_srcdir}/device/inc/Speaker.h \
+            ${top_srcdir}/device/inc/SpeakerMic.h \
+            ${top_srcdir}/device/inc/SpeakerProtection.h \
+            ${top_srcdir}/device/inc/USBAudio.h \
+            ${top_srcdir}/plugins/codecs/bt_intf.h \
             ${top_srcdir}/session/inc/Session.h \
             ${top_srcdir}/session/inc/PayloadBuilder.h \
             ${top_srcdir}/session/inc/SessionGsl.h \
@@ -106,7 +110,8 @@ h_sources = ${top_srcdir}/stream/inc/Stream.h \
             ${top_srcdir}/QalApi.h \
             ${top_srcdir}/QalAudioRoute.h \
             ${top_srcdir}/QalCommon.h \
-            ${top_srcdir}/utils/inc/QalRingBuffer.h
+            ${top_srcdir}/utils/inc/QalRingBuffer.h \
+            ${top_srcdir}/utils/inc/SoundTriggerPlatformInfo.h
 
 AM_CPPFLAGS := -I $(top_srcdir)/stream/inc
 AM_CPPFLAGS += -I $(top_srcdir)/device/inc
@@ -132,18 +137,23 @@ library_includedir = $(includedir)/qal
 
 qal_sources = ${top_srcdir}/stream/src/Stream.cpp \
               ${top_srcdir}/stream/src/StreamCompress.cpp \
+              ${top_srcdir}/stream/src/StreamInCall.cpp \
               ${top_srcdir}/stream/src/StreamPCM.cpp \
               ${top_srcdir}/stream/src/StreamSoundTrigger.cpp \
-              ${top_srcdir}/device/src/Device.cpp \
-              ${top_srcdir}/device/src/Speaker.cpp \
-              ${top_srcdir}/device/src/Headphone.cpp \
-              ${top_srcdir}/device/src/SpeakerMic.cpp \
               ${top_srcdir}/device/src/Bluetooth.cpp \
-              ${top_srcdir}/device/src/HeadsetMic.cpp \
+              ${top_srcdir}/device/src/Device.cpp \
+              ${top_srcdir}/device/src/DisplayPort.cpp \
               ${top_srcdir}/device/src/Handset.cpp \
               ${top_srcdir}/device/src/HandsetMic.cpp \
               ${top_srcdir}/device/src/HandsetVaMic.cpp \
-              ${top_srcdir}/device/src/DisplayPort.cpp \
+              ${top_srcdir}/device/src/Headphone.cpp \
+              ${top_srcdir}/device/src/HeadsetMic.cpp \
+              ${top_srcdir}/device/src/HeadsetVaMic.cpp \
+              ${top_srcdir}/device/src/RTProxy.cpp \
+              ${top_srcdir}/device/src/Speaker.cpp \
+              ${top_srcdir}/device/src/SpeakerMic.cpp \
+              ${top_srcdir}/device/src/SpeakerProtection.cpp \
+              ${top_srcdir}/device/src/USBAudio.cpp \
               ${top_srcdir}/session/src/Session.cpp \
               ${top_srcdir}/session/src/PayloadBuilder.cpp \
               ${top_srcdir}/session/src/SessionAlsaUtils.cpp \
@@ -154,8 +164,10 @@ qal_sources = ${top_srcdir}/stream/src/Stream.cpp \
               ${top_srcdir}/session/src/SoundTriggerEngineGsl.cpp \
               ${top_srcdir}/session/src/SoundTriggerEngineCapi.cpp \
               ${top_srcdir}/resource_manager/src/ResourceManager.cpp \
+              ${top_srcdir}/resource_manager/src/SndCardMonitor.cpp \
               ${top_srcdir}/Qal.cpp \
-              ${top_srcdir}/utils/src/QalRingBuffer.cpp
+              ${top_srcdir}/utils/src/QalRingBuffer.cpp \
+              ${top_srcdir}/utils/src/SoundTriggerPlatformInfo.cpp
 
 endif
 
