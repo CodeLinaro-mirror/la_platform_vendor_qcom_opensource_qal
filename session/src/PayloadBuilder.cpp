@@ -1712,7 +1712,7 @@ int PayloadBuilder::populateCalKeyVector(Stream *s, std::vector <std::pair<int,i
         if (sAttr.type == QAL_STREAM_VOICE_UI) {
             stream_config_kv = s->getStreamModifiers();
             if (stream_config_kv.size() == 0 ||
-                stream_config_kv[0].second != VUI_STREAM_CFG_SVA) {
+                stream_config_kv[0].second != STREAM_CFG_VUI_SVA) {
                 QAL_DBG(LOG_TAG, "Skip fluence ckv for non-SVA case");
                 break;
             }
