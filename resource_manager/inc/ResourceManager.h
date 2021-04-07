@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following lice
+nse:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef RESOURCE_MANAGER_H
@@ -100,6 +106,7 @@ typedef enum {
     TAG_INSTREAM,
     TAG_POLICIES,
     TAG_ECREF,
+    TAG_CUSTOMCONFIG,
 } resource_xml_tags_t;
 
 typedef enum {
@@ -122,6 +129,7 @@ struct xml_userdata {
     snd_card_defs_xml_tags_t current_tag;
     bool is_parsing_sound_trigger;
     resource_xml_tags_t tag;
+    bool inCustomConfig;
 };
 
 typedef enum {
@@ -150,10 +158,23 @@ typedef enum {
     SIDETONE_SW,
 } sidetone_mode_t;
 
+
+struct usecase_custom_config_info
+{
+    std::string key;
+    std::string sndDevName;
+    int channel;
+    std::vector<kvpair_info> kvpair;
+    sidetone_mode_t sidetoneMode;
+};
+
 struct usecase_info {
     int type;
     std::vector<kvpair_info> kvpair;
     sidetone_mode_t sidetoneMode;
+    std::string sndDevName;
+    int channel;
+    std::vector<usecase_custom_config_info> config;
 };
 
 struct deviceIn {
@@ -161,6 +182,7 @@ struct deviceIn {
     int max_channel;
     int channel;
     std::vector<usecase_info> usecase;
+    std::vector<kvpair_info> kvpair;
 };
 
 struct pal_device_info {
@@ -382,8 +404,13 @@ public:
     int32_t getDeviceConfig(struct pal_device *deviceattr,
                             struct pal_stream_attributes *attributes, int32_t channel);
     /*getDeviceInfo - updates channels, fluence info of the device*/
-    void  getDeviceInfo(pal_device_id_t deviceId, pal_stream_type_t type,
+    void getDeviceInfo(pal_device_id_t deviceId, pal_stream_type_t type,
                        struct pal_device_info *devinfo);
+    void getDeviceInfo(pal_device_id_t deviceId, pal_stream_type_t type,
+                       std::string key, struct pal_device_info *devinfo);
+    void setDeviceInfo(pal_device_id_t deviceId, pal_stream_type_t type,
+                       std::string key);
+    void setDeviceInfo(pal_device_id_t deviceId, pal_stream_type_t type);
     bool getEcRefStatus(pal_stream_type_t tx_streamtype,pal_stream_type_t rx_streamtype);
     int32_t getVsidInfo(struct vsid_info  *info);
     void getChannelMap(uint8_t *channel_map, int channels);
@@ -498,7 +525,7 @@ public:
     static void process_device_info(struct xml_userdata *data, const XML_Char *tag_name);
     static void process_input_streams(struct xml_userdata *data, const XML_Char *tag_name);
     static void process_config_voice(struct xml_userdata *data, const XML_Char *tag_name);
-    static void process_kvinfo(const XML_Char **attr);
+    static void process_kvinfo(const XML_Char **attr, bool overwrite);
     static void process_voicemode_info(const XML_Char **attr);
     static void process_gain_db_to_level_map(struct xml_userdata *data, const XML_Char **attr);
     static void processCardInfo(struct xml_userdata *data, const XML_Char *tag_name);
@@ -543,6 +570,8 @@ public:
     int getStreamInstanceID(Stream *str);
     int resetStreamInstanceID(Stream *str, uint32_t sInstanceID);
     static void setGaplessMode(const XML_Char **attr);
+    static void process_custom_config(const XML_Char **attr);
+    static void process_usecase();
 };
 
 #endif
