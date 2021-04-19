@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -57,6 +57,7 @@ private:
     std::vector <std::pair<int, int>> gkv;
     std::vector <std::pair<int, int>> ckv;
     std::vector <std::pair<int, int>> tkv;
+    std::vector <std::pair<int,int>> freqPair;
     std::thread threadHandler;
     uint32_t vsid = 0x11C0500; /*defualt*/
     float default_volume = 0.4;
@@ -101,6 +102,10 @@ private:
     int getTXDeviceId(Stream *s, int *id);
     int populate_rx_mfc_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
     int populate_vsid_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
+    int payloadDtmfGenTaged(Stream *s,int tag, void *pData, int dir);
+    int setDtmfGenTKV(Stream * s, std::vector <std::pair<int,int>> &tkv, int index,
+                     int size, uint32_t* gsltag);
+    int populateFreqPair();
 };
 
 #endif //SESSION_ALSAVOICE_H

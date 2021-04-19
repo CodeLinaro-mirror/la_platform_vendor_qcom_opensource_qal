@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -96,6 +96,7 @@ typedef enum {
 #define INCALL_RECORD_DOWNLINK 33
 #define INCALL_RECORD_UPLINK_DOWNLINK_MONO 34
 #define INCALL_RECORD_UPLINK_DOWNLINK_STEREO 35
+#define DTMF_GEN 36
 /* This sleep is added to give time to kernel and
  * spf to recover from SSR so that audio-hal will
  * not continously try to open a session if it fails

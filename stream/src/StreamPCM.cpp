@@ -35,6 +35,7 @@
 #include "Session.h"
 #include "kvh2xml.h"
 #include "SessionAlsaPcm.h"
+#include "SessionAlsaVoice.h"
 #include "ResourceManager.h"
 #include "Device.h"
 #include <unistd.h>
@@ -979,6 +980,16 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
             if (status)
                PAL_ERR(LOG_TAG, "setParam for slow talk failed with %d",
                        status);
+            break;
+        }
+        case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
+        {
+            status = session->setParameters(this, DTMF_GEN,
+                                            param_id, payload);
+            if (0 != status) {
+                PAL_ERR(LOG_TAG, "Dtmf Gen setParams Failed with status %d",
+                        status);
+            }
             break;
         }
         default:

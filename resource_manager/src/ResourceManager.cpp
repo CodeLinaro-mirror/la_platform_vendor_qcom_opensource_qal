@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -4393,6 +4393,24 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
 
         }
         break;
+        case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
+        {
+            pal_param_dtmf_gen_tone_cfg_t* param_dtmf_gen =
+                                      (pal_param_dtmf_gen_tone_cfg_t*) param_payload;
+            if(!param_dtmf_gen) {
+                status = -ENOMEM;
+                PAL_ERR(LOG_TAG, "failed to get dtmf gen payload %d", status);
+                goto exit;
+            }
+            if (payload_size == sizeof(pal_param_dtmf_gen_tone_cfg_t)) {
+                status = handleDtmfToneGeneration(*param_dtmf_gen);
+            } else {
+                PAL_ERR(LOG_TAG,"Incorrect size : expected (%zu), received(%zu)",
+                        sizeof(pal_param_dtmf_gen_tone_cfg_t), payload_size);
+                status = -EINVAL;
+            }
+        }
+        break;
         case PAL_PARAM_ID_SP_SET_MODE:
         {
             pal_spkr_prot_payload *spModeval =
@@ -4883,6 +4901,49 @@ error :
     PAL_INFO(LOG_TAG, "Exiting handleDeviceRotationChange");
     return status;
 }
+
+
+
+int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
+                                                param_dtmf_gen) {
+    std::vector<Stream*>::iterator sIter;
+    std::vector<Stream*> activestreams;
+    pal_stream_type_t streamType;
+    struct pal_device dattr;
+    struct pal_stream_attributes sAttr;
+    Session *session = NULL;
+    int status = 0;
+
+    /*Get the active device list and check if voice call devices are present*/
+    for (int i = 0; i < active_devices.size(); i++) {
+        status = getActiveStream_l(active_devices[i].first, activestreams);
+        if ((0 != status) || (activestreams.size() == 0)) {
+            PAL_ERR(LOG_TAG, "no other active streams found");
+            status = -EINVAL;
+            goto exit;
+        }
+        for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
+            status = (*sIter)->getStreamAttributes(&sAttr);
+            if(0 != status) {
+                PAL_ERR(LOG_TAG,"getStreamAttribute Failed");
+                goto exit;
+            }
+            if (((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX))) {
+                status = (*sIter)->setParameters(PAL_PARAM_ID_DTMF_GEN_TONE_CFG,
+                                                 (void*)&param_dtmf_gen);
+                if (0 != status) {
+                    PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
+                    goto exit;
+                }
+            }
+        }
+        break;
+    }
+exit:
+    return status;
+}
+
 
 bool ResourceManager::getScreenState()
 {

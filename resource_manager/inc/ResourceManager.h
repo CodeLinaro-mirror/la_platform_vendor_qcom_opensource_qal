@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -258,6 +258,7 @@ private:
     int getDeviceDefaultCapability(pal_param_device_capability_t capability);
 
     int handleScreenStatusChange(pal_param_screen_state_t screen_state);
+    int handleDtmfToneGeneration(pal_param_dtmf_gen_tone_cfg_t param_dtmf_gen);
     int handleDeviceRotationChange(pal_param_device_rotation_t rotation_type);
     int handleDeviceConnectionChange(pal_param_device_connection_t connection_state);
     int32_t streamDevDisconnect(std::vector <std::tuple<Stream *, uint32_t>> streamDevDisconnectList);
