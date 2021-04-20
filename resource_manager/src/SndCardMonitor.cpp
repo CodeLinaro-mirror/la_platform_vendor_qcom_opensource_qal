@@ -74,6 +74,11 @@ int  SndCardMonitor::onSndcardStateUpdate(sndcard_t *s)
     card_status_t status;
 
     rd_buf = readState(s->fd);
+    if (!rd_buf) {
+        ret = -EINVAL;
+        QAL_ERR(LOG_TAG, "Error reading rd_buf");
+        return ret;
+    }
 
     QAL_VERBOSE(LOG_TAG, "card num %d, new state %s old state %d", s->card, rd_buf, s->status);
 

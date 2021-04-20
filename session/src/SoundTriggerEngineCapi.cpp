@@ -489,6 +489,9 @@ SoundTriggerEngineCapi::SoundTriggerEngineCapi(
     bytes_processed_ = 0;
     reader_ = nullptr;
     buffer_ = nullptr;
+    capi_handle_ = nullptr;
+    capi_lib_handle_ = nullptr;
+    capi_init_ = nullptr;
     stream_handle_ = s;
 
     StreamSoundTrigger *st_str = dynamic_cast<StreamSoundTrigger *>(s);

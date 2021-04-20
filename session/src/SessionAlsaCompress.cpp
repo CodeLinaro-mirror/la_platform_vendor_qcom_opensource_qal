@@ -203,7 +203,7 @@ int SessionAlsaCompress::setCustomFormatParam(qal_audio_fmt_t audio_fmt)
 void SessionAlsaCompress::offloadThreadLoop(SessionAlsaCompress* compressObj)
 {
     std::shared_ptr<offload_msg> msg;
-    uint32_t event_id;
+    uint32_t event_id = 0;
     int ret = 0;
     bool is_drain_called = false;
     std::unique_lock<std::mutex> lock(compressObj->cv_mutex_);
@@ -750,7 +750,7 @@ int SessionAlsaCompress::configureEarlyEOSDelay(void)
     }
     if (payloadSize) {
         status = updateCustomPayload(payload, payloadSize);
-        delete payload;
+        delete[] payload;
         if(0 != status) {
             QAL_ERR(LOG_TAG,"%s: updateCustomPayload Failed\n", __func__);
             return status;

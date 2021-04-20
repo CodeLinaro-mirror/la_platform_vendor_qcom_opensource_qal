@@ -320,12 +320,12 @@ int32_t Stream::setBufInfo(size_t *in_buf_size, size_t in_buf_count,
     }
 
     if (!in_buf_size)
-        QAL_DBG(LOG_TAG, "In Buffer size %zu, In Buffer count %zu",
-                *in_buf_size, in_buf_count);
+        QAL_DBG(LOG_TAG, "Invalid In Buffer size, In Buffer count %zu",
+                in_buf_count);
 
     if (!out_buf_size)
-        QAL_DBG(LOG_TAG, "Out Buffer size %zu and Out Buffer count %zu",
-                *out_buf_size, out_buf_count);
+        QAL_DBG(LOG_TAG, "Invalid Out Buffer size, Out Buffer count %zu",
+                out_buf_count);
     inBufCount = in_buf_count;
     outBufCount = out_buf_count;
 
@@ -412,11 +412,11 @@ int32_t Stream::getBufInfo(size_t *in_buf_size, size_t *in_buf_count,
     if (out_buf_count)
         *out_buf_count = outBufCount;
 
-    if (!in_buf_size)
+    if (in_buf_size && in_buf_count)
         QAL_DBG(LOG_TAG, "In Buffer size %zu, In Buffer count %zu",
                 *in_buf_size, *in_buf_count);
 
-    if (!out_buf_size)
+    if (out_buf_size && out_buf_count)
         QAL_DBG(LOG_TAG, "Out Buffer size %zu and Out Buffer count %zu",
                 *out_buf_size, *out_buf_count);
 

@@ -149,7 +149,7 @@ int USB::configureUsb()
     builder->payloadUsbAudioConfig(&payload, &payloadSize, miid, &cfg);
     if (payloadSize) {
         status = updateCustomPayload(payload, payloadSize);
-        delete payload;
+        delete[] payload;
         if (0 != status) {
         QAL_ERR(LOG_TAG,"updateCustomPayload Failed\n");
         return status;

@@ -202,7 +202,11 @@ void PayloadBuilder::payloadUsbAudioConfig(uint8_t** payload, size_t* size,
     if (payloadSize % 8 != 0)
         payloadSize = payloadSize + (8 - payloadSize % 8);
 
-    payloadInfo = (uint8_t*)malloc((size_t)payloadSize);
+    payloadInfo = new uint8_t[payloadSize]();
+    if (!payloadInfo) {
+        QAL_ERR(LOG_TAG, "payloadInfo malloc failed %s", strerror(errno));
+        return;
+    }
 
     header = (struct apm_module_param_data_t*)payloadInfo;
     usbConfig = (struct param_id_usb_audio_intf_cfg_t*)(payloadInfo + sizeof(struct apm_module_param_data_t));
@@ -238,7 +242,11 @@ void PayloadBuilder::payloadDpAudioConfig(uint8_t** payload, size_t* size,
     if (payloadSize % 8 != 0)
         payloadSize = payloadSize + (8 - payloadSize % 8);
 
-    payloadInfo = (uint8_t*)malloc((size_t)payloadSize);
+    payloadInfo = new uint8_t[payloadSize]();
+    if (!payloadInfo) {
+        QAL_ERR(LOG_TAG, "payloadInfo malloc failed %s", strerror(errno));
+        return;
+    }
 
     header = (struct apm_module_param_data_t*)payloadInfo;
     dpConfig = (struct dpAudioConfig*)(payloadInfo + sizeof(struct apm_module_param_data_t));
@@ -265,7 +273,7 @@ void PayloadBuilder::payloadMFCConfig(uint8_t** payload, size_t* size,
 {
     struct apm_module_param_data_t* header = NULL;
     struct param_id_mfc_output_media_fmt_t *mfcConf;
-    int numChannels = data->numChannel;
+    int numChannels;
     uint16_t* pcmChannel = NULL;
     uint8_t* payloadInfo = NULL;
     size_t payloadSize = 0, padBytes = 0;
@@ -274,6 +282,7 @@ void PayloadBuilder::payloadMFCConfig(uint8_t** payload, size_t* size,
         QAL_ERR(LOG_TAG, "Invalid input parameters");
         return;
     }
+    numChannels = data->numChannel;
     payloadSize = sizeof(struct apm_module_param_data_t) +
                   sizeof(struct param_id_mfc_output_media_fmt_t) +
                   sizeof(uint16_t)*numChannels;
@@ -1126,6 +1135,12 @@ int PayloadBuilder::populateStreamKV(Stream* s,
     }
     memset (sattr, 0, sizeof(struct qal_stream_attributes));
 
+    if (!s) {
+        status = -EINVAL;
+        QAL_ERR(LOG_TAG, "Invalid stream");
+        goto free_sattr;
+    }
+
     status = s->getStreamAttributes(sattr);
     if (0 != status) {
         QAL_ERR(LOG_TAG,"getStreamAttributes Failed status %d\n", status);
@@ -1216,11 +1231,6 @@ int PayloadBuilder::populateStreamKV(Stream* s,
             keyVector.push_back(std::make_pair(STREAMRX, VOIP_RX_PLAYBACK));
             break;
         case QAL_STREAM_VOICE_UI:
-            if (!s) {
-                status = -EINVAL;
-                QAL_ERR(LOG_TAG, "Invalid stream");
-                goto free_sattr;
-            }
             keyVector.push_back(std::make_pair(STREAMTX, VOICE_UI));
 
             // add key-vector for stream configuration
@@ -2155,12 +2165,18 @@ void PayloadBuilder::payloadSPConfig(uint8_t** payload, size_t* size, uint32_t m
                 }
             }
         break;
+        default:
+            {
+                QAL_ERR(LOG_TAG, "unknown param id 0x%x", param_id);
+            }
     }
 
-    header->module_instance_id = miid;
-    header->param_id = param_id;
-    header->error_code = 0x0;
-    header->param_size = payloadSize - sizeof(struct apm_module_param_data_t);
+    if (header) {
+        header->module_instance_id = miid;
+        header->param_id = param_id;
+        header->error_code = 0x0;
+        header->param_size = payloadSize - sizeof(struct apm_module_param_data_t);
+    }
 
     *size = payloadSize + padBytes;
     *payload = payloadInfo;

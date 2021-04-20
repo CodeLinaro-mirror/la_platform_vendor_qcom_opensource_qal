@@ -95,6 +95,7 @@ bool SpeakerProtection::isSpeakerInUse(unsigned long *sec)
     struct timespec temp;
     if (!sec) {
         QAL_ERR(LOG_TAG, "Improper argument time");
+        return -EINVAL;
     }
 
     if (isSpkrInUse) {
@@ -135,6 +136,10 @@ void SpeakerProtection::mixer_ctl_callback (void *hdl, uint32_t event_id,
             // TODO : Add a lock
             QAL_DBG(LOG_TAG, "Calibration is successfull");
             callback_data = (param_id_sp_th_vi_calib_res_cfg_t *) calloc(1, event_size);
+            if (!callback_data) {
+                QAL_ERR(LOG_TAG, "Memory allocation failure for callback_data");
+                return;
+            }
             callback_data->num_ch = param_data->num_ch;
             callback_data->state = param_data->state;
             for (int i = 0; i < callback_data->num_ch; i++) {
@@ -166,7 +171,7 @@ void SpeakerProtection::spkrCalibrateWait()
 int SpeakerProtection::getSpeakerTemperature(int spkr_pos)
 {
     struct mixer_ctl *ctl;
-    const char *mixer_ctl_name;
+    const char *mixer_ctl_name = nullptr;
     int status = 0;
     /**
      * It is assumed that for Mono speakers only right speaker will be there.
@@ -390,7 +395,7 @@ int SpeakerProtection::spkrStartCalibration()
             PARAM_ID_SP_VI_OP_MODE_CFG,(void *)&modeConfg);
     if (payloadSize) {
         ret = updateCustomPayload(payload, payloadSize);
-        delete payload;
+        delete[] payload;
         if (0 != ret) {
             QAL_ERR(LOG_TAG," updateCustomPayload Failed for VI_OP_MODE_CFG\n");
         }
@@ -404,7 +409,7 @@ int SpeakerProtection::spkrStartCalibration()
             PARAM_ID_SP_VI_CHANNEL_MAP_CFG,(void *)&viChannelMapConfg);
     if (payloadSize) {
         ret = updateCustomPayload(payload, payloadSize);
-        delete payload;
+        delete[] payload;
         if (0 != ret) {
             QAL_ERR(LOG_TAG," updateCustomPayload Failed for CHANNEL_MAP_CFG\n");
         }
@@ -418,7 +423,7 @@ int SpeakerProtection::spkrStartCalibration()
             PARAM_ID_SP_EX_VI_MODE_CFG,(void *)&viExModeConfg);
     if (payloadSize) {
         ret = updateCustomPayload(payload, payloadSize);
-        delete payload;
+        delete[] payload;
         if (0 != ret) {
             QAL_ERR(LOG_TAG," updateCustomPayload Failed for EX_VI_MODE_CFG\n");
         }
@@ -609,7 +614,7 @@ int SpeakerProtection::spkrStartCalibration()
         }
 
         ret = updateCustomPayload(payload, payloadSize);
-        delete payload;
+        delete[] payload;
         if (0 != ret) {
             QAL_ERR(LOG_TAG," updateCustomPayload Failed\n");
         }
@@ -1130,7 +1135,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_VI_OP_MODE_CFG,(void *)&modeConfg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete payload;
+            delete[] payload;
             if (0 != ret) {
                 QAL_ERR(LOG_TAG," updateCustomPayload Failed for VI_OP_MODE_CFG\n");
             }
@@ -1144,7 +1149,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_VI_CHANNEL_MAP_CFG,(void *)&viChannelMapConfg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete payload;
+            delete[] payload;
             if (0 != ret) {
                 QAL_ERR(LOG_TAG," updateCustomPayload Failed for CHANNEL_MAP_CFG\n");
             }
@@ -1158,7 +1163,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_EX_VI_MODE_CFG,(void *)&viExModeConfg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete payload;
+            delete[] payload;
             if (0 != ret) {
                 QAL_ERR(LOG_TAG," updateCustomPayload Failed for EX_VI_MODE_CFG\n");
             }
@@ -1175,7 +1180,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                     (void *) &viFtmConfg);
             if (payloadSize) {
                 ret = updateCustomPayload(payload, payloadSize);
-                delete payload;
+                delete[] payload;
                 memset(&(rm->mSpkrProtModeValue), 0,
                         sizeof(qal_spkr_prot_payload));
                 if (0 != ret) {
@@ -1207,6 +1212,11 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
         spR0T0confg = (param_id_sp_th_vi_r0t0_cfg_t *)calloc(1,
                             sizeof(param_id_sp_th_vi_r0t0_cfg_t) +
                             sizeof(vi_r0t0_cfg_t) * numberOfChannels);
+        if (!spR0T0confg) {
+            QAL_ERR(LOG_TAG, "Memory allocation failure for spR0T0confg");
+            return -ENOMEM;
+        }
+
         spR0T0confg->num_speakers = numberOfChannels;
 
         memcpy(spR0T0confg->vi_r0t0_cfg, r0t0Array, sizeof(vi_r0t0_cfg_t) *
@@ -1217,7 +1227,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_TH_VI_R0T0_CFG,(void *)spR0T0confg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete payload;
+            delete[] payload;
             free(spR0T0confg);
             if (0 != ret) {
                 QAL_ERR(LOG_TAG," updateCustomPayload Failed\n");
@@ -1279,7 +1289,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_OP_MODE,(void *)&spModeConfg);
         if (payloadSize) {
             ret = devObj->updateCustomPayload(payload, payloadSize);
-            delete payload;
+            delete[] payload;
             if (0 != ret) {
                 QAL_ERR(LOG_TAG," updateCustomPayload Failed\n");
             }

@@ -379,6 +379,11 @@ int SessionAlsaVoice::start(Stream * s)
     if (ttyMode) {
         qalPayload = (qal_param_payload *)calloc(1,
                                  sizeof(qal_param_payload) + sizeof(ttyMode));
+        if (!qalPayload) {
+            status = -ENOMEM;
+            QAL_ERR(LOG_TAG,"Failed to allocate memory for qalPayload \n");
+            goto exit;
+        }
         qalPayload->payload_size = sizeof(ttyMode);
         *(qalPayload->payload) = ttyMode;
         setParameters(s, TTY_MODE, QAL_PARAM_ID_TTY_MODE, qalPayload);

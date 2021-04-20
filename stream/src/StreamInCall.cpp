@@ -78,6 +78,11 @@ StreamInCall::StreamInCall(const struct qal_stream_attributes *sattr, struct qal
     // Setting default volume to unity
     mVolumeData = (struct qal_volume_data *)malloc(sizeof(struct qal_volume_data)
                       +sizeof(struct qal_channel_vol_kv));
+    if (!mVolumeData) {
+        QAL_ERR(LOG_TAG,"Memory allocation failed for mVolumeData");
+        mStreamMutex.unlock();
+        throw std::runtime_error("Memory allocation failed for mVolumeData");
+    }
     mVolumeData->no_of_volpair = 1;
     mVolumeData->volume_pair[0].channel_mask = 0x03;
     mVolumeData->volume_pair[0].vol = 1.0f;
@@ -422,7 +427,13 @@ int32_t  StreamInCall::setVolume(struct qal_volume_data *volume)
 {
     int32_t status = 0;
     QAL_DBG(LOG_TAG, "Enter. session handle - %pK", session);
-    if (!volume || volume->no_of_volpair == 0) {
+    if (!volume) {
+        QAL_ERR(LOG_TAG, "Wrong Volume Data");
+        status = -EINVAL;
+        goto exit;
+    }
+
+    if (volume->no_of_volpair == 0) {
         QAL_ERR(LOG_TAG, "Error no of vol pair is %d", (volume->no_of_volpair));
         status = -EINVAL;
         goto exit;

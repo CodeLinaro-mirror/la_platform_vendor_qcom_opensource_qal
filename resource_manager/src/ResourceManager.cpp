@@ -1020,6 +1020,10 @@ int32_t ResourceManager::getDeviceConfig(struct qal_device *deviceattr,
             getChannelMap(&(dev_ch_info.ch_map[0]), channel);
             deviceattr->config.ch_info = dev_ch_info;
             QAL_DBG(LOG_TAG, "deviceattr->config.ch_info.channels %d", deviceattr->config.ch_info.channels);
+            if (!sAttr) {
+                QAL_ERR(LOG_TAG, "Invalid parameter.");
+                return -EINVAL;
+            }
             deviceattr->config.sample_rate = sAttr->in_media_config.sample_rate;
             deviceattr->config.bit_width = sAttr->in_media_config.bit_width;
             deviceattr->config.aud_fmt_id = QAL_AUDIO_FMT_DEFAULT_PCM;
@@ -2124,9 +2128,9 @@ bool ResourceManager::UpdateSVACaptureProfile(StreamSoundTrigger *s, bool is_act
 int ResourceManager::SwitchSVADevices(bool connect_state,
     qal_device_id_t device_id) {
     int32_t status = 0;
-    qal_device_id_t dest_device;
-    qal_device_id_t device_to_disconnect;
-    qal_device_id_t device_to_connect;
+    qal_device_id_t dest_device = QAL_DEVICE_NONE;
+    qal_device_id_t device_to_disconnect = QAL_DEVICE_NONE;
+    qal_device_id_t device_to_connect = QAL_DEVICE_NONE;
     std::shared_ptr<CaptureProfile> cap_prof_priority = nullptr;
     StreamSoundTrigger *st_str = nullptr;
 
@@ -5299,9 +5303,11 @@ void ResourceManager::processConfigParams(const XML_Char **attr)
     }
     QAL_VERBOSE(LOG_TAG, "String %s %s %s %s ",attr[0],attr[1],attr[2],attr[3]);
     configParamKVPairs = str_parms_create();
-    str_parms_add_str(configParamKVPairs, (char*)attr[1], (char*)attr[3]);
-    setConfigParams(configParamKVPairs);
-    str_parms_destroy(configParamKVPairs);
+    if (configParamKVPairs) {
+        str_parms_add_str(configParamKVPairs, (char*)attr[1], (char*)attr[3]);
+        setConfigParams(configParamKVPairs);
+        str_parms_destroy(configParamKVPairs);
+    }
 done:
     return;
 }
@@ -5663,7 +5669,8 @@ void ResourceManager::startTag(void *userdata, const XML_Char *tag_name,
     static std::shared_ptr<SoundTriggerPlatformInfo> st_info = nullptr;
 
     if (data->is_parsing_sound_trigger) {
-        st_info->HandleStartTag((const char *)tag_name, (const char **)attr);
+        if (st_info)
+            st_info->HandleStartTag((const char *)tag_name, (const char **)attr);
         return;
     }
 

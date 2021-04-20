@@ -686,6 +686,11 @@ int SessionAlsaUtils::getTimestamp(struct mixer *mixer, const std::vector<int> &
     std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
 
     pcmDeviceName = rm->getDeviceNameFromID(DevIds.at(0));
+    if (!pcmDeviceName){
+        QAL_ERR(LOG_TAG, "Device name from id not found");
+        return -EINVAL;
+    }
+
     CntrlName<<pcmDeviceName<<" "<<getParamControl;
     ctl = mixer_get_ctl_by_name(mixer, CntrlName.str().data());
     if (!ctl) {
@@ -735,6 +740,10 @@ int SessionAlsaUtils::getModuleInstanceId(struct mixer *mixer, int device, const
     std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
 
     pcmDeviceName = rm->getDeviceNameFromID(device);
+    if (!pcmDeviceName){
+        QAL_ERR(LOG_TAG, "Device name from id %d not found", device);
+        return -EINVAL;
+    }
 
     ret = setStreamMetadataType(mixer, device, intf_name);
     if (ret)
@@ -807,6 +816,10 @@ int SessionAlsaUtils::setMixerParameter(struct mixer *mixer, int device,
     std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
 
     pcmDeviceName = rm->getDeviceNameFromID(device);
+    if (!pcmDeviceName){
+        QAL_ERR(LOG_TAG, "Device name from id %d not found", device);
+        return -EINVAL;
+    }
 
     QAL_DBG(LOG_TAG, "- mixer -%s-\n", pcmDeviceName);
     ctl_len = strlen(pcmDeviceName) + 1 + strlen(control) + 1;
@@ -841,6 +854,11 @@ int SessionAlsaUtils::setStreamMetadataType(struct mixer *mixer, int device, con
     std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
 
     pcmDeviceName = rm->getDeviceNameFromID(device);
+    if (!pcmDeviceName){
+        QAL_ERR(LOG_TAG, "Device name from id %d not found", device);
+        return -EINVAL;
+    }
+
     ctl_len = strlen(pcmDeviceName) + 1 + strlen(control) + 1;
     mixer_str = (char *)calloc(1, ctl_len);
     if(mixer_str == NULL) {
@@ -874,6 +892,10 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
     std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
 
     pcmDeviceName = rm->getDeviceNameFromID(device);
+    if (!pcmDeviceName){
+        QAL_ERR(LOG_TAG, "Device name from id %d not found", device);
+        return -EINVAL;
+    }
 
     // get module instance id
     status = SessionAlsaUtils::getModuleInstanceId(mixer, device, intf_name, tag_id, &miid);
@@ -917,6 +939,10 @@ int SessionAlsaUtils::setECRefPath(struct mixer *mixer, int device, const char *
     std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
 
     pcmDeviceName = rm->getDeviceNameFromID(device);
+    if (!pcmDeviceName){
+        QAL_ERR(LOG_TAG, "Device name from id %d not found", device);
+        return -EINVAL;
+    }
 
     ctl_len = strlen(pcmDeviceName) + 1 + strlen(control) + 1;
     mixer_str = (char *)calloc(1, ctl_len);
@@ -1538,7 +1564,6 @@ int SessionAlsaUtils::connectSessionDevice(Session* sess, Stream* streamHandle, 
 
                 status = SessionAlsaUtils::setMixerParameter(mixerHandle,
                     pcmDevIds.at(0), payload, payloadSize);
-                free(payload);
                 if (status != 0) {
                     QAL_ERR(LOG_TAG, "Failed to set parameter, status %d",
                             status);

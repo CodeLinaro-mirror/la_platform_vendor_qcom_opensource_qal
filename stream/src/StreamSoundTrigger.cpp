@@ -72,6 +72,11 @@ StreamSoundTrigger::StreamSoundTrigger(struct qal_stream_attributes *sattr,
     // Setting default volume to unity
     mVolumeData = (struct qal_volume_data *)malloc(sizeof(struct qal_volume_data)
                       +sizeof(struct qal_channel_vol_kv));
+    if (mVolumeData == NULL) {
+        QAL_ERR(LOG_TAG, "Failed to allocate memory for volume data");
+        throw std::runtime_error("Failed to allocate memory for volume data");
+    }
+
     mVolumeData->no_of_volpair = 1;
     mVolumeData->volume_pair[0].channel_mask = 0x03;
     mVolumeData->volume_pair[0].vol = 1.0f;
@@ -1551,6 +1556,11 @@ int32_t StreamSoundTrigger::FillConfLevels(
             phrase_sm = (struct qal_st_phrase_sound_model *)eng->sm_data_;
             break;
         }
+    }
+    if (!phrase_sm) {
+        status = -EINVAL;
+        QAL_ERR(LOG_TAG, "Invalid phrase data status %d", status);
+        goto exit;
     }
 
     if ((config->num_phrases == 0) ||

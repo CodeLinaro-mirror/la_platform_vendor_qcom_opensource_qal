@@ -191,7 +191,7 @@ int DisplayPort::configureDpEndpoint()
     builder->payloadDpAudioConfig(&payload, &payloadSize, miid, &cfg);
     if (payloadSize) {
         status = updateCustomPayload(payload, payloadSize);
-        delete payload;
+        delete[] payload;
         if (0 != status) {
         QAL_ERR(LOG_TAG," updateCustomPayload Failed\n");
         return status;
@@ -206,8 +206,13 @@ ssize_t DisplayPort::updateSysfsNode(const char *path, const char *data, size_t 
     FILE *fd = NULL;
 
     fd = fopen(path, "w");
-    fwrite(data, sizeof(char), len, fd);
-    fclose(fd);
+    if (!fd) {
+        QAL_ERR(LOG_TAG, "Unable to open file - %s for write", path);
+        err = -EINVAL;
+    } else {
+        fwrite(data, sizeof(char), len, fd);
+        fclose(fd);
+    }
     return err;
 }
 

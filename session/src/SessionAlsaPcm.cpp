@@ -516,7 +516,7 @@ int SessionAlsaPcm::start(Stream * s)
     uint32_t miid;
     int payload_size = 0;
     struct agm_event_reg_cfg *event_cfg;
-    int tagId;
+    int tagId = 0;
 
 
     status = s->getStreamAttributes(&sAttr);
@@ -659,14 +659,16 @@ int SessionAlsaPcm::start(Stream * s)
 
         event_cfg = (struct agm_event_reg_cfg *)calloc(1, payload_size);
         if (!event_cfg) {
+            QAL_ERR(LOG_TAG, "Failed to allocate memory for event_cfg");
             status = -ENOMEM;
-        }
-        event_cfg->event_id = EVENT_ID_DETECTION_ENGINE_GENERIC_INFO;
-        event_cfg->event_config_payload_size = 0;
-        event_cfg->is_register = 1;
-        SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
+        } else {
+            event_cfg->event_id = EVENT_ID_DETECTION_ENGINE_GENERIC_INFO;
+            event_cfg->event_config_payload_size = 0;
+            event_cfg->is_register = 1;
+            SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
                 txAifBackEnds[0].second.data(), DEVICE_SVA, (void *)event_cfg,
                 payload_size);
+        }
     }
 
     switch (sAttr.direction) {
@@ -700,7 +702,7 @@ int SessionAlsaPcm::start(Stream * s)
                 builder->payloadMFCConfig(&payload, &payloadSize, miid, &streamData);
                 if (payloadSize) {
                     status = updateCustomPayload(payload, payloadSize);
-                    delete payload;
+                    delete[] payload;
                     if (0 != status) {
                         QAL_ERR(LOG_TAG,"updateCustomPayload Failed\n");
                         return status;
@@ -937,14 +939,16 @@ int SessionAlsaPcm::stop(Stream * s)
 
         event_cfg = (struct agm_event_reg_cfg *)calloc(1, payload_size);
         if (!event_cfg) {
+            QAL_ERR(LOG_TAG, "Failed to allocate memory for event_cfg");
             status = -ENOMEM;
+        } else {
+            event_cfg->event_id = EVENT_ID_DETECTION_ENGINE_GENERIC_INFO;
+            event_cfg->event_config_payload_size = 0;
+            event_cfg->is_register = 0;
+            SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
+                txAifBackEnds[0].second.data(), DEVICE_SVA, (void *) event_cfg,
+                payload_size);
         }
-        event_cfg->event_id = EVENT_ID_DETECTION_ENGINE_GENERIC_INFO;
-        event_cfg->event_config_payload_size = 0;
-        event_cfg->is_register = 0;
-        SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
-            txAifBackEnds[0].second.data(), DEVICE_SVA, (void *) event_cfg,
-            payload_size);
     }
     return status;
 }
@@ -1260,6 +1264,11 @@ int SessionAlsaPcm::write(Stream *s, int tag, struct qal_buffer *buf, int * size
         return status;
     }
 
+    if (pcm == NULL) {
+        QAL_ERR(LOG_TAG,"PCM is NULL");
+        return -EINVAL;
+    }
+
     void *data = nullptr;
 
     bytesRemaining = buf->size;
@@ -1269,7 +1278,7 @@ int SessionAlsaPcm::write(Stream *s, int tag, struct qal_buffer *buf, int * size
         data = buf->buffer;
         data = static_cast<char *>(data) + offset;
         sizeWritten = out_buf_size;  //initialize 0
-        if (pcm && (mState == SESSION_FLUSHED)) {
+        if (mState == SESSION_FLUSHED) {
             status = pcm_start(pcm);
             if (status) {
                 QAL_ERR(LOG_TAG, "pcm_start failed %d", status);
@@ -1302,7 +1311,7 @@ int SessionAlsaPcm::write(Stream *s, int tag, struct qal_buffer *buf, int * size
     offset = bytesWritten + buf->offset;
     sizeWritten = bytesRemaining;
     data = buf->buffer;
-    if (pcm && (mState == SESSION_FLUSHED)) {
+    if (mState == SESSION_FLUSHED) {
         status = pcm_start(pcm);
         if (status) {
             QAL_ERR(LOG_TAG, "pcm_start failed %d", status);

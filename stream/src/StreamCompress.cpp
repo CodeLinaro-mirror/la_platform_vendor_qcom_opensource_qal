@@ -82,13 +82,19 @@ StreamCompress::StreamCompress(const struct qal_stream_attributes *sattr, struct
     currentState = STREAM_IDLE;
 
     // Setting default volume to unity
-    mVolumeData = (struct qal_volume_data *)malloc(sizeof(struct qal_volume_data)
-                          +sizeof(struct qal_channel_vol_kv));
+    mVolumeData = (struct qal_volume_data *)calloc(1, sizeof(struct qal_volume_data)
+                          + sizeof(struct qal_channel_vol_kv));
+    if (!mVolumeData) {
+        QAL_ERR(LOG_TAG, "malloc for volume data failed");
+        mStreamMutex.unlock();
+        throw std::runtime_error("failed to malloc for volume data");
+    }
+
     mVolumeData->no_of_volpair = 1;
     mVolumeData->volume_pair[0].channel_mask = 0x03;
     mVolumeData->volume_pair[0].vol = 1.0f;
 
-    mStreamAttr = (struct qal_stream_attributes *) calloc(1, sizeof(struct qal_stream_attributes));
+    mStreamAttr = (struct qal_stream_attributes *)calloc(1, sizeof(struct qal_stream_attributes));
     if (!mStreamAttr) {
         QAL_ERR(LOG_TAG,"malloc for stream attributes failed");
         mStreamMutex.unlock();
@@ -515,7 +521,7 @@ int32_t StreamCompress::setParameters(uint32_t param_id, void *payload)
     return status;
 }
 
-int32_t  StreamCompress::setVolume(struct qal_volume_data *volume)
+int32_t StreamCompress::setVolume(struct qal_volume_data *volume)
 {
     int32_t status = 0;
 
@@ -526,7 +532,7 @@ int32_t  StreamCompress::setVolume(struct qal_volume_data *volume)
        goto exit;
     }
 
-    if(mVolumeData) {
+    if (mVolumeData) {
         //if mVolumeDate is already allocated- free it before updating
         free(mVolumeData);
         mVolumeData = (struct qal_volume_data *)NULL;
@@ -534,8 +540,13 @@ int32_t  StreamCompress::setVolume(struct qal_volume_data *volume)
 
     mVolumeData = (struct qal_volume_data *)calloc(1, sizeof(struct qal_volume_data) +
                  (sizeof(struct qal_channel_vol_kv) * (volume->no_of_volpair)));
+    if (!mVolumeData) {
+        QAL_ERR(LOG_TAG, "failed to calloc for volume data");
+        status = -ENOMEM;
+        goto exit;
+    }
 
-    memcpy (mVolumeData, volume, (sizeof(struct qal_volume_data) +
+    memcpy(mVolumeData, volume, (sizeof(struct qal_volume_data) +
              (sizeof(struct qal_channel_vol_kv) * (volume->no_of_volpair))));
     for(int32_t i = 0; i < (mVolumeData->no_of_volpair); i++) {
        QAL_VERBOSE(LOG_TAG,"Volume payload mask:%x vol:%f\n",
