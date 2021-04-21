@@ -706,6 +706,7 @@ typedef enum {
     PAL_PARAM_ID_GAIN_LVL_CAL = 27,
     PAL_PARAM_ID_GAPLESS_MDATA = 28,
     PAL_PARAM_ID_DTMF_GEN_TONE_CFG = 29,
+    PAL_PARAM_ID_MODULE_ENABLE = 30,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
@@ -807,7 +808,7 @@ typedef struct pal_param_device_rotation {
 } pal_param_device_rotation_t;
 
 /* Payload For ID: PAL_PARAM_ID_DTMF_GEN_TONE_CFG
- * Description   : DTMF Generated module parameters
+ * Description   : DTMF Generator module parameters
  */
 typedef struct pal_param_dtmf_gen_tone_cfg {
     uint16_t high_freq;
@@ -815,6 +816,13 @@ typedef struct pal_param_dtmf_gen_tone_cfg {
     uint16_t gain;
     int16_t duration_ms;
 } pal_param_dtmf_gen_tone_cfg_t;
+
+/* Payload For ID: PAL_PARAM_ID_MODULE_ENABLE
+ *Description    : DTMF Detector Module Enable
+*/
+typedef struct pal_param_module_enable {
+    uint32_t enable;
+} pal_param_module_enable_t;
 
 /* Payload For ID: PAL_PARAM_ID_BT_SCO*
  * Description   : BT SCO related device parameters

@@ -4411,6 +4411,25 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
             }
         }
         break;
+        case PAL_PARAM_ID_MODULE_ENABLE:
+        {
+            pal_param_module_enable_t* param_module_enable =
+                            (pal_param_module_enable_t*) param_payload;
+            if(!param_module_enable) {
+                status = -ENOMEM;
+                PAL_ERR(LOG_TAG, "failed to get dtmf enable payload %d", status);
+                goto exit;
+            }
+            PAL_INFO(LOG_TAG, "DTMF Detection Module Enable:%d", param_module_enable->enable);
+            if (payload_size == sizeof(pal_param_module_enable_t)) {
+                status = handleDtmfDetectModuleEnable(*param_module_enable);
+            } else {
+                PAL_ERR(LOG_TAG,"Incorrect size : expected (%zu), received(%zu)",
+                        sizeof(pal_param_module_enable_t), payload_size);
+                status = -EINVAL;
+            }
+        }
+        break;
         case PAL_PARAM_ID_SP_SET_MODE:
         {
             pal_spkr_prot_payload *spModeval =
@@ -4902,7 +4921,49 @@ error :
     return status;
 }
 
+int ResourceManager::handleDtmfDetectModuleEnable(pal_param_module_enable_t
+                                    param_module_enable) {
+    std::vector<Stream*>::iterator sIter;
+    std::vector<Stream*> activestreams;
+    pal_stream_type_t streamType;
+    struct pal_device dattr;
+    struct pal_stream_attributes sAttr;
+    Session *session = NULL;
+    int status = 0;
 
+
+    /**Get the active device list and check if voice call devices are present.
+     */
+    for (int i = 0; i < active_devices.size(); i++) {
+        status = getActiveStream_l(active_devices[i].first, activestreams);
+        if ((0 != status) || (activestreams.size() == 0)) {
+            PAL_ERR(LOG_TAG, "no other active streams found");
+            status = -EINVAL;
+            goto exit;
+        }
+        for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
+            status = (*sIter)->getStreamAttributes(&sAttr);
+            if(0 != status) {
+                PAL_ERR(LOG_TAG,"getStreamAttribute Failed");
+                goto exit;
+            }
+
+            if ((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX)) {
+                status = (*sIter)->setParameters(PAL_PARAM_ID_MODULE_ENABLE,
+                                                 (void*)&param_module_enable);
+               if (0 != status) {
+                    PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
+                    goto exit;
+                }
+            }
+        }
+        break;
+    }
+exit:
+    PAL_INFO(LOG_TAG, "Exit handleDtmfDetectModuleEnable");
+    return status;
+}
 
 int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
                                                 param_dtmf_gen) {
@@ -4943,7 +5004,6 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
 exit:
     return status;
 }
-
 
 bool ResourceManager::getScreenState()
 {

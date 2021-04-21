@@ -982,6 +982,20 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
                        status);
             break;
         }
+        case PAL_PARAM_ID_MODULE_ENABLE:
+        {
+            uint32_t enable = 0;
+
+            enable = (uint32_t)(((pal_param_module_enable_t *)payload)->enable);
+            uint32_t enable_tag =
+                        enable ? MODULE_ENABLE : MODULE_DISABLE;
+            status = session->setParameters(this, enable_tag,
+                                            param_id, payload);
+            if (status)
+               PAL_ERR(LOG_TAG, "setParam failed for DTMF module enable with %d",
+                       status);
+            break;
+        }
         case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
         {
             status = session->setParameters(this, DTMF_GEN,

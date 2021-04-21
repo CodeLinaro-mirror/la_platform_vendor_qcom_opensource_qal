@@ -48,7 +48,6 @@
 
 #define NUM_OF_CAL_KEYS 2
 
-
 SessionAlsaVoice::SessionAlsaVoice(std::shared_ptr<ResourceManager> Rm)
 {
    rm = Rm;
@@ -82,6 +81,9 @@ uint32_t SessionAlsaVoice::getMIID(const char *backendName, uint32_t tagId, uint
             device = pcmDevRxIds.at(0);
         break;
     case DTMF_GENERATOR:
+        device = pcmDevRxIds.at(0);
+        break;
+    case DTMF_DETECTOR:
         device = pcmDevRxIds.at(0);
         break;
     default:
@@ -536,6 +538,17 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
             status = payloadTaged(s, MODULE, tagId, device, RXDIR);
             if (status) {
                 PAL_ERR(LOG_TAG, "Failed to set voice slow_Talk params status = %d",
+                        status);
+            }
+            break;
+
+        case MODULE_ENABLE:
+        case MODULE_DISABLE:
+            device = pcmDevRxIds.at(0);
+            enable = *((bool *)PalPayload->payload);
+            status = payloadTaged(s, MODULE, tagId, device, TXDIR);
+            if (status) {
+                PAL_ERR(LOG_TAG, "Failed to set Dtmf detect params status = %d",
                         status);
             }
             break;

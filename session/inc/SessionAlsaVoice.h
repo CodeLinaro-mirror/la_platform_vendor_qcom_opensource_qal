@@ -64,6 +64,7 @@ private:
     uint32_t ttyMode = PAL_TTY_OFF;
     bool volume_boost = vol_boost_disable;
     bool slow_talk = false;
+    uint32_t enable;
 
 public:
 

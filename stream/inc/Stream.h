@@ -97,6 +97,9 @@ typedef enum {
 #define INCALL_RECORD_UPLINK_DOWNLINK_MONO 34
 #define INCALL_RECORD_UPLINK_DOWNLINK_STEREO 35
 #define DTMF_GEN 36
+#define DTMF_DETECT 37
+#define MODULE_ENABLE 38
+#define MODULE_DISABLE 39
 /* This sleep is added to give time to kernel and
  * spf to recover from SSR so that audio-hal will
  * not continously try to open a session if it fails
