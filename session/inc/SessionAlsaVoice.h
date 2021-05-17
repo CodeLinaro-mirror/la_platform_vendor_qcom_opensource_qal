@@ -33,6 +33,7 @@
 #include "PayloadBuilder.h"
 #include "Session.h"
 #include "PalAudioRoute.h"
+#include "dtmf_detection_api.h"
 #include "vcpm_api.h"
 #include <tinyalsa/asoundlib.h>
 #include <thread>
@@ -65,6 +66,8 @@ private:
     bool volume_boost = vol_boost_disable;
     bool slow_talk = false;
     uint32_t enable;
+    session_callback sessionCb;
+    uint64_t cbCookie;
 
 public:
 
@@ -85,6 +88,7 @@ public:
     int disconnectSessionDevice(Stream *streamHandle,
                                 pal_stream_type_t streamType,
                                 std::shared_ptr<Device> deviceToDisconnect);
+    int registerCallBack(session_callback cb, uint64_t cookie);
     int connectSessionDevice(Stream* streamHandle,
                              pal_stream_type_t streamType,
                              std::shared_ptr<Device> deviceToConnect);
@@ -101,6 +105,8 @@ private:
     int setSidetone(int deviceId, Stream * s, bool enable);
     int setHWSidetone(Stream * s, bool enable);
     int getTXDeviceId(Stream *s, int *id);
+    static void HandleDtmfCallBack(uint64_t hdl, uint32_t event_id, void *data,
+                            uint32_t event_size);
     int populate_rx_mfc_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
     int populate_vsid_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
     int payloadDtmfGenTaged(Stream *s,int tag, void *pData, int dir);

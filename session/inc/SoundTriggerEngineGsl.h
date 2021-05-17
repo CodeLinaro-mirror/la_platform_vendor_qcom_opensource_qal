@@ -89,7 +89,7 @@ class SoundTriggerEngineGsl : public SoundTriggerEngine {
     void HandleSessionEvent(uint32_t event_id __unused, void *data);
 
     static void EventProcessingThread(SoundTriggerEngineGsl *gsl_engine);
-    static void HandleSessionCallBack(void *hdl, uint32_t event_id, void *data,
+    static void HandleSessionCallBack(uint64_t hdl, uint32_t event_id, void *data,
                                       uint32_t event_size);
 
     Session *session_;

@@ -48,6 +48,44 @@
 
 #define NUM_OF_CAL_KEYS 2
 
+
+
+void SessionAlsaVoice::HandleDtmfCallBack(uint64_t hdl, uint32_t event_id,
+                                          void *data, uint32_t event_size)
+{
+    dtmf_event_data event_data;
+    pal_stream_callback cb;
+    struct dtmf_detect_event_t *dtmf_info = nullptr;
+    Stream *s = NULL;
+
+    PAL_ERR(LOG_TAG, "Enter");
+    PAL_ERR(LOG_TAG, "Enter, event detected on SPF, event id = 0x%x", event_id);
+
+    if ((hdl == 0) || !data || !event_size) {
+        PAL_ERR(LOG_TAG, "Invalid stream handle or event data or event size");
+        return;
+    }
+    if (event_id != EVENT_ID_DTMF_DETECTION) {
+        return;
+    }
+
+    s = reinterpret_cast<Stream *>(hdl);
+    dtmf_info = (struct dtmf_detect_event_t *)data;
+    //payload_size = sizeof(struct dtmf_detect_event_t);
+    event_data.dtmf_high_freq = dtmf_info->tone_high_freq;
+    event_data.dtmf_low_freq = dtmf_info->tone_low_freq;
+    PAL_ERR(LOG_TAG, "high_freq: %d, low_freq: %d",
+            event_data.dtmf_high_freq, event_data.dtmf_low_freq);
+
+    if (s->getCallBack(&cb) == 0) {
+         cb(reinterpret_cast<pal_stream_handle_t *>(s), PAL_DTMF_CBK_EVENT, (uint32_t *)&event_data,
+            event_size, s->cookie);
+    }
+
+    PAL_ERR(LOG_TAG, "Exit");
+    return;
+}
+
 SessionAlsaVoice::SessionAlsaVoice(std::shared_ptr<ResourceManager> Rm)
 {
    rm = Rm;
@@ -150,6 +188,15 @@ int SessionAlsaVoice::open(Stream * s)
         PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
         rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXDIR);
         rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXDIR);
+    }
+
+    if (!status && sAttr.type ==  PAL_STREAM_VOICE_CALL_TX) {
+         status = rm->registerMixerEventCallback(pcmDevTxIds,
+            sessionCb, cbCookie, true);
+
+         if (status != 0) {
+            PAL_ERR(LOG_TAG, "Failed to register callback to rm");
+         }
     }
 
 exit:
@@ -551,6 +598,8 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
                 PAL_ERR(LOG_TAG, "Failed to set Dtmf detect params status = %d",
                         status);
             }
+            PAL_ERR(LOG_TAG, "Exit MODULE_ENABLE, Disable case");
+            registerCallBack(HandleDtmfCallBack, (uint64_t)s); /* to do : seperate module_disable*/
             break;
 
         case TTY_MODE:
@@ -1313,6 +1362,13 @@ char* SessionAlsaVoice::getMixerVoiceStream(Stream *s, int dir){
 
 int SessionAlsaVoice::setECRef(Stream *s __unused, std::shared_ptr<Device> rx_dev __unused, bool is_enable __unused)
 {
+    return 0;
+}
+
+int SessionAlsaVoice::registerCallBack(session_callback cb, uint64_t cookie)
+{
+    sessionCb = cb;
+    cbCookie = cookie;
     return 0;
 }
 

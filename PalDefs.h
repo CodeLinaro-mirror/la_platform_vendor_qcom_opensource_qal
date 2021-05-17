@@ -461,6 +461,10 @@ typedef enum {
 } pal_global_callback_event_t;
 
 typedef enum {
+    PAL_DTMF_CBK_EVENT,
+} pal_dtmf_callback_event_t;
+
+typedef enum {
     PAL_STREAM_LOOPBACK_PCM,
     PAL_STREAM_LOOPBACK_HFP_RX,
     PAL_STREAM_LOOPBACK_HFP_TX,
@@ -1053,6 +1057,11 @@ struct pal_compr_gapless_mdata {
        uint32_t encoderPadding;
 };
 
+struct dtmf_event_data {
+	uint32_t dtmf_high_freq;
+    uint32_t dtmf_low_freq;
+};
+
 /** @brief Callback function prototype to be given for
  *         pal_open_stream.
  *
@@ -1068,7 +1077,7 @@ struct pal_compr_gapless_mdata {
 typedef int32_t (*pal_stream_callback)(pal_stream_handle_t *stream_handle,
                                        uint32_t event_id, uint32_t *event_data,
                                        uint32_t event_data_size,
-                                       void *cookie);
+                                       uint64_t cookie);
 
 /** @brief Callback function prototype to be given for
  *         pal_register_callback.
@@ -1080,7 +1089,7 @@ typedef int32_t (*pal_stream_callback)(pal_stream_handle_t *stream_handle,
  * \param[in] cookie - cookie specified in the
  *       pal_register_global_callback.
  */
-typedef int32_t (*pal_global_callback)(uint32_t event_id, uint32_t *event_data, void *cookie);
+typedef int32_t (*pal_global_callback)(uint32_t event_id, uint32_t *event_data, uint64_t cookie);
 
 /** Sound card state */
 typedef enum card_status_t {

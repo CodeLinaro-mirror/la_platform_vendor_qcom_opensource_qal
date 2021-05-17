@@ -114,7 +114,7 @@ void pal_deinit(void)
 int32_t pal_stream_open(struct pal_stream_attributes *attributes,
                         uint32_t no_of_devices, struct pal_device *devices,
                         uint32_t no_of_modifiers, struct modifier_kv *modifiers,
-                        pal_stream_callback cb, void *cookie,
+                        pal_stream_callback cb, uint64_t cookie,
                         pal_stream_handle_t **stream_handle)
 {
     uint64_t *stream = NULL;
@@ -682,7 +682,7 @@ int32_t pal_stream_create_mmap_buffer(pal_stream_handle_t *stream_handle,
     return status;
 }
 
-int32_t pal_register_global_callback(pal_global_callback cb, void *cookie)
+int32_t pal_register_global_callback(pal_global_callback cb, uint64_t cookie)
 {
     std::shared_ptr<ResourceManager> rm = NULL;
 

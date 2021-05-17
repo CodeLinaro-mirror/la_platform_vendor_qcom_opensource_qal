@@ -40,6 +40,17 @@
 #include "Device.h"
 #include <unistd.h>
 
+static void handleSessionCallBack(uint64_t hdl, uint32_t event_id, void *data,
+                                  uint32_t event_size)
+{
+    Stream *s = NULL;
+    pal_stream_callback cb;
+    s = reinterpret_cast<Stream *>(hdl);
+    if (s->getCallBack(&cb) == 0)
+       cb(reinterpret_cast<pal_stream_handle_t *>(s), event_id, (uint32_t *)data,
+          event_size, s->cookie);
+}
+
 StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_device *dattr,
                     const uint32_t no_of_devices, const struct modifier_kv *modifiers,
                     const uint32_t no_of_modifiers, const std::shared_ptr<ResourceManager> rm)
@@ -124,6 +135,7 @@ StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_devic
         throw std::runtime_error("failed to create session object");
     }
 
+    session->registerCallBack(handleSessionCallBack, (uint64_t)this);
     PAL_VERBOSE(LOG_TAG, "Create new Devices with no_of_devices - %d", no_of_devices);
     for (int i = 0; i < no_of_devices; i++) {
         //Check with RM if the configuration given can work or not
@@ -882,13 +894,16 @@ exit :
     return status;
 }
 
-int32_t  StreamPCM::registerCallBack(pal_stream_callback /*cb*/, void */*cookie*/)
+int32_t  StreamPCM::registerCallBack(pal_stream_callback cb, uint64_t cookie)
 {
+    streamCb = cb;
+    this->cookie = cookie;
     return 0;
 }
 
-int32_t  StreamPCM::getCallBack(pal_stream_callback * /*cb*/)
+int32_t  StreamPCM::getCallBack(pal_stream_callback *cb)
 {
+    *cb = streamCb;
     return 0;
 }
 
