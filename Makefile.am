@@ -100,11 +100,11 @@ h_sources = ${top_srcdir}/stream/inc/Stream.h \
             ${top_srcdir}/session/inc/SoundTriggerEngine.h \
             ${top_srcdir}/session/inc/SoundTriggerEngineGsl.h \
             ${top_srcdir}/session/inc/SoundTriggerEngineCapi.h \
-            ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2.h \
-            ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2_events.h \
-            ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2_extn.h \
-            ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2_properties.h \
-            ${WORKSPACE}/audio/mm-audio/capiv2_api/capi_v2_types.h \
+            ${WORKSPACE}/audio/mm-audio-headers/capiv2_api/capi_v2.h \
+            ${WORKSPACE}/audio/mm-audio-headers/capiv2_api/capi_v2_events.h \
+            ${WORKSPACE}/audio/mm-audio-headers/capiv2_api/capi_v2_extn.h \
+            ${WORKSPACE}/audio/mm-audio-headers/capiv2_api/capi_v2_properties.h \
+            ${WORKSPACE}/audio/mm-audio-headers/capiv2_api/capi_v2_types.h \
             ${top_srcdir}/resource_manager/inc/ResourceManager.h \
             ${top_srcdir}/PalDefs.h \
             ${top_srcdir}/PalApi.h \
@@ -126,7 +126,7 @@ AM_CPPFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/agm
 AM_CPPFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/spf
 AM_CPPFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/
 
-AM_CPPFLAGS += -I ${WORKSPACE}/audio/mm-audio/capiv2_api/
+AM_CPPFLAGS += -I ${WORKSPACE}/audio/mm-audio-headers/capiv2_api/
 
 AM_CPPFLAGS += -D__unused=__attribute__\(\(__unused__\)\) -DLINUX_ENABLED
 
