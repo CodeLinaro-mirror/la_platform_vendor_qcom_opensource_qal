@@ -750,7 +750,7 @@ int SessionAlsaCompress::configureEarlyEOSDelay(void)
     }
     if (payloadSize) {
         status = updateCustomPayload(payload, payloadSize);
-        delete[] payload;
+        free(payload);
         if(0 != status) {
             PAL_ERR(LOG_TAG,"%s: updateCustomPayload Failed\n", __func__);
             return status;

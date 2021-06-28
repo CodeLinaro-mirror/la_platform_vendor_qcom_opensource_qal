@@ -702,7 +702,7 @@ int SessionAlsaPcm::start(Stream * s)
                 builder->payloadMFCConfig(&payload, &payloadSize, miid, &streamData);
                 if (payloadSize) {
                     status = updateCustomPayload(payload, payloadSize);
-                    delete[] payload;
+                    free(payload);
                     if (0 != status) {
                         PAL_ERR(LOG_TAG,"updateCustomPayload Failed\n");
                         return status;

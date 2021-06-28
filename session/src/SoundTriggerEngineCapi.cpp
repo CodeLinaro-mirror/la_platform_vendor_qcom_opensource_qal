@@ -493,6 +493,8 @@ SoundTriggerEngineCapi::SoundTriggerEngineCapi(
     capi_lib_handle_ = nullptr;
     capi_init_ = nullptr;
     stream_handle_ = s;
+    confidence_threshold_ = 0;
+    confidence_score_ = 0;
 
     StreamSoundTrigger *st_str = dynamic_cast<StreamSoundTrigger *>(s);
     status = st_str->GetEngineConfig(sample_rate_,

@@ -3710,7 +3710,6 @@ bool ResourceManager::updateDeviceConfig(std::shared_ptr<Device> inDev,
         }
     }
 
-error:
     //if device switch is needed, perform it
     if (streamDevDisconnect.size()) {
         status = streamDevSwitch(streamDevDisconnect, StreamDevConnect);
@@ -3719,6 +3718,8 @@ error:
         }
     }
     inDev->setDeviceAttributes(*inDevAttr);
+
+error:
     return isDeviceSwitch;
 }
 
@@ -4588,6 +4589,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
         {
             std::shared_ptr<Device> dev = nullptr;
             struct pal_device dattr;
+            struct pal_stream_attributes sAttr = {};
             pal_param_bta2dp_t *param_bt_a2dp = nullptr;
             struct pal_device_info devinfo = {};
 
@@ -4624,7 +4626,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                         goto exit;
                     }
 
-                    getDeviceConfig(&spkrDattr, NULL, devinfo.channels);
+                    getDeviceConfig(&spkrDattr, &sAttr, devinfo.channels);
                     getDeviceInfo(dattr.id, PAL_STREAM_LOW_LATENCY, &devinfo);
                     if ((devinfo.channels == 0) ||
                           (devinfo.channels > devinfo.max_channels)) {
@@ -4632,7 +4634,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                         PAL_ERR(LOG_TAG, "Invalid num channels [%d], exiting", devinfo.channels);
                         goto exit;
                     }
-                    getDeviceConfig(&dattr, NULL, devinfo.channels);
+                    getDeviceConfig(&dattr, &sAttr, devinfo.channels);
 
                     mResourceManagerMutex.unlock();
                     forceDeviceSwitch(dev, &spkrDattr);

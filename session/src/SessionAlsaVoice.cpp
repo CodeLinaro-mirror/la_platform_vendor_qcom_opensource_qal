@@ -298,6 +298,7 @@ int SessionAlsaVoice::populate_rx_mfc_payload(Stream *s, uint8_t **payload, size
     uint32_t miid = 0;
     int dev_id = 0;
 
+    memset(&dAttr, 0, sizeof(struct pal_device));
     status = s->getAssociatedDevices(associatedDevices);
     if (0 != status) {
         PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");

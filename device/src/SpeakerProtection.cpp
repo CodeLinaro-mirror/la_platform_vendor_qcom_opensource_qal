@@ -181,8 +181,14 @@ int SpeakerProtection::getSpeakerTemperature(int spkr_pos)
 
     switch(spkr_pos)
     {
-        case WSA_SPKR_RIGHT: mixer_ctl_name = SPKR_RIGHT_WSA_TEMP; break;
-        case WSA_SPKR_LEFT: mixer_ctl_name = SPKR_LEFT_WSA_TEMP; break;
+        case WSA_SPKR_RIGHT:
+            mixer_ctl_name = SPKR_RIGHT_WSA_TEMP;
+            break;
+        case WSA_SPKR_LEFT:
+            mixer_ctl_name = SPKR_LEFT_WSA_TEMP;
+            break;
+        default:
+            mixer_ctl_name = SPKR_RIGHT_WSA_TEMP;
     }
 
     PAL_DBG(LOG_TAG, "audio_mixer %pK", mixer);
@@ -395,7 +401,7 @@ int SpeakerProtection::spkrStartCalibration()
             PARAM_ID_SP_VI_OP_MODE_CFG,(void *)&modeConfg);
     if (payloadSize) {
         ret = updateCustomPayload(payload, payloadSize);
-        delete[] payload;
+        free(payload);
         if (0 != ret) {
             PAL_ERR(LOG_TAG," updateCustomPayload Failed for VI_OP_MODE_CFG\n");
         }
@@ -409,7 +415,7 @@ int SpeakerProtection::spkrStartCalibration()
             PARAM_ID_SP_VI_CHANNEL_MAP_CFG,(void *)&viChannelMapConfg);
     if (payloadSize) {
         ret = updateCustomPayload(payload, payloadSize);
-        delete[] payload;
+        free(payload);
         if (0 != ret) {
             PAL_ERR(LOG_TAG," updateCustomPayload Failed for CHANNEL_MAP_CFG\n");
         }
@@ -423,7 +429,7 @@ int SpeakerProtection::spkrStartCalibration()
             PARAM_ID_SP_EX_VI_MODE_CFG,(void *)&viExModeConfg);
     if (payloadSize) {
         ret = updateCustomPayload(payload, payloadSize);
-        delete[] payload;
+        free(payload);
         if (0 != ret) {
             PAL_ERR(LOG_TAG," updateCustomPayload Failed for EX_VI_MODE_CFG\n");
         }
@@ -614,7 +620,7 @@ int SpeakerProtection::spkrStartCalibration()
         }
 
         ret = updateCustomPayload(payload, payloadSize);
-        delete[] payload;
+        free(payload);
         if (0 != ret) {
             PAL_ERR(LOG_TAG," updateCustomPayload Failed\n");
         }
@@ -965,6 +971,8 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
     PAL_DBG(LOG_TAG, "Processing mode flag %d", flag);
     deviceMutex.lock();
 
+    memset(r0t0Array , 0, numberOfChannels*sizeof(struct vi_r0t0_cfg_t));
+
     if (flag) {
         if (spkrCalState == SPKR_CALIB_IN_PROGRESS) {
             // Close the Graphs
@@ -1135,7 +1143,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_VI_OP_MODE_CFG,(void *)&modeConfg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete[] payload;
+            free(payload);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG," updateCustomPayload Failed for VI_OP_MODE_CFG\n");
             }
@@ -1149,7 +1157,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_VI_CHANNEL_MAP_CFG,(void *)&viChannelMapConfg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete[] payload;
+            free(payload);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG," updateCustomPayload Failed for CHANNEL_MAP_CFG\n");
             }
@@ -1163,7 +1171,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_EX_VI_MODE_CFG,(void *)&viExModeConfg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete[] payload;
+            free(payload);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG," updateCustomPayload Failed for EX_VI_MODE_CFG\n");
             }
@@ -1180,7 +1188,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                     (void *) &viFtmConfg);
             if (payloadSize) {
                 ret = updateCustomPayload(payload, payloadSize);
-                delete[] payload;
+                free(payload);
                 memset(&(rm->mSpkrProtModeValue), 0,
                         sizeof(pal_spkr_prot_payload));
                 if (0 != ret) {
@@ -1214,7 +1222,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                             sizeof(vi_r0t0_cfg_t) * numberOfChannels);
         if (!spR0T0confg) {
             PAL_ERR(LOG_TAG, "Memory allocation failure for spR0T0confg");
-            return -ENOMEM;
+            goto free_fe;
         }
 
         spR0T0confg->num_speakers = numberOfChannels;
@@ -1227,7 +1235,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_TH_VI_R0T0_CFG,(void *)spR0T0confg);
         if (payloadSize) {
             ret = updateCustomPayload(payload, payloadSize);
-            delete[] payload;
+            free(payload);
             free(spR0T0confg);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG," updateCustomPayload Failed\n");
@@ -1261,14 +1269,14 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
         ret = rm->getActiveStream_l(dev, activeStreams);
         if ((0 != ret) || (activeStreams.size() == 0)) {
             PAL_ERR(LOG_TAG, " no active stream available");
-            return -EINVAL;
+            goto done;
         }
         stream = static_cast<Stream *>(activeStreams[0]);
         stream->getAssociatedSession(&session);
         ret = session->getMIID(backEndName.c_str(), MODULE_SP, &miid);
         if (ret) {
             PAL_ERR(LOG_TAG, "Failed to get tag info %x, status = %d", MODULE_SP, ret);
-            return ret;
+            goto done;
         }
 
         // Set the operation mode for SP module
@@ -1289,7 +1297,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                 PARAM_ID_SP_OP_MODE,(void *)&spModeConfg);
         if (payloadSize) {
             ret = devObj->updateCustomPayload(payload, payloadSize);
-            delete[] payload;
+            free(payload);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG," updateCustomPayload Failed\n");
             }
