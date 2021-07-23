@@ -772,6 +772,7 @@ int SessionAlsaCompress::start(Stream * s)
     size_t payloadSize = 0;
     uint32_t miid;
 
+    PAL_DBG(LOG_TAG,"Enter");
     /** create an offload thread for posting callbacks */
     worker_thread = std::make_unique<std::thread>(offloadThreadLoop, this);
 
@@ -786,12 +787,13 @@ int SessionAlsaCompress::start(Stream * s)
     if (!compress) {
         PAL_ERR(LOG_TAG, "compress open failed");
         status = -EINVAL;
-        goto free_feIds;
+        goto exit;
     }
     if (!is_compress_ready(compress)) {
         PAL_ERR(LOG_TAG, "compress open not ready %s", compress_get_error(compress));
         status = -EINVAL;
-        goto free_feIds;
+        worker_thread.reset(NULL);
+        goto exit;
     }
     /** set non blocking mode for writes */
     compress_nonblock(compress, !!ioMode);
@@ -801,12 +803,13 @@ int SessionAlsaCompress::start(Stream * s)
             status = s->getAssociatedDevices(associatedDevices);
             if (0 != status) {
                 PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
-                return status;
+                goto exit;
             }
             rm->getBackEndNames(associatedDevices, rxAifBackEnds, txAifBackEnds);
             if (rxAifBackEnds.empty() && txAifBackEnds.empty()) {
                 PAL_ERR(LOG_TAG, "no backend specified for this stream");
-                return status;
+                worker_thread.reset(NULL);
+                goto exit;
 
             }
 
@@ -814,7 +817,8 @@ int SessionAlsaCompress::start(Stream * s)
                      rxAifBackEnds[0].second.data(), STREAM_SPR, &spr_miid);
             if (0 != status) {
                 PAL_ERR(LOG_TAG, "Failed to get tag info %x, status = %d", STREAM_SPR, status);
-                return status;
+                worker_thread.reset(NULL);
+                goto exit;
             }
 
             setCustomFormatParam(audio_fmt);
@@ -822,7 +826,8 @@ int SessionAlsaCompress::start(Stream * s)
                 status = associatedDevices[i]->getDeviceAttributes(&dAttr);
                 if(0 != status) {
                     PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
-                    return status;
+                    worker_thread.reset(NULL);
+                    goto exit;
                 }
 
                 /* Get PSPD MFC MIID and configure to match to device config */
@@ -832,7 +837,8 @@ int SessionAlsaCompress::start(Stream * s)
                                                                TAG_DEVICE_MFC_SR, &miid);
                 if (status != 0) {
                     PAL_ERR(LOG_TAG,"getModuleInstanceId failed");
-                    return status;
+                    worker_thread.reset(NULL);
+                    goto exit;
                 }
                 PAL_DBG(LOG_TAG, "miid : %x id = %d, data %s, dev id = %d\n", miid,
                         compressDevIds.at(0), rxAifBackEnds[i].second.data(), dAttr.id);
@@ -856,7 +862,8 @@ int SessionAlsaCompress::start(Stream * s)
                     delete payload;
                     if(0 != status) {
                         PAL_ERR(LOG_TAG,"updateCustomPayload Failed\n");
-                        return status;
+                        worker_thread.reset(NULL);
+                        goto exit;
                     }
                 }
                 if (isGaplessFmt) {
@@ -873,7 +880,8 @@ int SessionAlsaCompress::start(Stream * s)
 
                 if (status != 0) {
                     PAL_ERR(LOG_TAG,"setMixerParameter failed");
-                    return status;
+                    worker_thread.reset(NULL);
+                    goto exit;
                 }
             }
             break;
@@ -886,8 +894,9 @@ int SessionAlsaCompress::start(Stream * s)
             PAL_ERR(LOG_TAG,"Setting volume failed");
     }
 
-free_feIds:
-   return status;
+exit:
+    PAL_DBG(LOG_TAG,"Exit status: %d", status);
+    return status;
 }
 
 int SessionAlsaCompress::pause(Stream * s __unused)
