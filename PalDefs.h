@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -461,6 +461,10 @@ typedef enum {
 } pal_global_callback_event_t;
 
 typedef enum {
+    PAL_DTMF_CBK_EVENT,
+} pal_dtmf_callback_event_t;
+
+typedef enum {
     PAL_STREAM_LOOPBACK_PCM,
     PAL_STREAM_LOOPBACK_HFP_RX,
     PAL_STREAM_LOOPBACK_HFP_TX,
@@ -705,6 +709,8 @@ typedef enum {
     PAL_PARAM_ID_GAIN_LVL_MAP = 26,
     PAL_PARAM_ID_GAIN_LVL_CAL = 27,
     PAL_PARAM_ID_GAPLESS_MDATA = 28,
+    PAL_PARAM_ID_DTMF_GEN_TONE_CFG = 29,
+    PAL_PARAM_ID_MODULE_ENABLE = 30,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
@@ -804,6 +810,23 @@ typedef enum {
 typedef struct pal_param_device_rotation {
     pal_speaker_rotation_type    rotation_type;
 } pal_param_device_rotation_t;
+
+/* Payload For ID: PAL_PARAM_ID_DTMF_GEN_TONE_CFG
+ * Description   : DTMF Generator module parameters
+ */
+typedef struct pal_param_dtmf_gen_tone_cfg {
+    uint16_t high_freq;
+    uint16_t low_freq;
+    uint16_t gain;
+    int16_t duration_ms;
+} pal_param_dtmf_gen_tone_cfg_t;
+
+/* Payload For ID: PAL_PARAM_ID_MODULE_ENABLE
+ *Description    : DTMF Detector Module Enable
+*/
+typedef struct pal_param_module_enable {
+    uint32_t enable;
+} pal_param_module_enable_t;
 
 /* Payload For ID: PAL_PARAM_ID_BT_SCO*
  * Description   : BT SCO related device parameters
@@ -1034,6 +1057,11 @@ struct pal_compr_gapless_mdata {
        uint32_t encoderPadding;
 };
 
+struct dtmf_event_data {
+	uint32_t dtmf_high_freq;
+    uint32_t dtmf_low_freq;
+};
+
 /** @brief Callback function prototype to be given for
  *         pal_open_stream.
  *
@@ -1049,7 +1077,7 @@ struct pal_compr_gapless_mdata {
 typedef int32_t (*pal_stream_callback)(pal_stream_handle_t *stream_handle,
                                        uint32_t event_id, uint32_t *event_data,
                                        uint32_t event_data_size,
-                                       void *cookie);
+                                       uint64_t cookie);
 
 /** @brief Callback function prototype to be given for
  *         pal_register_callback.
@@ -1061,7 +1089,7 @@ typedef int32_t (*pal_stream_callback)(pal_stream_handle_t *stream_handle,
  * \param[in] cookie - cookie specified in the
  *       pal_register_global_callback.
  */
-typedef int32_t (*pal_global_callback)(uint32_t event_id, uint32_t *event_data, void *cookie);
+typedef int32_t (*pal_global_callback)(uint32_t event_id, uint32_t *event_data, uint64_t cookie);
 
 /** Sound card state */
 typedef enum card_status_t {

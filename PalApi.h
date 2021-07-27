@@ -99,7 +99,7 @@ void pal_deinit();
 int32_t pal_stream_open(struct pal_stream_attributes *attributes,
                         uint32_t no_of_devices, struct pal_device *devices,
                         uint32_t no_of_modifiers, struct modifier_kv *modifiers,
-                        pal_stream_callback cb, void *cookie,
+                        pal_stream_callback cb, uint64_t cookie,
                         pal_stream_handle_t **stream_handle);
 
 /**
@@ -499,7 +499,7 @@ int32_t pal_stream_get_mmap_position(pal_stream_handle_t *stream_handle,
   *
   * \return 0 on success, error code otherwise
   */
-int32_t pal_register_global_callback(pal_global_callback cb, void *cookie);
+int32_t pal_register_global_callback(pal_global_callback cb, uint64_t cookie);
 
 /**
   * \brief Set and get pal parameters for generic effect framework

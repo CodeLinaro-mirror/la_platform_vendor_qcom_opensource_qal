@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -2206,10 +2206,10 @@ std::shared_ptr<CaptureProfile> ResourceManager::GetSVACaptureProfile() {
  */
 int ResourceManager::registerMixerEventCallback(const std::vector<int> &DevIds,
                                                 session_callback callback,
-                                                void *cookie,
+                                                uint64_t cookie,
                                                 bool is_register) {
     int status = 0;
-    std::map<int, std::pair<session_callback, void *>>::iterator it;
+    std::map<int, std::pair<session_callback, uint64_t>>::iterator it;
 
     if (!callback || DevIds.size() <= 0) {
         PAL_ERR(LOG_TAG, "Invalid callback or pcm ids");
@@ -2314,7 +2314,7 @@ void ResourceManager::mixerEventWaitThreadLoop(
 int ResourceManager::handleMixerEvent(struct mixer *mixer, char *mixer_str) {
     int status = 0;
     int pcm_id = 0;
-    void *cookie = nullptr;
+    uint64_t cookie = 0;
     session_callback session_cb = nullptr;
     std::string event_str(mixer_str);
     // TODO: hard code in common defs
@@ -2328,7 +2328,7 @@ int ResourceManager::handleMixerEvent(struct mixer *mixer, char *mixer_str) {
     char *buf = nullptr;
     unsigned int num_values;
     struct agm_event_cb_params *params = nullptr;
-    std::map<int, std::pair<session_callback, void *>>::iterator it;
+    std::map<int, std::pair<session_callback, uint64_t>>::iterator it;
 
     PAL_DBG(LOG_TAG, "Enter");
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
@@ -3710,7 +3710,6 @@ bool ResourceManager::updateDeviceConfig(std::shared_ptr<Device> inDev,
         }
     }
 
-error:
     //if device switch is needed, perform it
     if (streamDevDisconnect.size()) {
         status = streamDevSwitch(streamDevDisconnect, StreamDevConnect);
@@ -3719,6 +3718,8 @@ error:
         }
     }
     inDev->setDeviceAttributes(*inDevAttr);
+
+error:
     return isDeviceSwitch;
 }
 
@@ -4393,6 +4394,43 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
 
         }
         break;
+        case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
+        {
+            pal_param_dtmf_gen_tone_cfg_t* param_dtmf_gen =
+                                      (pal_param_dtmf_gen_tone_cfg_t*) param_payload;
+            if(!param_dtmf_gen) {
+                status = -ENOMEM;
+                PAL_ERR(LOG_TAG, "failed to get dtmf gen payload %d", status);
+                goto exit;
+            }
+            if (payload_size == sizeof(pal_param_dtmf_gen_tone_cfg_t)) {
+                status = handleDtmfToneGeneration(*param_dtmf_gen);
+            } else {
+                PAL_ERR(LOG_TAG,"Incorrect size : expected (%zu), received(%zu)",
+                        sizeof(pal_param_dtmf_gen_tone_cfg_t), payload_size);
+                status = -EINVAL;
+            }
+        }
+        break;
+        case PAL_PARAM_ID_MODULE_ENABLE:
+        {
+            pal_param_module_enable_t* param_module_enable =
+                            (pal_param_module_enable_t*) param_payload;
+            if(!param_module_enable) {
+                status = -ENOMEM;
+                PAL_ERR(LOG_TAG, "failed to get dtmf enable payload %d", status);
+                goto exit;
+            }
+            PAL_INFO(LOG_TAG, "DTMF Detection Module Enable:%d", param_module_enable->enable);
+            if (payload_size == sizeof(pal_param_module_enable_t)) {
+                status = handleDtmfDetectModuleEnable(*param_module_enable);
+            } else {
+                PAL_ERR(LOG_TAG,"Incorrect size : expected (%zu), received(%zu)",
+                        sizeof(pal_param_module_enable_t), payload_size);
+                status = -EINVAL;
+            }
+        }
+        break;
         case PAL_PARAM_ID_SP_SET_MODE:
         {
             pal_spkr_prot_payload *spModeval =
@@ -4551,6 +4589,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
         {
             std::shared_ptr<Device> dev = nullptr;
             struct pal_device dattr;
+            struct pal_stream_attributes sAttr = {};
             pal_param_bta2dp_t *param_bt_a2dp = nullptr;
             struct pal_device_info devinfo = {};
 
@@ -4587,7 +4626,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                         goto exit;
                     }
 
-                    getDeviceConfig(&spkrDattr, NULL, devinfo.channels);
+                    getDeviceConfig(&spkrDattr, &sAttr, devinfo.channels);
                     getDeviceInfo(dattr.id, PAL_STREAM_LOW_LATENCY, &devinfo);
                     if ((devinfo.channels == 0) ||
                           (devinfo.channels > devinfo.max_channels)) {
@@ -4595,7 +4634,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                         PAL_ERR(LOG_TAG, "Invalid num channels [%d], exiting", devinfo.channels);
                         goto exit;
                     }
-                    getDeviceConfig(&dattr, NULL, devinfo.channels);
+                    getDeviceConfig(&dattr, &sAttr, devinfo.channels);
 
                     mResourceManagerMutex.unlock();
                     forceDeviceSwitch(dev, &spkrDattr);
@@ -4881,6 +4920,90 @@ int ResourceManager::handleDeviceRotationChange (pal_param_device_rotation_t
     }
 error :
     PAL_INFO(LOG_TAG, "Exiting handleDeviceRotationChange");
+    return status;
+}
+
+int ResourceManager::handleDtmfDetectModuleEnable(pal_param_module_enable_t
+                                    param_module_enable) {
+    std::vector<Stream*>::iterator sIter;
+    std::vector<Stream*> activestreams;
+    pal_stream_type_t streamType;
+    struct pal_device dattr;
+    struct pal_stream_attributes sAttr;
+    Session *session = NULL;
+    int status = 0;
+
+
+    /**Get the active device list and check if voice call devices are present.
+     */
+    for (int i = 0; i < active_devices.size(); i++) {
+        status = getActiveStream_l(active_devices[i].first, activestreams);
+        if ((0 != status) || (activestreams.size() == 0)) {
+            PAL_ERR(LOG_TAG, "no other active streams found");
+            status = -EINVAL;
+            goto exit;
+        }
+        for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
+            status = (*sIter)->getStreamAttributes(&sAttr);
+            if(0 != status) {
+                PAL_ERR(LOG_TAG,"getStreamAttribute Failed");
+                goto exit;
+            }
+
+            if ((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX)) {
+                status = (*sIter)->setParameters(PAL_PARAM_ID_MODULE_ENABLE,
+                                                 (void*)&param_module_enable);
+               if (0 != status) {
+                    PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
+                    goto exit;
+                }
+            }
+        }
+        break;
+    }
+exit:
+    PAL_INFO(LOG_TAG, "Exit handleDtmfDetectModuleEnable");
+    return status;
+}
+
+int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
+                                                param_dtmf_gen) {
+    std::vector<Stream*>::iterator sIter;
+    std::vector<Stream*> activestreams;
+    pal_stream_type_t streamType;
+    struct pal_device dattr;
+    struct pal_stream_attributes sAttr;
+    Session *session = NULL;
+    int status = 0;
+
+    /*Get the active device list and check if voice call devices are present*/
+    for (int i = 0; i < active_devices.size(); i++) {
+        status = getActiveStream_l(active_devices[i].first, activestreams);
+        if ((0 != status) || (activestreams.size() == 0)) {
+            PAL_ERR(LOG_TAG, "no other active streams found");
+            status = -EINVAL;
+            goto exit;
+        }
+        for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
+            status = (*sIter)->getStreamAttributes(&sAttr);
+            if(0 != status) {
+                PAL_ERR(LOG_TAG,"getStreamAttribute Failed");
+                goto exit;
+            }
+            if (((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX))) {
+                status = (*sIter)->setParameters(PAL_PARAM_ID_DTMF_GEN_TONE_CFG,
+                                                 (void*)&param_dtmf_gen);
+                if (0 != status) {
+                    PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
+                    goto exit;
+                }
+            }
+        }
+        break;
+    }
+exit:
     return status;
 }
 

@@ -372,7 +372,7 @@ SoundTriggerEngineGsl::SoundTriggerEngineGsl(
         throw std::runtime_error("Failed to create session");
     }
 
-    session_->registerCallBack(HandleSessionCallBack, this);
+    session_->registerCallBack(HandleSessionCallBack, (uint64_t)this);
 
     // Init internal structures
     event_config_.event_mode = CONFIDENCE_LEVEL_INFO |
@@ -682,7 +682,7 @@ void SoundTriggerEngineGsl::HandleSessionEvent(uint32_t event_id __unused,
     cv_.notify_one();
 }
 
-void SoundTriggerEngineGsl::HandleSessionCallBack(void *hdl, uint32_t event_id,
+void SoundTriggerEngineGsl::HandleSessionCallBack(uint64_t hdl, uint32_t event_id,
                                                   void *data, uint32_t event_size __unused) {
     SoundTriggerEngineGsl *engine = nullptr;
 

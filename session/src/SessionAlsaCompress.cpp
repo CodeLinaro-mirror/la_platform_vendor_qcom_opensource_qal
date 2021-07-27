@@ -301,7 +301,7 @@ SessionAlsaCompress::SessionAlsaCompress(std::shared_ptr<ResourceManager> Rm)
     customPayloadSize = 0;
     compress = NULL;
     sessionCb = NULL;
-    this->cbCookie = NULL;
+    this->cbCookie = 0;
     playback_started = false;
     playback_paused = false;
 }
@@ -750,7 +750,7 @@ int SessionAlsaCompress::configureEarlyEOSDelay(void)
     }
     if (payloadSize) {
         status = updateCustomPayload(payload, payloadSize);
-        delete[] payload;
+        free(payload);
         if(0 != status) {
             PAL_ERR(LOG_TAG,"%s: updateCustomPayload Failed\n", __func__);
             return status;
@@ -1425,7 +1425,7 @@ int SessionAlsaCompress::setParameters(Stream *s __unused, int tagId, uint32_t p
     return 0;
 }
 
-int SessionAlsaCompress::registerCallBack(session_callback cb, void *cookie)
+int SessionAlsaCompress::registerCallBack(session_callback cb, uint64_t cookie)
 {
     sessionCb = cb;
     cbCookie = cookie;

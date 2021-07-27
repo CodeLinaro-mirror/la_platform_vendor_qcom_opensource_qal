@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -33,6 +33,7 @@
 #include "PayloadBuilder.h"
 #include "Session.h"
 #include "PalAudioRoute.h"
+#include "dtmf_detection_api.h"
 #include "vcpm_api.h"
 #include <tinyalsa/asoundlib.h>
 #include <thread>
@@ -57,12 +58,16 @@ private:
     std::vector <std::pair<int, int>> gkv;
     std::vector <std::pair<int, int>> ckv;
     std::vector <std::pair<int, int>> tkv;
+    std::vector <std::pair<int,int>> freqPair;
     std::thread threadHandler;
     uint32_t vsid = 0x11C0500; /*defualt*/
     float default_volume = 0.4;
     uint32_t ttyMode = PAL_TTY_OFF;
     bool volume_boost = vol_boost_disable;
     bool slow_talk = false;
+    uint32_t enable;
+    session_callback sessionCb;
+    uint64_t cbCookie;
 
 public:
 
@@ -83,6 +88,7 @@ public:
     int disconnectSessionDevice(Stream *streamHandle,
                                 pal_stream_type_t streamType,
                                 std::shared_ptr<Device> deviceToDisconnect);
+    int registerCallBack(session_callback cb, uint64_t cookie);
     int connectSessionDevice(Stream* streamHandle,
                              pal_stream_type_t streamType,
                              std::shared_ptr<Device> deviceToConnect);
@@ -99,8 +105,14 @@ private:
     int setSidetone(int deviceId, Stream * s, bool enable);
     int setHWSidetone(Stream * s, bool enable);
     int getTXDeviceId(Stream *s, int *id);
+    static void HandleDtmfCallBack(uint64_t hdl, uint32_t event_id, void *data,
+                            uint32_t event_size);
     int populate_rx_mfc_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
     int populate_vsid_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
+    int payloadDtmfGenTaged(Stream *s,int tag, void *pData, int dir);
+    int setDtmfGenTKV(Stream * s, std::vector <std::pair<int,int>> &tkv, int index,
+                     int size, uint32_t* gsltag);
+    int populateFreqPair();
 };
 
 #endif //SESSION_ALSAVOICE_H

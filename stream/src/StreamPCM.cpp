@@ -35,9 +35,21 @@
 #include "Session.h"
 #include "kvh2xml.h"
 #include "SessionAlsaPcm.h"
+#include "SessionAlsaVoice.h"
 #include "ResourceManager.h"
 #include "Device.h"
 #include <unistd.h>
+
+static void handleSessionCallBack(uint64_t hdl, uint32_t event_id, void *data,
+                                  uint32_t event_size)
+{
+    Stream *s = NULL;
+    pal_stream_callback cb;
+    s = reinterpret_cast<Stream *>(hdl);
+    if (s->getCallBack(&cb) == 0)
+       cb(reinterpret_cast<pal_stream_handle_t *>(s), event_id, (uint32_t *)data,
+          event_size, s->cookie);
+}
 
 StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_device *dattr,
                     const uint32_t no_of_devices, const struct modifier_kv *modifiers,
@@ -123,6 +135,7 @@ StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_devic
         throw std::runtime_error("failed to create session object");
     }
 
+    session->registerCallBack(handleSessionCallBack, (uint64_t)this);
     PAL_VERBOSE(LOG_TAG, "Create new Devices with no_of_devices - %d", no_of_devices);
     for (int i = 0; i < no_of_devices; i++) {
         //Check with RM if the configuration given can work or not
@@ -881,13 +894,16 @@ exit :
     return status;
 }
 
-int32_t  StreamPCM::registerCallBack(pal_stream_callback /*cb*/, void */*cookie*/)
+int32_t  StreamPCM::registerCallBack(pal_stream_callback cb, uint64_t cookie)
 {
+    streamCb = cb;
+    this->cookie = cookie;
     return 0;
 }
 
-int32_t  StreamPCM::getCallBack(pal_stream_callback * /*cb*/)
+int32_t  StreamPCM::getCallBack(pal_stream_callback *cb)
 {
+    *cb = streamCb;
     return 0;
 }
 
@@ -979,6 +995,30 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
             if (status)
                PAL_ERR(LOG_TAG, "setParam for slow talk failed with %d",
                        status);
+            break;
+        }
+        case PAL_PARAM_ID_MODULE_ENABLE:
+        {
+            uint32_t enable = 0;
+
+            enable = (uint32_t)(((pal_param_module_enable_t *)payload)->enable);
+            uint32_t enable_tag =
+                        enable ? MODULE_ENABLE : MODULE_DISABLE;
+            status = session->setParameters(this, enable_tag,
+                                            param_id, payload);
+            if (status)
+               PAL_ERR(LOG_TAG, "setParam failed for DTMF module enable with %d",
+                       status);
+            break;
+        }
+        case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
+        {
+            status = session->setParameters(this, DTMF_GEN,
+                                            param_id, payload);
+            if (0 != status) {
+                PAL_ERR(LOG_TAG, "Dtmf Gen setParams Failed with status %d",
+                        status);
+            }
             break;
         }
         default:

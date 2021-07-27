@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -48,6 +48,44 @@
 
 #define NUM_OF_CAL_KEYS 2
 
+
+
+void SessionAlsaVoice::HandleDtmfCallBack(uint64_t hdl, uint32_t event_id,
+                                          void *data, uint32_t event_size)
+{
+    dtmf_event_data event_data;
+    pal_stream_callback cb;
+    struct dtmf_detect_event_t *dtmf_info = nullptr;
+    Stream *s = NULL;
+
+    PAL_ERR(LOG_TAG, "Enter");
+    PAL_ERR(LOG_TAG, "Enter, event detected on SPF, event id = 0x%x", event_id);
+
+    if ((hdl == 0) || !data || !event_size) {
+        PAL_ERR(LOG_TAG, "Invalid stream handle or event data or event size");
+        return;
+    }
+    if (event_id != EVENT_ID_DTMF_DETECTION) {
+        return;
+    }
+
+    s = reinterpret_cast<Stream *>(hdl);
+    dtmf_info = (struct dtmf_detect_event_t *)data;
+    //payload_size = sizeof(struct dtmf_detect_event_t);
+    event_data.dtmf_high_freq = dtmf_info->tone_high_freq;
+    event_data.dtmf_low_freq = dtmf_info->tone_low_freq;
+    PAL_ERR(LOG_TAG, "high_freq: %d, low_freq: %d",
+            event_data.dtmf_high_freq, event_data.dtmf_low_freq);
+
+    if (s->getCallBack(&cb) == 0) {
+         cb(reinterpret_cast<pal_stream_handle_t *>(s), PAL_DTMF_CBK_EVENT, (uint32_t *)&event_data,
+            event_size, s->cookie);
+    }
+
+    PAL_ERR(LOG_TAG, "Exit");
+    return;
+}
+
 SessionAlsaVoice::SessionAlsaVoice(std::shared_ptr<ResourceManager> Rm)
 {
    rm = Rm;
@@ -79,6 +117,12 @@ uint32_t SessionAlsaVoice::getMIID(const char *backendName, uint32_t tagId, uint
             device = pcmDevTxIds.at(0);
         else
             device = pcmDevRxIds.at(0);
+        break;
+    case DTMF_GENERATOR:
+        device = pcmDevRxIds.at(0);
+        break;
+    case DTMF_DETECTOR:
+        device = pcmDevRxIds.at(0);
         break;
     default:
         PAL_INFO(LOG_TAG, "Unsupported tag info %x",tagId);
@@ -144,6 +188,15 @@ int SessionAlsaVoice::open(Stream * s)
         PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
         rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXDIR);
         rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXDIR);
+    }
+
+    if (!status && sAttr.type ==  PAL_STREAM_VOICE_CALL_TX) {
+         status = rm->registerMixerEventCallback(pcmDevTxIds,
+            sessionCb, cbCookie, true);
+
+         if (status != 0) {
+            PAL_ERR(LOG_TAG, "Failed to register callback to rm");
+         }
     }
 
 exit:
@@ -245,6 +298,7 @@ int SessionAlsaVoice::populate_rx_mfc_payload(Stream *s, uint8_t **payload, size
     uint32_t miid = 0;
     int dev_id = 0;
 
+    memset(&dAttr, 0, sizeof(struct pal_device));
     status = s->getAssociatedDevices(associatedDevices);
     if (0 != status) {
         PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
@@ -494,6 +548,7 @@ int SessionAlsaVoice::close(Stream * s)
 
     return status;
 }
+
 int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __unused, void *payload)
 {
     int status = 0;
@@ -502,6 +557,7 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
     size_t paramSize = 0;
 
     uint32_t tty_mode;
+
     pal_param_payload *PalPayload = (pal_param_payload *)payload;
 
     switch (static_cast<uint32_t>(tagId)) {
@@ -534,6 +590,19 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
             }
             break;
 
+        case MODULE_ENABLE:
+        case MODULE_DISABLE:
+            device = pcmDevRxIds.at(0);
+            enable = *((bool *)PalPayload->payload);
+            status = payloadTaged(s, MODULE, tagId, device, TXDIR);
+            if (status) {
+                PAL_ERR(LOG_TAG, "Failed to set Dtmf detect params status = %d",
+                        status);
+            }
+            PAL_ERR(LOG_TAG, "Exit MODULE_ENABLE, Disable case");
+            registerCallBack(HandleDtmfCallBack, (uint64_t)s); /* to do : seperate module_disable*/
+            break;
+
         case TTY_MODE:
             tty_mode = *((uint32_t *)PalPayload->payload);
             device = pcmDevRxIds.at(0);
@@ -550,6 +619,16 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
             if (!paramData) {
                 status = -ENOMEM;
                 PAL_ERR(LOG_TAG, "failed to get tty payload status %d", status);
+                goto exit;
+            }
+            break;
+
+        case DTMF_GEN:
+            device = pcmDevRxIds.at(0);
+            status = payloadDtmfGenTaged(s, tagId, payload, RXDIR);
+            if (status) {
+                PAL_ERR(LOG_TAG, "Failed to get dtmf gen params status = %d",
+                        status);
                 goto exit;
             }
             break;
@@ -699,6 +778,118 @@ if (paramData) {
     free(paramData);
 }
     PAL_DBG(LOG_TAG,"exit status:%d ", status);
+    return status;
+}
+
+int SessionAlsaVoice::setDtmfGenTKV(Stream * s, std::vector <std::pair<int,int>> &tkv, int index, int size, uint32_t* gsltag)
+{
+    int status = 0;
+    int i = 0;
+
+    PAL_ERR(LOG_TAG,"enter, index: %d", index);
+
+    const Key_DTMF_GEN taglist[] = {DTMF_GEN_1, DTMF_GEN_2, DTMF_GEN_3,
+                                   DTMF_GEN_4, DTMF_GEN_5, DTMF_GEN_6,
+                                   DTMF_GEN_7, DTMF_GEN_8, DTMF_GEN_9,
+                                   DTMF_GEN_10, DTMF_GEN_11, DTMF_GEN_12,
+                                   DTMF_GEN_13, DTMF_GEN_14, DTMF_GEN_15,
+                                   DTMF_GEN_16};
+
+    std::vector<Key_DTMF_GEN> dtmfGenTagList(taglist, taglist+size);
+    tkv.push_back(std::make_pair(TAG_KEY_DTMF_GEN_TONE, dtmfGenTagList[index]));
+    *gsltag = DTMF_GENERATOR;
+
+    PAL_ERR(LOG_TAG, "exit, status: %d", status);
+    return status;
+}
+
+int SessionAlsaVoice::populateFreqPair() {
+    int size_lFreq = 0;
+    int size_hFreq = 0;
+    int totalSize = 0;
+    int highFreq[] = {1209, 1336, 1477, 1633};
+    int lowFreq[] = {697, 770, 852, 941};
+
+    size_hFreq = sizeof(highFreq)/sizeof(highFreq[0]);
+    size_lFreq = sizeof(lowFreq)/sizeof(lowFreq[0]);
+    totalSize = size_hFreq * size_lFreq;
+
+    for (int i=0; i<size_hFreq; i++){
+        for (int j=0;j<size_lFreq;j++) {
+            freqPair.push_back(std::make_pair(highFreq[i],lowFreq[j]));
+        }
+    }
+
+    return totalSize;
+}
+
+int SessionAlsaVoice::payloadDtmfGenTaged(Stream *s, int tag, void *pData, int dir){
+    int status = 0;
+    int totalSize = 0;
+    int index = 0;
+    int tkv_size = 0;
+    uint32_t tagsent;
+    struct mixer_ctl *ctl;
+    struct agm_tag_config* tagConfig;
+    const char *setParamTagControl = "setParamTag";
+    std::ostringstream tagCntrlName;
+    const char *stream = SessionAlsaVoice::getMixerVoiceStream(s, dir);
+
+    pal_param_dtmf_gen_tone_cfg_t* dtmf_gen_payload =
+                                (pal_param_dtmf_gen_tone_cfg_t*) pData;
+    totalSize = populateFreqPair();
+    for (int i=0; i<totalSize; i++) {
+        if (freqPair[i].first == dtmf_gen_payload->high_freq) {
+            if (freqPair[i].second == dtmf_gen_payload->low_freq) {
+                index = i+1;
+                PAL_ERR(LOG_TAG, "found freq at index: %d", index);
+                break;
+            }
+        }
+    }
+    status = setDtmfGenTKV(s, tkv, index-1, totalSize, &tagsent);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG,"Failed to set the tkv for index: %d \n", index);
+    }
+
+    if (tkv.size() == 0) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG,"invalid tkv size\n");
+        goto done;
+    }
+    tagConfig = (struct agm_tag_config*)malloc (sizeof(struct agm_tag_config) +
+                 (tkv.size() * sizeof(agm_key_value)));
+    if(!tagConfig) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG,"invalid tagConfig\n");
+        goto done;
+    }
+    status = SessionAlsaUtils::getTagMetadata(tagsent, tkv, tagConfig);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG,"getTagMetadata failed\n");
+        goto done;
+    }
+    tagCntrlName<<stream<<" "<<setParamTagControl;
+    ctl = mixer_get_ctl_by_name(mixer, tagCntrlName.str().data());
+    if (!ctl) {
+        PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", tagCntrlName.str().data());
+        return -ENOENT;
+    }
+
+    tkv_size = tkv.size()*sizeof(struct agm_key_value);
+    status = mixer_ctl_set_array(ctl, tagConfig, sizeof(struct agm_tag_config) + tkv_size);
+    if (status != 0) {
+         PAL_ERR(LOG_TAG,"failed to set the tag calibration %d", status);
+         goto done;
+    }
+    ctl = NULL;
+    tkv.clear();
+    if (tagConfig) {
+        free(tagConfig);
+    }
+
+done:
+    PAL_ERR(LOG_TAG, "Exit");
     return status;
 }
 
@@ -1172,6 +1363,13 @@ char* SessionAlsaVoice::getMixerVoiceStream(Stream *s, int dir){
 
 int SessionAlsaVoice::setECRef(Stream *s __unused, std::shared_ptr<Device> rx_dev __unused, bool is_enable __unused)
 {
+    return 0;
+}
+
+int SessionAlsaVoice::registerCallBack(session_callback cb, uint64_t cookie)
+{
+    sessionCb = cb;
+    cbCookie = cookie;
     return 0;
 }
 
