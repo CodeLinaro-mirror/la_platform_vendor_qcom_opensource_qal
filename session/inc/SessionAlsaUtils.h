@@ -132,6 +132,7 @@ public:
     static unsigned int bytesToFrames(size_t bufSizeInBytes, unsigned int channels,
                            enum pcm_format format);
     static bool isMmapUsecase(struct pal_stream_attributes attr);
+    static bool isHpcmUsecase(struct pal_stream_attributes attr);
     static void getAgmMetaData(const std::vector <std::pair<int, int>> &kv,
                         const std::vector <std::pair<int, int>> &ckv,
                         struct prop_data *propData,

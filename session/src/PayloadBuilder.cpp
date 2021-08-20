@@ -44,6 +44,8 @@
 #define PARAM_ID_DISPLAY_PORT_INTF_CFG   0x8001154
 
 #define PARAM_ID_USB_AUDIO_INTF_CFG                               0x080010D6
+/*Parameter used to enable module and send HPCM configuration */
+#define PARAM_ID_HPCM_CONFIG             0x08001378
 
 /* ID of the Output Media Format parameters used by MODULE_ID_MFC */
 #define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT            0x08001024
@@ -652,6 +654,49 @@ void PayloadBuilder::payloadSVAStreamSetupDuration(uint8_t **payload, size_t *si
     PAL_DBG(LOG_TAG, "payload %pK size %zu", *payload, *size);
 }
 
+void PayloadBuilder::payloadHpcmConfig(uint8_t **payload, size_t *size,
+    uint32_t moduleId, pal_param_hpcm_cfg_t *hpcm_payload)
+{
+    struct apm_module_param_data_t* header;
+    pal_param_hpcm_cfg_t *hpcm_config;
+    uint8_t* payloadInfo = NULL;
+    size_t payloadSize = 0, padBytes = 0;
+
+    payloadSize = sizeof(struct apm_module_param_data_t) +
+                  sizeof(pal_param_hpcm_cfg_t);
+    padBytes = PAL_PADDING_8BYTE_ALIGN(payloadSize);
+    payloadInfo = new uint8_t[payloadSize + padBytes]();
+    if (!payloadInfo) {
+        PAL_ERR(LOG_TAG, "payloadInfo malloc failed %s", strerror(errno));
+        return;
+    }
+    header = (struct apm_module_param_data_t*)payloadInfo;
+    header->module_instance_id = moduleId;
+    header->param_id = PARAM_ID_HPCM_CONFIG;
+    header->error_code = 0x0;
+    header->param_size = payloadSize - sizeof(struct apm_module_param_data_t);
+    PAL_DBG(LOG_TAG, "header params \n IID:%x param_id:%x error_code:%d param_size:%d",
+                       header->module_instance_id, header->param_id,
+                       header->error_code, header->param_size);
+    hpcm_config = (pal_param_hpcm_cfg_t*)(payloadInfo +
+                   sizeof(struct apm_module_param_data_t));
+    hpcm_config->enable = 1;
+    hpcm_config->mode = hpcm_payload->mode;
+    hpcm_config->num_channels = hpcm_payload->num_channels;
+    hpcm_config->sampling_rate = hpcm_payload->sampling_rate;
+    hpcm_config->duration_ms = 20;
+    hpcm_config->reserved = 0;
+    PAL_DBG(LOG_TAG, "enable:%d, mode:%d, num_channels:%d,sampling_rate:%d",
+            hpcm_config->enable, hpcm_config->mode, hpcm_config->num_channels,
+            hpcm_config->sampling_rate);
+    PAL_DBG(LOG_TAG, " duration_ms:%d, reserved:%d",
+           hpcm_config->duration_ms, hpcm_config->reserved);
+
+    *size = payloadSize + padBytes;
+    *payload = payloadInfo;
+    PAL_DBG(LOG_TAG, "customPayload address %pK and size %zu", payloadInfo, *size);
+}
+
 void PayloadBuilder::payloadSVAEventConfig(uint8_t **payload, size_t *size,
      uint32_t moduleId, struct detection_engine_generic_event_cfg *pEventConfig)
 {
@@ -1253,6 +1298,22 @@ int PayloadBuilder::populateStreamKV(Stream* s,
         case PAL_STREAM_VOICE_CALL_MUSIC:
             keyVector.push_back(std::make_pair(STREAMRX,INCALL_MUSIC));
             break;
+        case PAL_STREAM_HPCM_RX_PLAYBACK:
+            keyVector.push_back(std::make_pair(STREAMRX,VOICE_CALL_RX_HPCM_PLAYBACK));
+            keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
+            break;
+        case PAL_STREAM_HPCM_TX_PLAYBACK:
+            keyVector.push_back(std::make_pair(STREAMRX, VOICE_CALL_TX_HPCM_PLAYBACK));
+            keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
+            break;
+        case PAL_STREAM_HPCM_RX_RECORD:
+            keyVector.push_back(std::make_pair(STREAMTX,VOICE_CALL_RX_HPCM_RECORD));
+            keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
+            break;
+        case PAL_STREAM_HPCM_TX_RECORD:
+            keyVector.push_back(std::make_pair(STREAMTX,VOICE_CALL_TX_HPCM_RECORD));
+            keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
+            break;
         default:
             status = -EINVAL;
             PAL_ERR(LOG_TAG,"unsupported stream type %d", sattr->type);
@@ -1414,6 +1475,7 @@ int PayloadBuilder::populateDevicePPKV(Stream* s, int32_t rxBeDevId,
     struct pal_stream_attributes *sattr = NULL;
     std::vector<std::shared_ptr<Device>> associatedDevices;
     struct pal_device dAttr;
+    std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
     PAL_DBG(LOG_TAG,"enter");
     sattr = new struct pal_stream_attributes;
     if (!sattr) {
@@ -1451,12 +1513,20 @@ int PayloadBuilder::populateDevicePPKV(Stream* s, int32_t rxBeDevId,
         switch (sattr->type) {
             case PAL_STREAM_VOICE_CALL:
                 if (dAttr.id == rxBeDevId){
-                    keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_VOICE_DEFAULT));
+                    if(rm->hpcm_enabled_) {
+                        keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_HPCM));
+                    } else {
+                        keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_VOICE_DEFAULT));
+                    }
                 }
                 if (dAttr.id == txBeDevId){
-                    for (int32_t kvsize = 0; kvsize < kvpair.size(); kvsize++) {
-                         keyVectorTx.push_back(std::make_pair(kvpair[kvsize].key,
+                    if(rm->hpcm_enabled_) {
+                        keyVectorTx.push_back(std::make_pair(DEVICEPP_TX, DEVICEPP_TX_HPCM));
+                    } else {
+                        for (int32_t kvsize = 0; kvsize < kvpair.size(); kvsize++) {
+                        keyVectorTx.push_back(std::make_pair(kvpair[kvsize].key,
                                                kvpair[kvsize].value));
+                        }
                     }
                 }
                 break;
@@ -1507,6 +1577,18 @@ int PayloadBuilder::populateDevicePPKV(Stream* s, int32_t rxBeDevId,
                  */
                 for (auto& kv: s->getDevPpModifiers())
                     keyVectorTx.push_back(kv);
+                break;
+            case PAL_STREAM_HPCM_RX_PLAYBACK:
+                keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_HPCM));
+                break;
+            case PAL_STREAM_HPCM_RX_RECORD:
+                keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_HPCM));
+                break;
+            case PAL_STREAM_HPCM_TX_PLAYBACK:
+                keyVectorRx.push_back(std::make_pair(DEVICEPP_TX, DEVICEPP_TX_HPCM));
+                break;
+            case PAL_STREAM_HPCM_TX_RECORD:
+                keyVectorRx.push_back(std::make_pair(DEVICEPP_TX, DEVICEPP_TX_HPCM));
                 break;
             default:
                 PAL_ERR(LOG_TAG,"stream type %d doesn't support populateDevicePPKV ", sattr->type);

@@ -103,6 +103,8 @@
 #define DEFAULT_MAX_SESSIONS 8
 #define MAX_SESSIONS_INCALL_MUSIC 1
 #define MAX_SESSIONS_INCALL_RECORD 1
+#define MAX_SESSIONS_HPCM_RX 1
+#define MAX_SESSIONS_HPCM_TX 1
 
 /*this can be over written by the config file settings*/
 uint32_t pal_log_lvl = (PAL_LOG_ERR|PAL_LOG_INFO);
@@ -290,6 +292,10 @@ const std::map<std::string, uint32_t> usecaseIdLUT {
     {std::string{ "PAL_STREAM_VOICE_UI" },                 PAL_STREAM_VOICE_UI},
     {std::string{ "PAL_STREAM_ULTRA_LOW_LATENCY" },        PAL_STREAM_ULTRA_LOW_LATENCY},
     {std::string{ "PAL_STREAM_PROXY" },                    PAL_STREAM_PROXY},
+    {std::string{ "PAL_STREAM_HPCM_RX_PLAYBACK" },         PAL_STREAM_HPCM_RX_PLAYBACK},
+    {std::string{ "PAL_STREAM_HPCM_RX_RECORD" },           PAL_STREAM_HPCM_RX_RECORD},
+    {std::string{ "PAL_STREAM_HPCM_TX_PLAYBACK" },         PAL_STREAM_HPCM_TX_PLAYBACK},
+    {std::string{ "PAL_STREAM_HPCM_TX_RECORD" },           PAL_STREAM_HPCM_TX_RECORD},
 };
 
 const std::map<std::string, sidetone_mode_t> sidetoneModetoId {
@@ -485,7 +491,7 @@ ResourceManager::ResourceManager()
     if (ret) {
         PAL_ERR(LOG_TAG, "error in resource xml parsing ret %d", ret);
     }
-
+    hpcm_enabled_ = false;
     listAllFrontEndIds.clear();
     listFreeFrontEndIds.clear();
     listAllPcmPlaybackFrontEnds.clear();
@@ -1342,6 +1348,22 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
             cur_sessions = active_streams_incall_record.size();
             max_sessions = MAX_SESSIONS_INCALL_RECORD;
             break;
+        case PAL_STREAM_HPCM_RX_PLAYBACK:
+            cur_sessions = active_streams_hpcm_rx_pb.size();
+            max_sessions = MAX_SESSIONS_HPCM_RX;
+            break;
+        case PAL_STREAM_HPCM_RX_RECORD:
+            cur_sessions = active_streams_hpcm_rx_rec.size();
+            max_sessions = MAX_SESSIONS_HPCM_RX;
+            break;
+        case PAL_STREAM_HPCM_TX_PLAYBACK:
+            cur_sessions = active_streams_hpcm_tx_pb.size();
+            max_sessions = MAX_SESSIONS_HPCM_TX;
+            break;
+        case PAL_STREAM_HPCM_TX_RECORD:
+            cur_sessions = active_streams_hpcm_tx_rec.size();
+            max_sessions = MAX_SESSIONS_HPCM_TX;
+            break;
         default:
             PAL_ERR(LOG_TAG, "Invalid stream type = %d", type);
         return result;
@@ -1365,6 +1387,10 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
         case PAL_STREAM_LOOPBACK:
         case PAL_STREAM_PROXY:
         case PAL_STREAM_VOICE_CALL_MUSIC:
+        case PAL_STREAM_HPCM_RX_PLAYBACK:
+        case PAL_STREAM_HPCM_RX_RECORD:
+        case PAL_STREAM_HPCM_TX_PLAYBACK:
+        case PAL_STREAM_HPCM_TX_RECORD:
             if (attributes->direction == PAL_AUDIO_INPUT) {
                 channels = attributes->in_media_config.ch_info.channels;
                 samplerate = attributes->in_media_config.sample_rate;
@@ -1532,6 +1558,30 @@ int ResourceManager::registerStream(Stream *s)
             ret = registerstream(sPCM, active_streams_incall_record);
             break;
         }
+        case PAL_STREAM_HPCM_RX_PLAYBACK:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = registerstream(sPCM, active_streams_hpcm_rx_pb);
+            break;
+        }
+        case PAL_STREAM_HPCM_RX_RECORD:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = registerstream(sPCM, active_streams_hpcm_rx_rec);
+            break;
+        }
+        case PAL_STREAM_HPCM_TX_PLAYBACK:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = registerstream(sPCM, active_streams_hpcm_tx_pb);
+            break;
+        }
+        case PAL_STREAM_HPCM_TX_RECORD:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = registerstream(sPCM, active_streams_hpcm_tx_rec);
+            break;
+        }
         default:
             ret = -EINVAL;
             PAL_ERR(LOG_TAG, "Invalid stream type = %d ret %d", type, ret);
@@ -1658,6 +1708,30 @@ int ResourceManager::deregisterStream(Stream *s)
         {
             StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
             ret = deregisterstream(sPCM, active_streams_incall_record);
+            break;
+        }
+        case PAL_STREAM_HPCM_RX_PLAYBACK:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = deregisterstream(sPCM, active_streams_hpcm_rx_pb);
+            break;
+        }
+        case PAL_STREAM_HPCM_RX_RECORD:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = deregisterstream(sPCM, active_streams_hpcm_rx_rec);
+            break;
+        }
+        case PAL_STREAM_HPCM_TX_PLAYBACK:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = deregisterstream(sPCM, active_streams_hpcm_tx_pb);
+            break;
+        }
+        case PAL_STREAM_HPCM_TX_RECORD:
+        {
+            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+            ret = deregisterstream(sPCM, active_streams_hpcm_tx_rec);
             break;
         }
         default:
@@ -2867,6 +2941,10 @@ int ResourceManager::getActiveStream_l(std::shared_ptr<Device> d,
     getActiveStreams(d, activestreams, active_streams_proxy);
     getActiveStreams(d, activestreams, active_streams_incall_record);
     getActiveStreams(d, activestreams, active_streams_incall_music);
+    getActiveStreams(d, activestreams, active_streams_hpcm_rx_pb);
+    getActiveStreams(d, activestreams, active_streams_hpcm_rx_rec);
+    getActiveStreams(d, activestreams, active_streams_hpcm_tx_pb);
+    getActiveStreams(d, activestreams, active_streams_hpcm_tx_rec);
 
     if (activestreams.empty()) {
         ret = -ENOENT;
@@ -3091,6 +3169,10 @@ const std::vector<int> ResourceManager::allocateFrontEndIds(const struct pal_str
         case PAL_STREAM_PCM_OFFLOAD:
         case PAL_STREAM_LOOPBACK:
         case PAL_STREAM_PROXY:
+        case PAL_STREAM_HPCM_RX_PLAYBACK:
+        case PAL_STREAM_HPCM_RX_RECORD:
+        case PAL_STREAM_HPCM_TX_PLAYBACK:
+        case PAL_STREAM_HPCM_TX_RECORD:
             switch (sAttr.direction) {
                 case PAL_AUDIO_INPUT:
                     if ( howMany > listAllPcmRecordFrontEnds.size()) {
@@ -3314,6 +3396,10 @@ void ResourceManager::freeFrontEndIds(const std::vector<int> frontend,
         case PAL_STREAM_VOIP_TX:
         case PAL_STREAM_VOICE_UI:
         case PAL_STREAM_PCM_OFFLOAD:
+        case PAL_STREAM_HPCM_RX_PLAYBACK:
+        case PAL_STREAM_HPCM_RX_RECORD:
+        case PAL_STREAM_HPCM_TX_PLAYBACK:
+        case PAL_STREAM_HPCM_TX_RECORD:
             switch (sAttr.direction) {
                 case PAL_AUDIO_INPUT:
                     for (int i = 0; i < frontend.size(); i++) {
@@ -4419,6 +4505,12 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                         sizeof(pal_param_dtmf_gen_tone_cfg_t), payload_size);
                 status = -EINVAL;
             }
+        }
+        break;
+        case PAL_PARAM_ID_HPCM_CFG:
+        {
+            pal_param_hpcm_cfg_t* param_hpcm_cfg = (pal_param_hpcm_cfg_t*) param_payload;
+            hpcm_enabled_ = param_hpcm_cfg->enable;
         }
         break;
         case PAL_PARAM_ID_MODULE_ENABLE:

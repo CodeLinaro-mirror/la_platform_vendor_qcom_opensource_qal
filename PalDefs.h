@@ -317,6 +317,10 @@ typedef enum {
     PAL_STREAM_PCM_OFFLOAD = 18,          /**< pcm offload audio */
     PAL_STREAM_ULTRA_LOW_LATENCY = 19,    /**< pcm ULL audio */
     PAL_STREAM_PROXY = 20,                /**< pcm proxy audio */
+    PAL_STREAM_HPCM_RX_PLAYBACK = 21,     /**< hpcm rx playback */
+    PAL_STREAM_HPCM_RX_RECORD = 22,       /**< hpcm rx record */
+    PAL_STREAM_HPCM_TX_PLAYBACK = 23,     /**< hpcm tx playback */
+    PAL_STREAM_HPCM_TX_RECORD = 24,       /**< hpcm tx record */
 } pal_stream_type_t;
 
 /** Audio devices available for enabling streams */
@@ -500,6 +504,18 @@ struct pal_voice_record_info {
     int64_t size;                       /** size of structure*/
     pal_incall_record_direction record_direction;         /** use direction enum to indicate content to be record */
 };
+
+typedef enum {
+    INCALL_HPCM_RX = 1,
+    INCALL_HPCM_TX,
+    INCALL_HPCM_RX_TX,
+} pal_incall_hpcm_tap_point;
+
+typedef enum {
+    INCALL_HPCM_DIRECTION_OUT = 1,
+    INCALL_HPCM_DIRECTION_IN,
+    INCALL_HPCM_DIRECTION_OUT_IN,
+} pal_incall_hpcm_direction;
 
 struct pal_voice_call_info {
      uint32_t VSID;
@@ -712,6 +728,7 @@ typedef enum {
     PAL_PARAM_ID_GAPLESS_MDATA = 28,
     PAL_PARAM_ID_DTMF_GEN_TONE_CFG = 29,
     PAL_PARAM_ID_MODULE_ENABLE = 30,
+    PAL_PARAM_ID_HPCM_CFG = 31,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
@@ -828,6 +845,18 @@ typedef struct pal_param_dtmf_gen_tone_cfg {
 typedef struct pal_param_module_enable {
     uint32_t enable;
 } pal_param_module_enable_t;
+
+/* Payload For ID: PAL_PARAM_ID_HPCM_CONFIG
+ * Description   : HPCM Module Config
+*/
+typedef struct pal_param_hpcm_cfg {
+    uint32_t enable;
+    uint16_t mode;
+    uint16_t num_channels;
+    uint32_t sampling_rate;
+    uint32_t duration_ms;
+    uint32_t reserved;
+} pal_param_hpcm_cfg_t;
 
 /* Payload For ID: PAL_PARAM_ID_BT_SCO*
  * Description   : BT SCO related device parameters

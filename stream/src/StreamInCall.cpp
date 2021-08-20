@@ -57,6 +57,7 @@ StreamInCall::StreamInCall(const struct pal_stream_attributes *sattr, struct pal
 
     session = NULL;
     mGainLevel = -1;
+    std::shared_ptr<Device> dev = nullptr;
     mStreamAttr = (struct pal_stream_attributes *)nullptr;
     inBufSize = BUF_SIZE_CAPTURE;
     outBufSize = BUF_SIZE_PLAYBACK;
@@ -121,7 +122,33 @@ StreamInCall::StreamInCall(const struct pal_stream_attributes *sattr, struct pal
         throw std::runtime_error("failed to create session object");
     }
 
-    PAL_VERBOSE(LOG_TAG, "Create new Devices with no_of_devices - %d", no_of_devices);
+    if ((sattr->type == PAL_STREAM_HPCM_RX_PLAYBACK) ||
+        (sattr->type == PAL_STREAM_HPCM_TX_PLAYBACK) ||
+        (sattr->type == PAL_STREAM_HPCM_RX_RECORD) ||
+        (sattr->type == PAL_STREAM_HPCM_TX_RECORD)) {
+        for (int i = 0; i < no_of_devices; i++) {
+        //Check with RM if the configuration given can work or not
+        //for e.g., if incoming stream needs 24 bit device thats also
+        //being used by another stream, then the other stream should route
+
+            dev = Device::getInstance((struct pal_device *)&dattr[i] , rm);
+            if (!dev) {
+                PAL_ERR(LOG_TAG, "Device creation failed");
+                free(mStreamAttr);
+
+                //TBD::free session too
+                mStreamMutex.unlock();
+                throw std::runtime_error("failed to create device object");
+            }
+
+            /* Create only update device attributes first time so update here using set*/
+            /* this will have issues if same device is being currently used by different stream */
+            // dev->setDeviceAttributes((struct pal_device)dattr[i]);
+            mDevices.push_back(dev);
+           //rm->registerDevice(dev);
+           dev = nullptr;
+        }
+    }
 
     rm->registerStream(this);
     mStreamMutex.unlock();
@@ -690,7 +717,20 @@ int32_t  StreamInCall::setParameters(uint32_t param_id, void *payload)
 
     mStreamMutex.lock();
     // Stream may not know about tags, so use setParameters instead of setConfig
-    switch (param_id) {        
+    switch (param_id) {
+        case PAL_PARAM_ID_HPCM_CFG:
+        {
+            uint32_t enable = 1;
+            uint32_t enable_tag =
+                       enable ? HPCM_ENABLE : HPCM_DISABLE;
+            PAL_DBG(LOG_TAG, "enable_tag = %d", enable_tag);
+            status = session->setParameters(this, enable_tag, param_id, payload);
+            if (status) {
+                PAL_ERR(LOG_TAG, "setConfig failed for HPCM module, status=%d",
+                    status);
+            }
+            break;
+        }
         default:
             PAL_ERR(LOG_TAG, "Unsupported param id %u", param_id);
             status = -EINVAL;
