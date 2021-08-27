@@ -361,8 +361,9 @@ typedef enum {
     PAL_DEVICE_IN_BLUETOOTH_A2DP = PAL_DEVICE_IN_MIN + 15,
     PAL_DEVICE_IN_HEADSET_VA_MIC = PAL_DEVICE_IN_MIN + 16,
     PAL_DEVICE_IN_VI_FEEDBACK = PAL_DEVICE_IN_MIN + 17,
+    PAL_DEVICE_IN_EXT_EC_REF = PAL_DEVICE_IN_MIN + 18,
     // Add new IN devices here, increment MAX and MIN below when you do so
-    PAL_DEVICE_IN_MAX = PAL_DEVICE_IN_MIN + 18,
+    PAL_DEVICE_IN_MAX = PAL_DEVICE_IN_MIN + 19,
 } pal_device_id_t;
 
 #ifdef __cplusplus
