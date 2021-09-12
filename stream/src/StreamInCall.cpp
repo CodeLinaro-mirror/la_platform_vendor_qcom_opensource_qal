@@ -321,9 +321,11 @@ int32_t StreamInCall::start()
             if (0 != status) {
                 PAL_ERR(LOG_TAG, "Tx session start is failed with status %d",
                         status);
+                rm->unlockGraph();
                 goto exit;
             }
             PAL_VERBOSE(LOG_TAG, "session start successful");
+            rm->unlockGraph();
             break;
         default:
             status = -EINVAL;

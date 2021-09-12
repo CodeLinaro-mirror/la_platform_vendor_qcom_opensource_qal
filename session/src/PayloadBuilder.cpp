@@ -1304,15 +1304,13 @@ int PayloadBuilder::populateStreamKV(Stream* s,
             break;
         case PAL_STREAM_HPCM_TX_PLAYBACK:
             keyVector.push_back(std::make_pair(STREAMRX, VOICE_CALL_TX_HPCM_PLAYBACK));
-            keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
             break;
         case PAL_STREAM_HPCM_RX_RECORD:
             keyVector.push_back(std::make_pair(STREAMTX,VOICE_CALL_RX_HPCM_RECORD));
-            keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
+            keyVector.push_back(std::make_pair(STREAMPP_TX, STREAMPP_TX_DEFAULT));
             break;
         case PAL_STREAM_HPCM_TX_RECORD:
             keyVector.push_back(std::make_pair(STREAMTX,VOICE_CALL_TX_HPCM_RECORD));
-            keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
             break;
         default:
             status = -EINVAL;
@@ -1582,13 +1580,13 @@ int PayloadBuilder::populateDevicePPKV(Stream* s, int32_t rxBeDevId,
                 keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_HPCM));
                 break;
             case PAL_STREAM_HPCM_RX_RECORD:
-                keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_HPCM));
+                keyVectorTx.push_back(std::make_pair(DEVICEPP_TX, DEVICEPP_TX_HPCM));
                 break;
             case PAL_STREAM_HPCM_TX_PLAYBACK:
-                keyVectorRx.push_back(std::make_pair(DEVICEPP_TX, DEVICEPP_TX_HPCM));
+                keyVectorRx.push_back(std::make_pair(DEVICEPP_RX, DEVICEPP_RX_HPCM));
                 break;
             case PAL_STREAM_HPCM_TX_RECORD:
-                keyVectorRx.push_back(std::make_pair(DEVICEPP_TX, DEVICEPP_TX_HPCM));
+                keyVectorTx.push_back(std::make_pair(DEVICEPP_TX, DEVICEPP_TX_HPCM));
                 break;
             default:
                 PAL_ERR(LOG_TAG,"stream type %d doesn't support populateDevicePPKV ", sattr->type);

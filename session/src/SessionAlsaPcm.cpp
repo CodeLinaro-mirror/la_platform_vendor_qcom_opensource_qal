@@ -747,8 +747,8 @@ int SessionAlsaPcm::start(Stream * s)
     switch (sAttr.direction) {
         case PAL_AUDIO_INPUT:
             if ((sAttr.type != PAL_STREAM_VOICE_UI) &&
-                  (SessionAlsaUtils::isMmapUsecase(sAttr) == false)
-                ) {
+                (SessionAlsaUtils::isMmapUsecase(sAttr) == false) &&
+                (SessionAlsaUtils::isHpcmUsecase(sAttr) == false)) {
                 /* Get MFC MIID and configure to match to stream config */
                 /* This has to be done after sending all mixer controls and before connect */
                 if (sAttr.type != PAL_STREAM_VOICE_CALL_RECORD)
@@ -833,7 +833,8 @@ int SessionAlsaPcm::start(Stream * s)
                     return status;
                 }
 
-                if(!((SessionAlsaUtils::isMmapUsecase(sAttr)) || (SessionAlsaUtils::isHpcmUsecase(sAttr)))) {
+                if(!((SessionAlsaUtils::isMmapUsecase(sAttr)) ||
+                    (SessionAlsaUtils::isHpcmUsecase(sAttr)))) {
                     /* Get PSPD MFC MIID and configure to match to device config */
                     /* This has to be done after sending all mixer controls and before connect */
                     status = SessionAlsaUtils::getModuleInstanceId(mixer, pcmDevIds.at(0),
