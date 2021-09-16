@@ -1465,7 +1465,7 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
 }
 
 template <class T>
-int registerstream(T s, std::vector<T> &streams)
+int registerstream(T s, std::list<T> &streams)
 {
     int ret = 0;
     streams.push_back(s);
@@ -1603,10 +1603,10 @@ int ResourceManager::registerStream(Stream *s)
 
 // template function to deregister stream
 template <class T>
-int deregisterstream(T s, std::vector<T> &streams)
+int deregisterstream(T s, std::list<T> &streams)
 {
     int ret = 0;
-    typename std::vector<T>::iterator iter = std::find(streams.begin(), streams.end(), s);
+    typename std::list<T>::iterator iter = std::find(streams.begin(), streams.end(), s);
     if (iter != streams.end())
         streams.erase(iter);
     else
@@ -1738,12 +1738,12 @@ int ResourceManager::deregisterStream(Stream *s)
 }
 
 template <class T>
-bool isStreamActive(T s, std::vector<T> &streams)
+bool isStreamActive(T s, std::list<T> &streams)
 {
     bool ret = false;
 
     PAL_DBG(LOG_TAG, "Enter.");
-    typename std::vector<T>::iterator iter =
+    typename std::list<T>::iterator iter =
         std::find(streams.begin(), streams.end(), s);
     if (iter != streams.end()) {
         ret = true;
@@ -2131,9 +2131,9 @@ std::shared_ptr<CaptureProfile> ResourceManager::GetCaptureProfileByPriority(
     std::shared_ptr<CaptureProfile> cap_prof = nullptr;
     std::shared_ptr<CaptureProfile> cap_prof_priority = nullptr;
 
-    for (int i = 0; i < active_streams_st.size(); i++) {
+    for (auto& str: active_streams_st) {
         // NOTE: input param s can be nullptr here
-        if (active_streams_st[i] == s) {
+        if (str == s) {
             continue;
         }
 
@@ -2142,10 +2142,10 @@ std::shared_ptr<CaptureProfile> ResourceManager::GetCaptureProfileByPriority(
          * 1. sound model loaded but not started by sthal
          * 2. stop recognition called by sthal
          */
-        if (!active_streams_st[i]->isActive())
+        if (!str->isActive())
             continue;
 
-        cap_prof = active_streams_st[i]->GetCurrentCaptureProfile();
+        cap_prof = str->GetCurrentCaptureProfile();
         if (!cap_prof) {
             PAL_ERR(LOG_TAG, "Failed to get capture profile");
             continue;
@@ -2240,11 +2240,11 @@ int ResourceManager::SwitchSVADevices(bool connect_state,
         device_to_disconnect = dest_device;
     }
 
-    for (int i = 0; i < active_streams_st.size(); i++) {
-        st_str = active_streams_st[i];
+    for (auto& str: active_streams_st) {
+        st_str = str;
         if (st_str && isStreamActive(st_str, active_streams_st)) {
             mResourceManagerMutex.unlock();
-            status = active_streams_st[i]->DisconnectDevice(device_to_disconnect);
+            status = str->DisconnectDevice(device_to_disconnect);
             mResourceManagerMutex.lock();
 
             if (status) {
@@ -2253,11 +2253,11 @@ int ResourceManager::SwitchSVADevices(bool connect_state,
             }
         }
     }
-    for (int i = 0; i < active_streams_st.size(); i++) {
-        st_str = active_streams_st[i];
+    for (auto& str: active_streams_st) {
+        st_str = str;
         if (st_str && isStreamActive(st_str, active_streams_st)) {
             mResourceManagerMutex.unlock();
-            status = active_streams_st[i]->ConnectDevice(device_to_connect);
+            status = str->ConnectDevice(device_to_connect);
             mResourceManagerMutex.lock();
             if (status) {
                 PAL_ERR(LOG_TAG, "Failed to connect device %d for SVA",
@@ -2493,8 +2493,8 @@ int ResourceManager::StopOtherSVAStreams(StreamSoundTrigger *st) {
     StreamSoundTrigger *st_str = nullptr;
 
     mResourceManagerMutex.lock();
-    for (int i = 0; i < active_streams_st.size(); i++) {
-        st_str = active_streams_st[i];
+    for (auto& str: active_streams_st) {
+        st_str = str;
         if (st_str && st_str != st &&
             isStreamActive(st_str, active_streams_st)) {
             mResourceManagerMutex.unlock();
@@ -2515,8 +2515,8 @@ int ResourceManager::StartOtherSVAStreams(StreamSoundTrigger *st) {
     StreamSoundTrigger *st_str = nullptr;
 
     mResourceManagerMutex.lock();
-    for (int i = 0; i < active_streams_st.size(); i++) {
-        st_str = active_streams_st[i];
+    for (auto& str: active_streams_st) {
+        st_str = str;
         if (st_str && st_str != st &&
             isStreamActive(st_str, active_streams_st)) {
             mResourceManagerMutex.unlock();
@@ -2589,8 +2589,8 @@ void ResourceManager::ConcurrentStreamStatus(pal_stream_type_t type,
             ++concurrentTxStreamCount;
             if (concurrentTxStreamCount == 1) {
                 // pause all sva streams
-                for (int i = 0; i < active_streams_st.size(); i++) {
-                    st_str = active_streams_st[i];
+                for (auto& str: active_streams_st) {
+                    st_str = str;
                     if (st_str &&
                         isStreamActive(st_str, active_streams_st)) {
                         mResourceManagerMutex.unlock();
@@ -2606,8 +2606,8 @@ void ResourceManager::ConcurrentStreamStatus(pal_stream_type_t type,
             --concurrentTxStreamCount;
             if (concurrentTxStreamCount == 0) {
                 // resume all sva streams
-                for (int i = 0; i < active_streams_st.size(); i++) {
-                    st_str = active_streams_st[i];
+                for (auto& str: active_streams_st) {
+                    st_str = str;
                     if (st_str &&
                         isStreamActive(st_str, active_streams_st)) {
                         mResourceManagerMutex.unlock();
@@ -2635,8 +2635,8 @@ void ResourceManager::ConcurrentStreamStatus(pal_stream_type_t type,
 
         if (do_switch) {
             // update use_lpi_ for all sva streams
-            for (int i = 0; i < active_streams_st.size(); i++) {
-                st_str = active_streams_st[i];
+            for (auto& str: active_streams_st) {
+                st_str = str;
                 if (st_str && isStreamActive(st_str, active_streams_st)) {
                     mResourceManagerMutex.unlock();
                     status = st_str->EnableLPI(!active);
@@ -2660,8 +2660,8 @@ void ResourceManager::ConcurrentStreamStatus(pal_stream_type_t type,
             }
 
             // stop/unload all sva streams
-            for (int i = 0; i < active_streams_st.size(); i++) {
-                st_str = active_streams_st[i];
+            for (auto& str: active_streams_st) {
+                st_str = str;
                 if (st_str && isStreamActive(st_str, active_streams_st)) {
                     mResourceManagerMutex.unlock();
                     status = st_str->HandleConcurrentStream(false);
@@ -2673,8 +2673,8 @@ void ResourceManager::ConcurrentStreamStatus(pal_stream_type_t type,
             }
 
             // load/start all sva streams
-            for (int i = 0; i < active_streams_st.size(); i++) {
-                st_str = active_streams_st[i];
+            for (auto& str: active_streams_st) {
+                st_str = str;
                 if (st_str && isStreamActive(st_str, active_streams_st)) {
                     mResourceManagerMutex.unlock();
                     status = st_str->HandleConcurrentStream(true);
@@ -2904,9 +2904,9 @@ void ResourceManager::getHigherPriorityActiveStreams(const int inComingStreamPri
 
 template <class T>
 void getActiveStreams(std::shared_ptr<Device> d, std::vector<Stream*> &activestreams,
-                      std::vector<T> sourcestreams)
+                      std::list<T> sourcestreams)
 {
-    for(typename std::vector<T>::iterator iter = sourcestreams.begin();
+    for(typename std::list<T>::iterator iter = sourcestreams.begin();
                  iter != sourcestreams.end(); iter++) {
         std::vector <std::shared_ptr<Device>> devices;
         (*iter)->getAssociatedDevices(devices);
@@ -4432,7 +4432,7 @@ int ResourceManager::getParameter(uint32_t param_id, void *param_payload,
         case PAL_PARAM_ID_UIEFFECT:
         {
             bool match = false;
-            std::vector<Stream*>::iterator sIter;
+            std::list<Stream*>::iterator sIter;
             for(sIter = mActiveStreams.begin(); sIter != mActiveStreams.end(); sIter++) {
                 match = (*sIter)->checkStreamMatch(pal_device_id, pal_stream_type);
                 if (match) {
@@ -4627,8 +4627,8 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                         break;
                     }
                     charging_state_ = battery_charging_state->charging_state;
-                    for (int i = 0; i < active_streams_st.size(); i++) {
-                        st_str = active_streams_st[i];
+                    for (auto& str: active_streams_st) {
+                        st_str = str;
                         if (st_str &&
                             isStreamActive(st_str, active_streams_st)) {
                             mResourceManagerMutex.unlock();
@@ -4641,8 +4641,8 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                             }
                         }
                     }
-                    for (int i = 0; i < active_streams_st.size(); i++) {
-                        st_str = active_streams_st[i];
+                    for (auto& str: active_streams_st) {
+                        st_str = str;
                         if (st_str &&
                             isStreamActive(st_str, active_streams_st)) {
                             mResourceManagerMutex.unlock();
@@ -4915,7 +4915,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
         case PAL_PARAM_ID_UIEFFECT:
         {
             bool match = false;
-            std::vector<Stream*>::iterator sIter;
+            std::list<Stream*>::iterator sIter;
             for(sIter = mActiveStreams.begin(); sIter != mActiveStreams.end();
                     sIter++) {
                 match = (*sIter)->checkStreamMatch(pal_device_id,

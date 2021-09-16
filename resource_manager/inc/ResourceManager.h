@@ -267,22 +267,22 @@ private:
     void ssrHandlingLoop(std::shared_ptr<ResourceManager> rm);
 
 protected:
-    std::vector <Stream*> mActiveStreams;
-    std::vector <StreamPCM*> active_streams_ll;
-    std::vector <StreamPCM*> active_streams_ulla;
-    std::vector <StreamPCM*> active_streams_ull;
-    std::vector <StreamPCM*> active_streams_db;
-    std::vector <StreamPCM*> active_streams_po;
-    std::vector <StreamPCM*> active_streams_proxy;
-    std::vector <StreamInCall*> active_streams_incall_record;
-    std::vector <StreamInCall*> active_streams_incall_music;
-    std::vector <StreamInCall*> active_streams_hpcm_rx_pb;
-    std::vector <StreamInCall*> active_streams_hpcm_rx_rec;
-    std::vector <StreamInCall*> active_streams_hpcm_tx_pb;
-    std::vector <StreamInCall*> active_streams_hpcm_tx_rec;
-    std::vector <StreamCompress*> active_streams_comp;
-    std::vector <StreamSoundTrigger*> active_streams_st;
-    std::vector <SoundTriggerEngine*> active_engines_st;
+    std::list <Stream*> mActiveStreams;
+    std::list <StreamPCM*> active_streams_ll;
+    std::list <StreamPCM*> active_streams_ulla;
+    std::list <StreamPCM*> active_streams_ull;
+    std::list <StreamPCM*> active_streams_db;
+    std::list <StreamPCM*> active_streams_po;
+    std::list <StreamPCM*> active_streams_proxy;
+    std::list <StreamInCall*> active_streams_incall_record;
+    std::list <StreamInCall*> active_streams_incall_music;
+    std::list <StreamInCall*> active_streams_hpcm_rx_pb;
+    std::list <StreamInCall*> active_streams_hpcm_rx_rec;
+    std::list <StreamInCall*> active_streams_hpcm_tx_pb;
+    std::list <StreamInCall*> active_streams_hpcm_tx_rec;
+    std::list <StreamCompress*> active_streams_comp;
+    std::list <StreamSoundTrigger*> active_streams_st;
+    std::list <SoundTriggerEngine*> active_engines_st;
     std::vector <std::pair<std::shared_ptr<Device>, Stream*>> active_devices;
     std::vector <std::shared_ptr<Device>> plugin_devices_;
     std::vector <pal_device_id_t> avail_devices_;
