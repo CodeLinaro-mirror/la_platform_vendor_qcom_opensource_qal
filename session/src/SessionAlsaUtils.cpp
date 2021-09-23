@@ -256,6 +256,18 @@ bool SessionAlsaUtils::isMmapUsecase(struct pal_stream_attributes sAttr)
 
 }
 
+bool SessionAlsaUtils::isHpcmUsecase(struct pal_stream_attributes sAttr)
+{
+
+    if ((sAttr.type == PAL_STREAM_HPCM_RX_PLAYBACK) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_PLAYBACK) ||
+        (sAttr.type == PAL_STREAM_HPCM_RX_RECORD) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_RECORD)) {
+        return true;
+    }
+    return false;
+}
+
 struct mixer_ctl *SessionAlsaUtils::getFeMixerControl(struct mixer *am, std::string feName,
         uint32_t idx)
 {

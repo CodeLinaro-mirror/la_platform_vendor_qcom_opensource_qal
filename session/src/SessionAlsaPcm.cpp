@@ -47,6 +47,23 @@
 #define SESSION_ALSA_MMAP_PERIOD_COUNT_MAX 512
 #define SESSION_ALSA_MMAP_PERIOD_COUNT_DEFAULT (SESSION_ALSA_MMAP_PERIOD_COUNT_MAX)
 
+void SessionAlsaPcm::HandleHpcmCallBack(uint64_t hdl, uint32_t event_id,
+                                          void *data, uint32_t event_size)
+{
+    pal_stream_callback cb;
+    Stream *s = NULL;
+
+    if ((hdl == 0) || !data || !event_size) {
+        PAL_ERR(LOG_TAG, "Invalid stream handle or event data or event size");
+        return;
+    }
+    if (event_id != EVENT_ID_HPCM_HOST_BUF_DONE) {
+        return;
+    }
+
+    PAL_INFO(LOG_TAG, "Enter, event detected on SPF, event id = 0x%x", event_id);
+}
+
 SessionAlsaPcm::SessionAlsaPcm(std::shared_ptr<ResourceManager> Rm)
 {
    rm = Rm;
@@ -83,7 +100,7 @@ int SessionAlsaPcm::open(Stream * s)
         PAL_ERR(LOG_TAG,"getStreamAttributes Failed \n");
         return status;
     }
-    if (sAttr.type != PAL_STREAM_VOICE_CALL_RECORD && sAttr.type != PAL_STREAM_VOICE_CALL_MUSIC) {
+    if ((sAttr.type != PAL_STREAM_VOICE_CALL_RECORD) && (sAttr.type != PAL_STREAM_VOICE_CALL_MUSIC)) {
         status = s->getAssociatedDevices(associatedDevices);
         if (0 != status) {
             PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
@@ -158,6 +175,23 @@ int SessionAlsaPcm::open(Stream * s)
         if (status != 0) {
             PAL_ERR(LOG_TAG, "Failed to register callback to rm");
         }
+    } else if(!status && (sAttr.type == PAL_STREAM_HPCM_RX_PLAYBACK) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_PLAYBACK)) {
+        if (!sessionCb) {
+            registerCallBack(HandleHpcmCallBack, (uint64_t)s);
+        }
+        status = rm->registerMixerEventCallback(pcmDevIds,
+             sessionCb, cbCookie, true);
+    } else if ((sAttr.type == PAL_STREAM_HPCM_RX_RECORD) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_RECORD) ) {
+        if (!sessionCb) {
+            registerCallBack(HandleHpcmCallBack, (uint64_t)s);
+        }
+        status = rm->registerMixerEventCallback(pcmDevIds,
+             sessionCb, cbCookie, true);
+    }
+    if (status != 0) {
+        PAL_ERR(LOG_TAG, "Failed to register callback to rm for TX");
     }
     return status;
 }
@@ -669,13 +703,52 @@ int SessionAlsaPcm::start(Stream * s)
                 txAifBackEnds[0].second.data(), DEVICE_SVA, (void *)event_cfg,
                 payload_size);
         }
+    } else if ((sAttr.type == PAL_STREAM_HPCM_RX_PLAYBACK) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_PLAYBACK)) {
+        payload_size = sizeof(struct agm_event_reg_cfg);
+
+        event_cfg = (struct agm_event_reg_cfg *)calloc(1, payload_size);
+        if (!event_cfg) {
+            PAL_ERR(LOG_TAG, "Failed to allocate memory for event_cfg");
+            status = -ENOMEM;
+        } else {
+            event_cfg->event_id = EVENT_ID_HPCM_HOST_BUF_DONE;
+            event_cfg->event_config_payload_size = 0;
+            event_cfg->is_register = 1;
+            status = SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
+                rxAifBackEnds[0].second.data(), SHMEM_ENDPOINT, (void *)event_cfg,
+                payload_size);
+            if (status != 0) {
+                PAL_ERR(LOG_TAG,"registerMixerEvent failed");
+            }
+        }
+    } else if ((sAttr.type == PAL_STREAM_HPCM_RX_RECORD) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_RECORD)) {
+        payload_size = sizeof(struct agm_event_reg_cfg);
+
+        event_cfg = (struct agm_event_reg_cfg *)calloc(1, payload_size);
+        if (!event_cfg) {
+            PAL_ERR(LOG_TAG, "Failed to allocate memory for event_cfg");
+            status = -ENOMEM;
+        } else {
+            event_cfg->event_id = EVENT_ID_HPCM_HOST_BUF_DONE;
+            event_cfg->event_config_payload_size = 0;
+            event_cfg->is_register = 1;
+            status = SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
+                txAifBackEnds[0].second.data(), SHMEM_ENDPOINT, (void *)event_cfg,
+                payload_size);
+            if (status != 0) {
+                PAL_ERR(LOG_TAG,"registerMixerEvent failed");
+            }
+
+        }
     }
 
     switch (sAttr.direction) {
         case PAL_AUDIO_INPUT:
             if ((sAttr.type != PAL_STREAM_VOICE_UI) &&
-                  (SessionAlsaUtils::isMmapUsecase(sAttr) == false)
-                ) {
+                (SessionAlsaUtils::isMmapUsecase(sAttr) == false) &&
+                (SessionAlsaUtils::isHpcmUsecase(sAttr) == false)) {
                 /* Get MFC MIID and configure to match to stream config */
                 /* This has to be done after sending all mixer controls and before connect */
                 if (sAttr.type != PAL_STREAM_VOICE_CALL_RECORD)
@@ -747,6 +820,7 @@ int SessionAlsaPcm::start(Stream * s)
         case PAL_AUDIO_OUTPUT:
             if (sAttr.type == PAL_STREAM_VOICE_CALL_MUSIC)
                 goto pcm_start;
+
             status = s->getAssociatedDevices(associatedDevices);
             if (0 != status) {
                 PAL_ERR(LOG_TAG,"getAssociatedDevices Failed\n");
@@ -759,7 +833,8 @@ int SessionAlsaPcm::start(Stream * s)
                     return status;
                 }
 
-                if(!(SessionAlsaUtils::isMmapUsecase(sAttr))) {
+                if(!((SessionAlsaUtils::isMmapUsecase(sAttr)) ||
+                    (SessionAlsaUtils::isHpcmUsecase(sAttr)))) {
                     /* Get PSPD MFC MIID and configure to match to device config */
                     /* This has to be done after sending all mixer controls and before connect */
                     status = SessionAlsaUtils::getModuleInstanceId(mixer, pcmDevIds.at(0),
@@ -947,6 +1022,38 @@ int SessionAlsaPcm::stop(Stream * s)
             event_cfg->is_register = 0;
             SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
                 txAifBackEnds[0].second.data(), DEVICE_SVA, (void *) event_cfg,
+                payload_size);
+        }
+    } else if ((sAttr.type == PAL_STREAM_HPCM_RX_PLAYBACK) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_PLAYBACK)) {
+        payload_size = sizeof(struct agm_event_reg_cfg);
+
+        event_cfg = (struct agm_event_reg_cfg *)calloc(1, payload_size);
+        if (!event_cfg) {
+            PAL_ERR(LOG_TAG, "Failed to allocate memory for event_cfg");
+            status = -ENOMEM;
+        } else {
+            event_cfg->event_id = EVENT_ID_HPCM_HOST_BUF_DONE;
+            event_cfg->event_config_payload_size = 0;
+            event_cfg->is_register = 0;
+            SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
+                rxAifBackEnds[0].second.data(), SHMEM_ENDPOINT, (void *)event_cfg,
+                payload_size);
+        }
+    } else if ((sAttr.type == PAL_STREAM_HPCM_RX_RECORD) ||
+        (sAttr.type == PAL_STREAM_HPCM_TX_RECORD)) {
+        payload_size = sizeof(struct agm_event_reg_cfg);
+
+        event_cfg = (struct agm_event_reg_cfg *)calloc(1, payload_size);
+        if (!event_cfg) {
+            PAL_ERR(LOG_TAG, "Failed to allocate memory for event_cfg");
+            status = -ENOMEM;
+        } else {
+            event_cfg->event_id = EVENT_ID_HPCM_HOST_BUF_DONE;
+            event_cfg->event_config_payload_size = 0;
+            event_cfg->is_register = 0;
+            SessionAlsaUtils::registerMixerEvent(mixer, pcmDevIds.at(0),
+                txAifBackEnds[0].second.data(), SHMEM_ENDPOINT, (void *)event_cfg,
                 payload_size);
         }
     }
@@ -1358,7 +1465,7 @@ int SessionAlsaPcm::writeBufferInit(Stream * /*streamHandle*/, size_t /*noOfBuf*
     return 0;
 }
 
-int SessionAlsaPcm::setParameters(Stream *streamHandle __unused, int tagId __unused, uint32_t param_id, void *payload)
+int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint32_t param_id, void *payload)
 {
     int status = 0;
     int device = pcmDevIds.at(0);
@@ -1366,6 +1473,7 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle __unused, int tagId __unu
     size_t paramSize = 0;
     uint32_t miid = 0;
     effect_pal_payload_t *effectPalPayload = nullptr;
+    struct pal_stream_attributes sattr;
 
     PAL_DBG(LOG_TAG, "Enter.");
     switch (param_id) {
@@ -1401,6 +1509,45 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle __unused, int tagId __unu
                 goto exit;
             }
             builder->payloadSVAWakeUpConfig(&paramData, &paramSize, miid, pWakeUpConfig);
+            break;
+        }
+        case PAL_PARAM_ID_HPCM_CFG:
+        {
+            pal_param_hpcm_cfg_t *hpcm_payload = (pal_param_hpcm_cfg_t *)payload;
+            status = streamHandle->getStreamAttributes(&sattr);
+            if (status != 0) {
+                PAL_ERR(LOG_TAG,"stream get attributes failed");
+                return status;
+            }
+            if (sattr.direction == PAL_AUDIO_INPUT) {
+                status = SessionAlsaUtils::getModuleInstanceId(mixer, device,
+                    txAifBackEnds[0].second.data(), SHMEM_ENDPOINT, &miid);
+                hpcm_payload->mode = 1;
+                hpcm_payload->num_channels = sattr.in_media_config.ch_info.channels;
+                hpcm_payload->sampling_rate = sattr.in_media_config.sample_rate;
+            } else {
+                status = SessionAlsaUtils::getModuleInstanceId(mixer, device,
+                    rxAifBackEnds[0].second.data(), SHMEM_ENDPOINT, &miid);
+                hpcm_payload->mode = 2;
+                hpcm_payload->num_channels = sattr.out_media_config.ch_info.channels;
+                hpcm_payload->sampling_rate = sattr.out_media_config.sample_rate;
+            }
+            if (status != 0) {
+                PAL_ERR(LOG_TAG,"getModuleInstanceId failed");
+                PAL_ERR(LOG_TAG, "Failed to get tag info %x, status = %d", SHMEM_ENDPOINT, status);
+                return status;
+            }
+            builder->payloadHpcmConfig(&paramData, &paramSize, miid, hpcm_payload);
+            if (paramSize) {
+                status = SessionAlsaUtils::setMixerParameter(mixer, device,
+                                                paramData, paramSize);
+                if (status != 0) {
+                    PAL_ERR(LOG_TAG,"setMixerParameter failed");
+                    return status;
+                }
+            } else {
+                PAL_ERR(LOG_TAG,"payloadHpcmConfig failed");
+            }
             break;
         }
         case PARAM_ID_DETECTION_ENGINE_GENERIC_EVENT_CFG:

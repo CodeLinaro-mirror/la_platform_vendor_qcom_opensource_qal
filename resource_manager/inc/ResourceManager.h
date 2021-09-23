@@ -276,6 +276,10 @@ protected:
     std::vector <StreamPCM*> active_streams_proxy;
     std::vector <StreamInCall*> active_streams_incall_record;
     std::vector <StreamInCall*> active_streams_incall_music;
+    std::vector <StreamInCall*> active_streams_hpcm_rx_pb;
+    std::vector <StreamInCall*> active_streams_hpcm_rx_rec;
+    std::vector <StreamInCall*> active_streams_hpcm_tx_pb;
+    std::vector <StreamInCall*> active_streams_hpcm_tx_rec;
     std::vector <StreamCompress*> active_streams_comp;
     std::vector <StreamSoundTrigger*> active_streams_st;
     std::vector <SoundTriggerEngine*> active_engines_st;
@@ -344,6 +348,8 @@ public:
     static bool isRasEnabled;
     static bool isGaplessEnabled;
     static int spQuickCalTime;
+    bool hpcm_enabled_;
+    int hpcm_config;
     pal_spkr_prot_payload mSpkrProtModeValue;
     pal_global_callback globalCb = NULL;
     uint64_t cookie;

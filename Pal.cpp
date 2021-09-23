@@ -120,7 +120,11 @@ int32_t pal_stream_open(struct pal_stream_attributes *attributes,
     uint64_t *stream = NULL;
     Stream *s = NULL;
     int status;
+    const char *param_tag;
+    pal_param_hpcm_cfg_t* param_hpcm_cfg;
+    std::shared_ptr<ResourceManager> rm = NULL;
 
+    rm = ResourceManager::getInstance();
     if (!attributes) {
         status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid input parameters status %d", status);
@@ -149,6 +153,23 @@ int32_t pal_stream_open(struct pal_stream_attributes *attributes,
         }
         delete s;
         return status;
+    }
+    PAL_INFO(LOG_TAG, "stream_open success with status %d", status);
+    if ((attributes->type == PAL_STREAM_HPCM_RX_PLAYBACK) ||
+        (attributes->type == PAL_STREAM_HPCM_TX_PLAYBACK) ||
+        (attributes->type == PAL_STREAM_HPCM_RX_RECORD) ||
+        (attributes->type == PAL_STREAM_HPCM_TX_RECORD)) {
+        PAL_INFO(LOG_TAG, "rm->hpcm_enabled_:%d",rm->hpcm_enabled_);
+        PAL_INFO(LOG_TAG, "HPCM specific stream");
+        if (rm->hpcm_enabled_) {
+            PAL_INFO(LOG_TAG, "inside if");
+            status = s->setParameters(PAL_PARAM_ID_HPCM_CFG,
+                        (void*)&param_hpcm_cfg);
+            if (0 != status) {
+                PAL_ERR(LOG_TAG, "Failed to set HPCM config, status %d",status);
+            }
+            PAL_INFO(LOG_TAG, "HPCM config set, status %d",status);
+        }
     }
 
     if (cb)

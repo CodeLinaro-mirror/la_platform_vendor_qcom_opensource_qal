@@ -33,6 +33,7 @@
 #include "ResourceManager.h"
 #include "PayloadBuilder.h"
 #include "Session.h"
+#include "hpcm_api.h"
 #include "PalAudioRoute.h"
 #include "PalCommon.h"
 #include <tinyalsa/asoundlib.h>
@@ -66,6 +67,8 @@ private:
     session_callback sessionCb;
     uint64_t cbCookie;
     pal_device_id_t ecRefDevId;
+    static void HandleHpcmCallBack(uint64_t hdl, uint32_t event_id, void *data,
+                            uint32_t event_size);
 public:
 
     SessionAlsaPcm(std::shared_ptr<ResourceManager> Rm);

@@ -34,6 +34,7 @@
 #include "Session.h"
 #include "PalAudioRoute.h"
 #include "dtmf_detection_api.h"
+#include "hpcm_api.h"
 #include "vcpm_api.h"
 #include <tinyalsa/asoundlib.h>
 #include <thread>
