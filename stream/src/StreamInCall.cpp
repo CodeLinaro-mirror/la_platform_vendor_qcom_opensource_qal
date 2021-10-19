@@ -935,6 +935,7 @@ int32_t StreamInCall::ssrDownHandler()
 {
     int status = 0;
 
+    ssrDone = false;
     mStreamMutex.lock();
     /* Updating cached state here only if it's STREAM_IDLE,
      * Otherwise we can assume it is updated by hal thread
@@ -946,13 +947,8 @@ int32_t StreamInCall::ssrDownHandler()
             session, cachedState);
 
     if (currentState == STREAM_INIT || currentState == STREAM_STOPPED) {
-        //Not calling stream close here, as we don't want to delete the session
-        //and device objects.
-        rm->lockGraph();
-        status = session->close(this);
-        rm->unlockGraph();
-        currentState = STREAM_IDLE;
         mStreamMutex.unlock();
+        status = close();
         if (0 != status) {
             PAL_ERR(LOG_TAG, "session close failed. status %d", status);
             goto exit;
@@ -962,12 +958,7 @@ int32_t StreamInCall::ssrDownHandler()
         status = stop();
         if (0 != status)
             PAL_ERR(LOG_TAG, "stream stop failed. status %d",  status);
-        mStreamMutex.lock();
-        rm->lockGraph();
-        status = session->close(this);
-        rm->unlockGraph();
-        currentState = STREAM_IDLE;
-        mStreamMutex.unlock();
+        status = close();
         if (0 != status) {
             PAL_ERR(LOG_TAG, "session close failed. status %d", status);
             goto exit;
@@ -980,6 +971,8 @@ int32_t StreamInCall::ssrDownHandler()
 
 exit :
     PAL_DBG(LOG_TAG, "Exit, status %d", status);
+    currentState = STREAM_IDLE;
+    ssrDone = true;
     return status;
 }
 
@@ -993,16 +986,20 @@ int32_t StreamInCall::ssrUpHandler()
 {
     int status = 0;
 
+    ssrDone = false;
+    mStreamMutex.lock();
     PAL_DBG(LOG_TAG, "Enter. session handle - %pK state %d",
             session, cachedState);
 
     if (cachedState == STREAM_INIT) {
+        mStreamMutex.unlock();
         status = open();
         if (0 != status) {
             PAL_ERR(LOG_TAG, "stream open failed. status %d", status);
             goto exit;
         }
     } else if (cachedState == STREAM_STARTED) {
+        mStreamMutex.unlock();
         status = open();
         if (0 != status) {
             PAL_ERR(LOG_TAG, "stream open failed. status %d", status);
@@ -1011,9 +1008,17 @@ int32_t StreamInCall::ssrUpHandler()
         status = start();
         if (0 != status) {
             PAL_ERR(LOG_TAG, "stream start failed. status %d", status);
+            goto exit;
+        }
+        /* For scenario when we get SSR down while handling SSR up,
+         * status will be 0, so we need to have this additonal check
+         * to keep the cached state as STREAM_STARTED.
+         */
+        if (currentState != STREAM_STARTED) {
             goto exit;
         }
     } else if (cachedState == STREAM_PAUSED) {
+        mStreamMutex.unlock();
         status = open();
         if (0 != status) {
             PAL_ERR(LOG_TAG, "stream open failed. status %d", status);
@@ -1024,17 +1029,20 @@ int32_t StreamInCall::ssrUpHandler()
             PAL_ERR(LOG_TAG, "stream start failed. status %d", status);
             goto exit;
         }
+        if (currentState != STREAM_STARTED)
+            goto exit;
         status = pause();
         if (0 != status) {
            PAL_ERR(LOG_TAG, "stream set pause failed. status %d", status);
             goto exit;
         }
     } else {
+        mStreamMutex.unlock();
         PAL_ERR(LOG_TAG, "stream not in correct state to handle %d", cachedState);
-        goto exit;
     }
-exit :
     cachedState = STREAM_IDLE;
+exit :
+    ssrDone = true;
     PAL_DBG(LOG_TAG, "Exit, status %d", status);
     return status;
 }
