@@ -150,8 +150,8 @@ StreamInCall::StreamInCall(const struct pal_stream_attributes *sattr, struct pal
         }
     }
 
-    rm->registerStream(this);
     mStreamMutex.unlock();
+    rm->registerStream(this);
     PAL_DBG(LOG_TAG, "Exit. state %d", currentState);
     return;
 }

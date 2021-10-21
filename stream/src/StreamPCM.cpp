@@ -164,9 +164,13 @@ StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_devic
         dev = nullptr;
     }
 
-    rm->registerStream(this);
 
     mStreamMutex.unlock();
+    /* Stream mutex is unlocked before calling stream specific API
+     * in resource manager to avoid deadlock issues between stream
+     * and active stream mutex from ResourceManager.
+     */
+    rm->registerStream(this);
     PAL_DBG(LOG_TAG, "Exit. state %d", currentState);
     return;
 }
@@ -264,13 +268,6 @@ int32_t  StreamPCM::close()
 StreamPCM::~StreamPCM()
 {
     cachedState = STREAM_IDLE;
-    if (rm->cardState == CARD_STATUS_OFFLINE) {
-        while (!ssrDone)
-            usleep(1000);
-        PAL_INFO(LOG_TAG, "ssr done, exitng");
-    }
-
-    mStreamMutex.lock();
     rm->deregisterStream(this);
     if (mStreamAttr) {
         free(mStreamAttr);
@@ -285,7 +282,6 @@ StreamPCM::~StreamPCM()
     mDevices.clear();
     delete session;
     session = nullptr;
-    mStreamMutex.unlock();
 }
 
 //TBD: move this to Stream, why duplicate code?
@@ -1349,7 +1345,6 @@ int32_t StreamPCM::ssrDownHandler()
 exit :
     PAL_DBG(LOG_TAG, "Exit, status %d", status);
     currentState = STREAM_IDLE;
-    ssrDone = true;
     return status;
 }
 
@@ -1413,7 +1408,6 @@ int32_t StreamPCM::ssrUpHandler()
     }
     cachedState = STREAM_IDLE;
 exit :
-    ssrDone = true;
     PAL_DBG(LOG_TAG, "Exit, status %d", status);
     return status;
 }
