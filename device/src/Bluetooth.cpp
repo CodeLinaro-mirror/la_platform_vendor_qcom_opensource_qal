@@ -412,7 +412,8 @@ void Bluetooth::startAbr()
     struct pcm_config config;
     struct mixer_ctl *connectCtrl = NULL;
     struct mixer_ctl *btSetFeedbackChannelCtrl = NULL;
-    struct mixer *mixerHandle = NULL;
+    struct mixer *virtualMixerHandle = NULL;
+    struct mixer *hwMixerHandle = NULL;
     std::ostringstream connectCtrlName;
     unsigned int flags;
 
@@ -481,14 +482,19 @@ void Bluetooth::startAbr()
         ret = -ENOSYS;
         goto done;
     }
-    ret = rm->getAudioMixer(&mixerHandle);
+    ret = rm->getVirtualAudioMixer(&virtualMixerHandle);
     if (ret) {
         PAL_ERR(LOG_TAG, "get mixer handle failed %d", ret);
         goto free_fe;
     }
+    ret = rm->getHwAudioMixer(&hwMixerHandle);
+    if (ret) {
+        PAL_ERR(LOG_TAG, "get hw mixer handle failed %d", ret);
+        goto free_fe;
+    }
 
     connectCtrlName << "PCM" << fbpcmDevIds.at(0) << " connect";
-    connectCtrl = mixer_get_ctl_by_name(mixerHandle, connectCtrlName.str().data());
+    connectCtrl = mixer_get_ctl_by_name(virtualMixerHandle, connectCtrlName.str().data());
     if (!connectCtrl) {
         PAL_ERR(LOG_TAG, "invalid mixer control: %s", connectCtrlName.str().data());
         goto free_fe;
@@ -503,7 +509,7 @@ void Bluetooth::startAbr()
 
     // Notify ABR usecase information to BT driver to distinguish
     // between SCO and feedback usecase
-    btSetFeedbackChannelCtrl = mixer_get_ctl_by_name(mixerHandle,
+    btSetFeedbackChannelCtrl = mixer_get_ctl_by_name(hwMixerHandle,
                                         MIXER_SET_FEEDBACK_CHANNEL);
     if (!btSetFeedbackChannelCtrl) {
         PAL_ERR(LOG_TAG, "ERROR %s mixer control not identified",
@@ -538,7 +544,7 @@ void Bluetooth::startAbr()
         }
 
         codecTagId = (type == DEC ? BT_PLACEHOLDER_ENCODER : BT_PLACEHOLDER_DECODER);
-        ret = SessionAlsaUtils::getModuleInstanceId(mixerHandle,
+        ret = SessionAlsaUtils::getModuleInstanceId(virtualMixerHandle,
                      fbpcmDevIds.at(0), backEndName.c_str(), codecTagId, &miid);
         if (ret) {
             PAL_ERR(LOG_TAG, "getMiid for feedback device failed");
@@ -593,7 +599,7 @@ start_pcm:
     config.start_threshold = 0;
     config.stop_threshold = 0;
     config.silence_threshold = 0;
-    fbPcm = pcm_open(rm->getSndCard(), fbpcmDevIds.at(0), flags, &config);
+    fbPcm = pcm_open(rm->getVirtualSndCard(), fbpcmDevIds.at(0), flags, &config);
     if (!fbPcm) {
         PAL_ERR(LOG_TAG, "pcm open failed");
         goto free_fe;
@@ -633,7 +639,7 @@ void Bluetooth::stopAbr()
 {
     struct pal_stream_attributes sAttr;
     struct mixer_ctl *btSetFeedbackChannelCtrl = NULL;
-    struct mixer *mixerHandle = NULL;
+    struct mixer *hwMixerHandle = NULL;
     int dir, ret = 0;
 
     mAbrMutex.lock();
@@ -656,13 +662,13 @@ void Bluetooth::stopAbr()
     pcm_stop(fbPcm);
     pcm_close(fbPcm);
 
-    ret = rm->getAudioMixer(&mixerHandle);
+    ret = rm->getHwAudioMixer(&hwMixerHandle);
     if (ret) {
         PAL_ERR(LOG_TAG, "get mixer handle failed %d", ret);
         goto free_fe;
     }
     // Reset BT driver mixer control for ABR usecase
-    btSetFeedbackChannelCtrl = mixer_get_ctl_by_name(mixerHandle,
+    btSetFeedbackChannelCtrl = mixer_get_ctl_by_name(hwMixerHandle,
                                         MIXER_SET_FEEDBACK_CHANNEL);
     if (!btSetFeedbackChannelCtrl) {
         PAL_ERR(LOG_TAG, "%s mixer control not identified",
