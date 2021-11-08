@@ -3667,14 +3667,16 @@ int32_t ResourceManager::streamDevDisconnect(std::vector <std::tuple<Stream *, u
 
     /* disconnect active list from the current devices they are attached to */
     for (sIter = streamDevDisconnectList.begin(); sIter != streamDevDisconnectList.end(); sIter++) {
-        status = (std::get<0>(*sIter))->disconnectStreamDevice(std::get<0>(*sIter), (pal_device_id_t)std::get<1>(*sIter));
-        if (status) {
-            PAL_ERR(LOG_TAG, "failed to disconnect stream %pK from device %d",
-                    std::get<0>(*sIter), std::get<1>(*sIter));
-            goto error;
-        } else {
-            PAL_DBG(LOG_TAG, "disconnect stream %pK from device %d",
-                    std::get<0>(*sIter), std::get<1>(*sIter));
+        if (isStreamActive(std::get<0>(*sIter), mActiveStreams)) {
+            status = (std::get<0>(*sIter))->disconnectStreamDevice(std::get<0>(*sIter), (pal_device_id_t)std::get<1>(*sIter));
+            if (status) {
+                PAL_ERR(LOG_TAG, "failed to disconnect stream %pK from device %d",
+                        std::get<0>(*sIter), std::get<1>(*sIter));
+                goto error;
+            } else {
+               PAL_DBG(LOG_TAG, "disconnect stream %pK from device %d",
+                      std::get<0>(*sIter), std::get<1>(*sIter));
+            }
         }
     }
 error:
