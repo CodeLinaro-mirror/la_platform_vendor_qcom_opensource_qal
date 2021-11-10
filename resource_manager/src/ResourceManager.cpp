@@ -312,6 +312,7 @@ std::vector <int> ResourceManager::devicePpTag = {0};
 std::vector <int> ResourceManager::deviceTag = {0};
 std::mutex ResourceManager::mResourceManagerMutex;
 std::mutex ResourceManager::mGraphMutex;
+std::mutex ResourceManager::mActiveStreamMutex;
 std::vector <int> ResourceManager::listAllFrontEndIds = {0};
 std::vector <int> ResourceManager::listFreeFrontEndIds = {0};
 std::vector <int> ResourceManager::listAllPcmPlaybackFrontEnds = {0};
@@ -661,8 +662,8 @@ void ResourceManager::ssrHandlingLoop(std::shared_ptr<ResourceManager> rm)
             if (state == CARD_STATUS_NONE)
                 break;
 
+            mActiveStreamMutex.lock();
             rm->cardState = state;
-            mResourceManagerMutex.lock();
             if (state != prevState) {
                 if (rm->globalCb) {
                     PAL_DBG(LOG_TAG, "Notifying client about sound card state %d global cb %pK",
@@ -681,36 +682,26 @@ void ResourceManager::ssrHandlingLoop(std::shared_ptr<ResourceManager> rm)
                 PAL_INFO(LOG_TAG, "%d state already handled", state);
             } else if (state == CARD_STATUS_OFFLINE) {
                 for (auto str: rm->mActiveStreams) {
-                    mResourceManagerMutex.unlock();
-                    auto iter = std::find(mActiveStreams.begin(), mActiveStreams.end(), str);
-                    if (iter != mActiveStreams.end()) {
                         ret = str->ssrDownHandler();
                         if (0 != ret) {
                             PAL_ERR(LOG_TAG, "Ssr down handling failed for %pK ret %d",
                                           str, ret);
                         }
-                    }
-                    mResourceManagerMutex.lock();
                 }
                 prevState = state;
             } else if (state == CARD_STATUS_ONLINE) {
                 for (auto str: rm->mActiveStreams) {
-                    mResourceManagerMutex.unlock();
-                    auto iter = std::find(mActiveStreams.begin(), mActiveStreams.end(), str);
-                    if (iter != mActiveStreams.end()) {
-                        ret = str->ssrUpHandler();
-                        if (0 != ret) {
-                            PAL_ERR(LOG_TAG, "Ssr up handling failed for %pK ret %d",
+                    ret = str->ssrUpHandler();
+                    if (0 != ret) {
+                        PAL_ERR(LOG_TAG, "Ssr up handling failed for %pK ret %d",
                                           str, ret);
-                        }
                     }
-                    mResourceManagerMutex.lock();
                 }
                 prevState = state;
             } else {
                 PAL_ERR(LOG_TAG, "Invalid state. state %d", state);
             }
-            mResourceManagerMutex.unlock();
+            mActiveStreamMutex.unlock();
             lock.lock();
         }
     }
@@ -1492,7 +1483,7 @@ int ResourceManager::registerStream(Stream *s)
         return ret;
     }
     PAL_DBG(LOG_TAG, "stream type %d", type);
-    mResourceManagerMutex.lock();
+    mActiveStreamMutex.lock();
     switch (type) {
         case PAL_STREAM_LOW_LATENCY:
         case PAL_STREAM_VOIP_RX:
@@ -1602,7 +1593,7 @@ int ResourceManager::registerStream(Stream *s)
     mAllActiveStreams.push_back(s);
 #endif
 
-    mResourceManagerMutex.unlock();
+    mActiveStreamMutex.unlock();
     PAL_DBG(LOG_TAG, "Exit. ret %d", ret);
     return ret;
 }
@@ -1639,7 +1630,7 @@ int ResourceManager::deregisterStream(Stream *s)
     and store in mHighestPriorityActiveStream
 #endif
     PAL_INFO(LOG_TAG, "stream type %d", type);
-    mResourceManagerMutex.lock();
+    mActiveStreamMutex.lock();
     switch (type) {
         case PAL_STREAM_LOW_LATENCY:
         case PAL_STREAM_VOIP_RX:
@@ -1741,7 +1732,7 @@ int ResourceManager::deregisterStream(Stream *s)
     }
 
     deregisterstream(s, mActiveStreams);
-    mResourceManagerMutex.unlock();
+    mActiveStreamMutex.unlock();
     PAL_DBG(LOG_TAG, "Exit. ret %d", ret);
     return ret;
 }
@@ -3696,14 +3687,16 @@ int32_t ResourceManager::streamDevConnect(std::vector <std::tuple<Stream *, stru
 
     /* connect active list from the current devices they are attached to */
     for (sIter = streamDevConnectList.begin(); sIter != streamDevConnectList.end(); sIter++) {
-        status = std::get<0>(*sIter)->connectStreamDevice(std::get<0>(*sIter), std::get<1>(*sIter));
-        if (status) {
-            PAL_ERR(LOG_TAG,"failed to connect stream %pK from device %d",
-                    std::get<0>(*sIter), (std::get<1>(*sIter))->id);
-            goto error;
-        } else {
-            PAL_DBG(LOG_TAG,"connected stream %pK from device %d",
-                    std::get<0>(*sIter), (std::get<1>(*sIter))->id);
+        if (isStreamActive(std::get<0>(*sIter), mActiveStreams)) {
+            status = std::get<0>(*sIter)->connectStreamDevice(std::get<0>(*sIter), std::get<1>(*sIter));
+            if (status) {
+                PAL_ERR(LOG_TAG,"failed to connect stream %pK from device %d",
+                        std::get<0>(*sIter), (std::get<1>(*sIter))->id);
+                goto error;
+            } else {
+                PAL_DBG(LOG_TAG,"connected stream %pK from device %d",
+                        std::get<0>(*sIter), (std::get<1>(*sIter))->id);
+            }
         }
     }
 error:
@@ -3715,6 +3708,7 @@ int32_t ResourceManager::streamDevSwitch(std::vector <std::tuple<Stream *, uint3
                                          std::vector <std::tuple<Stream *, struct pal_device *>> streamDevConnectList)
 {
     int status = 0;
+    mActiveStreamMutex.lock();
     status = streamDevDisconnect(streamDevDisconnectList);
     if (status) {
         PAL_ERR(LOG_TAG,"disconnect failed");
@@ -3725,6 +3719,7 @@ int32_t ResourceManager::streamDevSwitch(std::vector <std::tuple<Stream *, uint3
         PAL_ERR(LOG_TAG,"Connect failed");
     }
 error:
+    mActiveStreamMutex.unlock();
     return status;
 }
 
@@ -3800,8 +3795,10 @@ bool ResourceManager::updateDeviceConfig(std::shared_ptr<Device> inDev,
                 }
             }
             isDeviceSwitch = true;
+            mActiveStreamMutex.lock();
             streamDevDisconnect.push_back(elem);
             StreamDevConnect.push_back({std::get<0>(elem), inDevAttr});
+            mActiveStreamMutex.unlock();
         }
     }
 
@@ -3839,10 +3836,12 @@ int32_t ResourceManager::forceDeviceSwitch(std::shared_ptr<Device> inDev,
     }
     //created dev switch vectors
 
+    mActiveStreamMutex.lock();
     for(sIter = activeStreams.begin(); sIter != activeStreams.end(); sIter++) {
         streamDevDisconnect.push_back({(*sIter), inDev->getSndDeviceId()});
         StreamDevConnect.push_back({(*sIter), newDevAttr});
     }
+    mActiveStreamMutex.unlock();
     status = streamDevSwitch(streamDevDisconnect, StreamDevConnect);
     if (status) {
          PAL_ERR(LOG_TAG, "forceDeviceSwitch failed %d", status);
