@@ -833,6 +833,11 @@ int32_t StreamInCall::flush()
          goto exit;
     }
 
+    if (currentState == STREAM_STOPPED || currentState == STREAM_IDLE) {
+        PAL_ERR(LOG_TAG, "Already flushed, state %d", currentState);
+        goto exit;
+    }
+
     status = session->flush();
 exit:
     mStreamMutex.unlock();
