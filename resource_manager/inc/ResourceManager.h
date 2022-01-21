@@ -352,6 +352,7 @@ public:
     static bool isGaplessEnabled;
     static int spQuickCalTime;
     bool hpcm_enabled_;
+    bool dtmf_enabled;
     int hpcm_config;
     pal_spkr_prot_payload mSpkrProtModeValue;
     pal_global_callback globalCb = NULL;
