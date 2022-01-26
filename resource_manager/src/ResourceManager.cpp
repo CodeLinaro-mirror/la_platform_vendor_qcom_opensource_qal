@@ -86,6 +86,10 @@
 #define DEEP_BUFFER_PCM_DEVICE 0
 #define DEVICE_NAME_MAX_SIZE 128
 
+#define SND_CARD_VIRTUAL 100
+#define SND_CARD_HW      0        // This will be used to intialize the sound card,
+                                  // actual will be updated during init_audio
+
 #define DEFAULT_BIT_WIDTH 16
 #define DEFAULT_SAMPLE_RATE 48000
 #define DEFAULT_CHANNELS 2
@@ -327,9 +331,11 @@ std::vector <int> ResourceManager::listAllPcmVoice2RxFrontEnds = {0};
 std::vector <int> ResourceManager::listAllPcmVoice2TxFrontEnds = {0};
 std::vector <int> ResourceManager::listAllPcmInCallRecordFrontEnds = {0};
 std::vector <int> ResourceManager::listAllPcmInCallMusicFrontEnds = {0};
-struct audio_mixer* ResourceManager::audio_mixer = NULL;
+struct audio_mixer* ResourceManager::audio_virt_mixer = NULL;
+struct audio_mixer* ResourceManager::audio_hw_mixer = NULL;
 struct audio_route* ResourceManager::audio_route = NULL;
-int ResourceManager::snd_card = 0;
+int ResourceManager::snd_virt_card = SND_CARD_VIRTUAL;
+int ResourceManager::snd_hw_card = SND_CARD_HW;
 std::vector<deviceCap> ResourceManager::devInfo;
 static struct nativeAudioProp na_props;
 SndCardMonitor* ResourceManager::sndmon = NULL;
@@ -482,16 +488,25 @@ ResourceManager::ResourceManager()
     deviceTag.clear();
     btCodecMap.clear();
 
+    ret = ResourceManager::XmlParser(SNDPARSER);
+    if (ret) {
+        PAL_ERR(LOG_TAG, "error in snd xml parsing ret %d", ret);
+        throw std::runtime_error("error in snd xml parsing");
+    }
+
     ret = ResourceManager::init_audio();
     PAL_INFO(LOG_TAG, "Enter.");
     if (ret) {
         PAL_ERR(LOG_TAG, "error in init audio route and audio mixer ret %d", ret);
+        throw std::runtime_error("error in init audio route and audio mixer");
     }
 
     ret = ResourceManager::XmlParser(rmngr_xml_file);
     if (ret) {
         PAL_ERR(LOG_TAG, "error in resource xml parsing ret %d", ret);
+        throw std::runtime_error("error in resource xml parsing");
     }
+
     hpcm_enabled_ = false;
     listAllFrontEndIds.clear();
     listFreeFrontEndIds.clear();
@@ -508,10 +523,6 @@ ResourceManager::ResourceManager()
     listAllPcmInCallRecordFrontEnds.clear();
     listAllPcmInCallMusicFrontEnds.clear();
 
-    ret = ResourceManager::XmlParser(SNDPARSER);
-    if (ret) {
-        PAL_ERR(LOG_TAG, "error in snd xml parsing ret %d", ret);
-    }
     for (int i=0; i < devInfo.size(); i++) {
         if (devInfo[i].type == PCM) {
             if (devInfo[i].sess_mode == HOSTLESS && devInfo[i].playback == 1) {
@@ -712,7 +723,7 @@ int ResourceManager::initSndMonitor()
 {
     int ret = 0;
     workerThread = std::thread(&ResourceManager::ssrHandlingLoop, this, rm);
-    sndmon = new SndCardMonitor(snd_card);
+    sndmon = new SndCardMonitor(snd_hw_card);
     if (!sndmon) {
         ret = -EINVAL;
         PAL_ERR(LOG_TAG, "Sound monitor creation failed, ret %d", ret);
@@ -760,10 +771,11 @@ int ResourceManager::init_audio()
     do {
         /* Look for only default codec sound card */
         /* Ignore USB sound card if detected */
-        snd_card = 0;
-        while (snd_card < MAX_SND_CARD) {
+        snd_hw_card = SND_CARD_HW;
+
+        while (snd_hw_card < MAX_SND_CARD) {
             struct audio_mixer* tmp_mixer = NULL;
-            tmp_mixer = mixer_open(snd_card);
+            tmp_mixer = mixer_open(snd_hw_card);
             if (tmp_mixer) {
                 snd_card_name = strdup(mixer_get_name(tmp_mixer));
                 if (!snd_card_name) {
@@ -771,8 +783,8 @@ int ResourceManager::init_audio()
                     mixer_close(tmp_mixer);
                     return -EINVAL;
                 }
-                PAL_INFO(LOG_TAG, "mixer_open success. snd_card_num = %d, snd_card_name %s, am:%p",
-                snd_card, snd_card_name, rm->audio_mixer);
+                PAL_INFO(LOG_TAG, "mixer_open success. snd_card_num = %d, snd_card_name %s",
+                snd_hw_card, snd_card_name);
 
                 /* TODO: Needs to extend for new targets */
                 if (strstr(snd_card_name, "kona") ||
@@ -781,7 +793,7 @@ int ResourceManager::init_audio()
                     strstr(snd_card_name, "lahaina") ) {
                     PAL_VERBOSE(LOG_TAG, "Found Codec sound card");
                     snd_card_found = true;
-                    audio_mixer = tmp_mixer;
+                    audio_hw_mixer = tmp_mixer;
                     break;
                 } else {
                     if (snd_card_name) {
@@ -791,7 +803,7 @@ int ResourceManager::init_audio()
                     mixer_close(tmp_mixer);
                 }
             }
-            snd_card++;
+            snd_hw_card++;
         }
 
         if (!snd_card_found) {
@@ -800,9 +812,18 @@ int ResourceManager::init_audio()
         }
     } while (!snd_card_found && retry <= MAX_RETRY_CNT);
 
-    if (snd_card >= MAX_SND_CARD || !audio_mixer) {
+    if (snd_hw_card >= MAX_SND_CARD || !audio_hw_mixer) {
         PAL_ERR(LOG_TAG, "audio mixer open failure");
         return -EINVAL;
+    }
+
+    audio_virt_mixer = mixer_open(snd_virt_card);
+    if(!audio_virt_mixer) {
+        PAL_ERR(LOG_TAG, "Error: %d virtual audio mixer open failure", -EIO);
+        if (snd_card_name)
+            free(snd_card_name);
+        mixer_close(audio_hw_mixer);
+        return -EIO;
     }
 
     split_snd_card(snd_card_name);
@@ -823,11 +844,12 @@ int ResourceManager::init_audio()
     strlcat(mixer_xml_file, XML_FILE_EXT, XML_PATH_MAX_LENGTH);
     strlcat(rmngr_xml_file, XML_FILE_EXT, XML_PATH_MAX_LENGTH);
 
-    audio_route = audio_route_init(snd_card, mixer_xml_file);
+    audio_route = audio_route_init(snd_hw_card, mixer_xml_file);
     PAL_INFO(LOG_TAG, "audio route %pK, mixer path %s", audio_route, mixer_xml_file);
     if (!audio_route) {
         PAL_ERR(LOG_TAG, "audio route init failed");
-        mixer_close(audio_mixer);
+        mixer_close(audio_virt_mixer);
+        mixer_close(audio_hw_mixer);
         if (snd_card_name)
             free(snd_card_name);
         return -EINVAL;
@@ -835,7 +857,11 @@ int ResourceManager::init_audio()
     // audio_route init success
 
     PAL_DBG(LOG_TAG, "Exit. audio route init success with card %d mixer path %s",
-            snd_card, mixer_xml_file);
+            snd_hw_card, mixer_xml_file);
+    if (snd_card_name) {
+        free(snd_card_name);
+        snd_card_name = NULL;
+    }
     return 0;
 }
 
@@ -2008,14 +2034,25 @@ int ResourceManager::getAudioRoute(struct audio_route** ar)
     return 0;
 }
 
-int ResourceManager::getAudioMixer(struct audio_mixer ** am)
+int ResourceManager::getVirtualAudioMixer(struct audio_mixer ** am)
 {
-    if (!audio_mixer || !am) {
+    if (!audio_virt_mixer  || !am) {
         PAL_ERR(LOG_TAG, "no audio mixer found");
         return -ENOENT;
     }
-    *am = audio_mixer;
-    PAL_DBG(LOG_TAG, "ar %pK audio_mixer %pK", am, audio_mixer);
+    *am = audio_virt_mixer;
+    PAL_DBG(LOG_TAG, "ar %pK audio_virt_mixer %pK", am, audio_virt_mixer);
+    return 0;
+}
+
+int ResourceManager::getHwAudioMixer(struct audio_mixer ** am)
+{
+    if (!audio_hw_mixer || !am) {
+        PAL_ERR(LOG_TAG, "no audio mixer found");
+        return -ENOENT;
+    }
+    *am = audio_hw_mixer;
+    PAL_DBG(LOG_TAG, "ar %pK audio_hw_mixer %pK", am, audio_hw_mixer);
     return 0;
 }
 
@@ -2344,7 +2381,7 @@ void ResourceManager::mixerEventWaitThreadLoop(
     struct ctl_event mixer_event = {0, {.data8 = {0}}};
     struct mixer *mixer = nullptr;
 
-    ret = rm->getAudioMixer(&mixer);
+    ret = rm->getVirtualAudioMixer(&mixer);
     if (ret) {
         PAL_ERR(LOG_TAG, "Failed to get audio mxier");
         return;
@@ -3013,9 +3050,14 @@ std::shared_ptr<ResourceManager> ResourceManager::getInstance()
     return rm;
 }
 
-int ResourceManager::getSndCard()
+int ResourceManager::getVirtualSndCard()
 {
-    return snd_card;
+    return snd_virt_card;
+}
+
+int ResourceManager::getHwSndCard()
+{
+    return snd_hw_card;
 }
 
 int ResourceManager::getSndDeviceName(int deviceId, char *device_name)
@@ -3059,7 +3101,8 @@ void ResourceManager::deinit()
 {
     card_status_t state = CARD_STATUS_NONE;
 
-    mixer_close(audio_mixer);
+    mixer_close(audio_virt_mixer);
+    mixer_close(audio_hw_mixer);
     if (audio_route) {
        audio_route_free(audio_route);
     }
@@ -5541,8 +5584,9 @@ void ResourceManager::processCardInfo(struct xml_userdata *data, const XML_Char 
 {
     int card;
     if (!strcmp(tag_name, "id")) {
-        card = atoi(data->data_buf);
+        snd_virt_card = atoi(data->data_buf);
         data->card_found = true;
+        PAL_VERBOSE(LOG_TAG, "virtual soundcard number : %d ", snd_virt_card);
     }
 }
 
