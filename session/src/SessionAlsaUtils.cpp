@@ -351,7 +351,7 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
             goto exit;
         }
     }
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
 
     /** Get mixer controls (struct mixer_ctl *) for both FE and BE */
     if (sAttr.type == PAL_STREAM_COMPRESSED)
@@ -508,7 +508,7 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
     else
         feName << PCM_SND_DEV_NAME_PREFIX << DevIds.at(0);
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     for (i = FE_CONTROL; i <= FE_DISCONNECT; ++i) {
         feMixerCtrls[i] = SessionAlsaUtils::getFeMixerControl(mixerHandle,
             feName.str(), i);
@@ -587,7 +587,7 @@ int SessionAlsaUtils::setDeviceCustomPayload(std::shared_ptr<ResourceManager> rm
     struct mixer *mixerHandle = NULL;
     int status = 0;
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     if (status) {
         PAL_ERR(LOG_TAG, "Error: Failed to get mixer handle\n");
         return status;
@@ -614,7 +614,7 @@ int SessionAlsaUtils::setDeviceMetadata(std::shared_ptr<ResourceManager> rmHandl
     struct mixer *mixerHandle = NULL;
     struct mixer_ctl *beMetaDataMixerCtrl = nullptr;
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     if (status) {
         PAL_ERR(LOG_TAG, "failed to get mixer handle\n");
         return status;
@@ -655,7 +655,7 @@ int SessionAlsaUtils::setDeviceMediaConfig(std::shared_ptr<ResourceManager> rmHa
     struct mixer *mixerHandle = NULL;
     int status = 0;
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     if (status) {
         PAL_ERR(LOG_TAG, "Error: Failed to get mixer handle\n");
         return status;
@@ -1035,7 +1035,7 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
 
     PayloadBuilder* builder = new PayloadBuilder();
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     // get keyvalue pair info
     rmHandle->getDeviceInfo((pal_device_id_t)txBackEnds[0].first, sAttr.type, &devinfo);
     if (devinfo.kvpair.size() == 0) {
@@ -1295,7 +1295,7 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
             goto exit;
         }
     }
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
 
     // get audio mixer
     SessionAlsaUtils::getAgmMetaData(emptyKV, emptyKV,
@@ -1449,7 +1449,7 @@ int SessionAlsaUtils::disconnectSessionDevice(Stream* streamHandle, pal_stream_t
             disconnectCtrlName << PCM_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " disconnect";
             break;
     }
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     disconnectCtrl = mixer_get_ctl_by_name(mixerHandle, disconnectCtrlName.str().data());
     if (!disconnectCtrl) {
         PAL_ERR(LOG_TAG, "invalid mixer control: %s", disconnectCtrlName.str().data());
@@ -1482,7 +1482,7 @@ int SessionAlsaUtils::connectSessionDevice(Session* sess, Stream* streamHandle, 
     struct pal_stream_attributes sAttr;
     int sub = 1;
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     if (status) {
         PAL_ERR(LOG_TAG, "get mixer handle failed %d", status);
         return status;
@@ -1638,7 +1638,7 @@ int SessionAlsaUtils::setupSessionDevice(Stream* streamHandle, pal_stream_type_t
     struct vsid_info vsidinfo = {};
     sidetone_mode_t sidetoneMode = SIDETONE_OFF;
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     if (status) {
         PAL_VERBOSE(LOG_TAG, "get mixer handle failed %d", status);
         return status;
@@ -1763,7 +1763,7 @@ int SessionAlsaUtils::setupSessionDevice(Stream* streamHandle, pal_stream_type_t
             break;
     }
 
-    status = rmHandle->getAudioMixer(&mixerHandle);
+    status = rmHandle->getVirtualAudioMixer(&mixerHandle);
 
     aifMdCtrl = mixer_get_ctl_by_name(mixerHandle, aifMdName.str().data());
     PAL_DBG(LOG_TAG,"mixer control %s", aifMdName.str().data());

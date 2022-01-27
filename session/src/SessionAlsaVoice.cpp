@@ -175,7 +175,7 @@ int SessionAlsaVoice::open(Stream * s)
 
     rm->getBackEndNames(associatedDevices, rxAifBackEnds, txAifBackEnds);
 
-    status = rm->getAudioMixer(&mixer);
+    status = rm->getVirtualAudioMixer(&mixer);
     if (status) {
         PAL_ERR(LOG_TAG,"mixer error");
         goto exit;
@@ -371,7 +371,7 @@ int SessionAlsaVoice::start(Stream * s)
     config.stop_threshold = 0;
     config.silence_threshold = 0;
 
-    pcmRx = pcm_open(rm->getSndCard(), pcmDevRxIds.at(0), PCM_OUT, &config);
+    pcmRx = pcm_open(rm->getVirtualSndCard(), pcmDevRxIds.at(0), PCM_OUT, &config);
     if (!pcmRx) {
         PAL_ERR(LOG_TAG, "pcm-rx open failed");
         return -EINVAL;
@@ -394,7 +394,7 @@ int SessionAlsaVoice::start(Stream * s)
     config.period_size = in_buf_size;
     config.period_count = in_buf_count;
 
-    pcmTx = pcm_open(rm->getSndCard(), pcmDevTxIds.at(0), PCM_IN, &config);
+    pcmTx = pcm_open(rm->getVirtualSndCard(), pcmDevTxIds.at(0), PCM_IN, &config);
     if (!pcmTx) {
         PAL_ERR(LOG_TAG, "pcm-tx open failed");
         return -EINVAL;
