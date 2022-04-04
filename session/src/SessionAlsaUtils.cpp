@@ -1,6 +1,8 @@
 /*
 * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
 *
+* Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+*
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
 * met:
@@ -502,6 +504,11 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
         goto exit;
     }
 
+    if (DevIds.size() <= 0) {
+         PAL_ERR(LOG_TAG, "DevIds size is invalid \n");
+         return 0;
+    }
+
     /** Get mixer controls (struct mixer_ctl *) for both FE and BE */
     if (sAttr.type == PAL_STREAM_COMPRESSED)
         feName << COMPRESS_SND_DEV_NAME_PREFIX << DevIds.at(0);
@@ -509,6 +516,11 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
         feName << PCM_SND_DEV_NAME_PREFIX << DevIds.at(0);
 
     status = rmHandle->getVirtualAudioMixer(&mixerHandle);
+    if (status) {
+        PAL_ERR(LOG_TAG, "Error: Failed to get mixer handle\n");
+        goto exit;
+    }
+
     for (i = FE_CONTROL; i <= FE_DISCONNECT; ++i) {
         feMixerCtrls[i] = SessionAlsaUtils::getFeMixerControl(mixerHandle,
             feName.str(), i);
@@ -519,12 +531,7 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
             goto exit;
         }
     }
-    // clear stream metadata
-    getAgmMetaData(emptyKV, emptyKV, (struct prop_data *)streamPropId,
-            streamMetaData);
-    if (streamMetaData.size)
-        mixer_ctl_set_array(feMixerCtrls[FE_METADATA],
-            (void *)streamMetaData.buf, streamMetaData.size);
+
 
     // clear device metadata
     for (auto be = BackEnds.begin(); be != BackEnds.end(); ++be) {
@@ -546,6 +553,7 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
         }
 
         /** set mixer controls */
+        mixer_ctl_set_enum_by_string(feMixerCtrls[FE_DISCONNECT], be->second.data());
         for (auto freeDevmeta = freedevicemetadata.begin(); freeDevmeta != freedevicemetadata.end(); ++freeDevmeta) {
             PAL_DBG(LOG_TAG, "backend %s and freedevicemetadata %d", freeDevmeta->first.data(), freeDevmeta->second);
             if (!(freeDevmeta->first.compare(be->second))) {
@@ -562,12 +570,19 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
         mixer_ctl_set_array(feMixerCtrls[FE_METADATA], (void *)streamDeviceMetaData.buf,
                 streamDeviceMetaData.size);
 
-        mixer_ctl_set_enum_by_string(feMixerCtrls[FE_DISCONNECT], be->second.data());
         free(streamDeviceMetaData.buf);
         free(deviceMetaData.buf);
         streamDeviceMetaData.buf = nullptr;
         deviceMetaData.buf = nullptr;
     }
+
+    // clear stream metadata
+    mixer_ctl_set_enum_by_string(feMixerCtrls[FE_CONTROL], "ZERO");
+    getAgmMetaData(emptyKV, emptyKV, (struct prop_data *)streamPropId,
+            streamMetaData);
+    if (streamMetaData.size)
+        mixer_ctl_set_array(feMixerCtrls[FE_METADATA],
+            (void *)streamMetaData.buf, streamMetaData.size);
 
 freeMetaData:
     if (streamDeviceMetaData.buf)

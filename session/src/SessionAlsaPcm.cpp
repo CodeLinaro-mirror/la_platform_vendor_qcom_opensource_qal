@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -1080,6 +1082,7 @@ int SessionAlsaPcm::close(Stream * s)
             return status;
         }
     }
+    freeDeviceMetadata.clear();
 
     switch (sAttr.direction) {
         case PAL_AUDIO_INPUT:
