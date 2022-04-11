@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -212,12 +214,17 @@ int32_t  StreamInCall::close()
          * 2. Stream created but opened failed.
          * No need to call session close for this case too.
          */
-        PAL_VERBOSE(LOG_TAG, "closed the devices successfully");
-        goto exit;
-    } else if (currentState == STREAM_STARTED || currentState == STREAM_PAUSED) {
+        PAL_VERBOSE(LOG_TAG, "Stream is already closed");
+        mStreamMutex.unlock();
+        return status;
+    }
+
+    if (currentState == STREAM_STARTED || currentState == STREAM_PAUSED) {
+        mStreamMutex.unlock();
         status = stop();
         if (0 != status)
             PAL_ERR(LOG_TAG, "stream stop failed. status %d",  status);
+        mStreamMutex.lock();
     }
 
     rm->lockGraph();
@@ -227,21 +234,8 @@ int32_t  StreamInCall::close()
         PAL_ERR(LOG_TAG, "session close failed with status %d", status);
     }
 
-exit:
     currentState = STREAM_IDLE;
     mStreamMutex.unlock();
-    status = rm->deregisterStream(this);
-    if (mStreamAttr) {
-        free(mStreamAttr);
-        mStreamAttr = (struct pal_stream_attributes *)NULL;
-    }
-
-    if(mVolumeData)  {
-        free(mVolumeData);
-        mVolumeData = (struct pal_volume_data *)NULL;
-    }
-    delete session;
-    session = nullptr;
     PAL_INFO(LOG_TAG, "Exit. closed the stream successfully %d status %d",
              currentState, status);
     return status;
@@ -1052,3 +1046,22 @@ exit :
     return status;
 }
 
+StreamInCall::~StreamInCall(){
+
+    cachedState = STREAM_IDLE;
+    rm->deregisterStream(this);
+
+    if (mStreamAttr) {
+        free(mStreamAttr);
+        mStreamAttr = (struct pal_stream_attributes *)NULL;
+    }
+
+    if(mVolumeData)  {
+        free(mVolumeData);
+        mVolumeData = (struct pal_volume_data *)NULL;
+    }
+
+    mDevices.clear();
+    delete session;
+    session = nullptr;
+}
