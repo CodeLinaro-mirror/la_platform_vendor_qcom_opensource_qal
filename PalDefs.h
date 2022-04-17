@@ -1,3 +1,7 @@
+<!--  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.--
+>
+<!--  SPDX-License-Identifier: BSD-3-Clause-Clear                             --
+>
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  *
@@ -889,11 +893,21 @@ typedef struct pal_bt_tws_payload_s {
     uint32_t codecFormat;
 } pal_bt_tws_payload;
 
+/* Payload For Custom Config
+ * Description : Used by PAL client to customize
+ *               the device related information.
+*/
+#define PAL_MAX_CUSTOM_KEY_SIZE 128
+typedef struct pal_device_custom_config {
+    char custom_key[PAL_MAX_CUSTOM_KEY_SIZE];
+} pal_device_custom_config_t;
+
 /**< PAL device */
 struct pal_device {
     pal_device_id_t id;                     /**<  device id */
     struct pal_media_config config;         /**<  media config of the device */
     struct pal_usb_device_address address;
+    pal_device_custom_config_t custom_config;        /**<  Optional */
 };
 
 #define PAL_SOUND_TRIGGER_MAX_STRING_LEN 64 /* max length of strings in properties or descriptor structs */
