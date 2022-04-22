@@ -1,6 +1,8 @@
 /*
  * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -44,7 +46,7 @@ public:
              const struct modifier_kv *modifiers, const uint32_t no_of_modifiers,
              const std::shared_ptr<ResourceManager> rm); //make this just pass parameters to Stream and avoid duplicating code between StreamInCall and StreamCompress
    //StreamInCall();
-   virtual ~StreamInCall() { };
+   virtual ~StreamInCall();
    int32_t open() override;
    int32_t close() override;
    int32_t start() override;
