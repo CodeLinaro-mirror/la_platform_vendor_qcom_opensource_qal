@@ -140,6 +140,7 @@ protected:
     Session* session;
     struct pal_stream_attributes* mStreamAttr;
     struct pal_volume_data* mVolumeData = NULL;
+    bool mMuteState = false;
     int mGainLevel;
     std::mutex mStreamMutex;
     static std::mutex mBaseStreamMutex; //TBD change this. as having a single static mutex for all instances of Stream is incorrect. Replace
@@ -172,7 +173,9 @@ public:
     virtual int32_t drain(pal_drain_type_t type __unused) {return 0;}
     virtual int32_t setStreamAttributes(struct pal_stream_attributes *sattr) = 0;
     virtual int32_t setVolume(struct pal_volume_data *volume) = 0;
+    virtual int32_t getVolume(struct pal_volume_data *volume) = 0;
     virtual int32_t mute(bool state) = 0;
+    virtual int32_t getMute(bool *state) = 0;
     virtual int32_t pause() = 0;
     virtual int32_t resume() = 0;
     virtual int32_t flush() {return 0;}

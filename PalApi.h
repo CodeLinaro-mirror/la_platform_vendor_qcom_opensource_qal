@@ -290,7 +290,7 @@ ssize_t pal_stream_write(pal_stream_handle_t *stream_handle, struct pal_buffer *
   * \return 0 on success, error code otherwise
   */
 int32_t pal_stream_get_device(pal_stream_handle_t *stream_handle,
-                            uint32_t no_of_devices, struct pal_device *devices);
+                            uint32_t *no_of_devices, struct pal_device *devices);
 
 /**
   * \brief set new device on stream. This api will disable the

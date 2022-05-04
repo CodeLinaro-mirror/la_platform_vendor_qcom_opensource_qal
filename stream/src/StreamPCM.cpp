@@ -629,6 +629,24 @@ exit:
     return status;
 }
 
+int32_t StreamPCM::getVolume(struct pal_volume_data *volume)
+{
+    int32_t status = 0;
+    if (!volume) {
+        PAL_ERR(LOG_TAG, "NULL volume pointer sent");
+        status = -EINVAL;
+        return status;
+    }
+    if (mVolumeData) {
+        ar_mem_cpy (volume, (sizeof(uint32_t) +
+                          (sizeof(struct pal_channel_vol_kv) *
+                          (mVolumeData->no_of_volpair))), mVolumeData, (sizeof(uint32_t) +
+                          (sizeof(struct pal_channel_vol_kv) *
+                          (mVolumeData->no_of_volpair))));
+    }
+    return status;
+}
+
 //TBD: move this to Stream, why duplicate code?
 int32_t  StreamPCM::setVolume(struct pal_volume_data *volume)
 {
@@ -1047,9 +1065,24 @@ int32_t StreamPCM::mute(bool state)
                 status);
         goto exit;
     }
+    mMuteState = state;
     PAL_DBG(LOG_TAG, "Exit. session setConfig successful");
 exit:
     mStreamMutex.unlock();
+    return status;
+}
+
+int32_t StreamPCM::getMute(bool *state)
+{
+    int32_t status = 0;
+    PAL_DBG(LOG_TAG, "Enter. ");
+    if(!state)
+    {
+        PAL_ERR(LOG_TAG, "NULL volume pointer sent");
+        status = -EINVAL;
+        return status;
+    }
+    *state = mMuteState;
     return status;
 }
 
