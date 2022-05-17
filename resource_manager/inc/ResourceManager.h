@@ -36,7 +36,11 @@
 #include <thread>
 #include <mutex>
 #include <string>
+#ifdef FEATURE_IPQ_OPENWRT
+#include "audio_route.h"
+#else
 #include "audio_route/audio_route.h"
+#endif
 #include <tinyalsa/asoundlib.h>
 #include "PalCommon.h"
 #include <map>
