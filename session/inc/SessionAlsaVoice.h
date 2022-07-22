@@ -67,6 +67,7 @@ private:
     bool volume_boost = vol_boost_disable;
     bool slow_talk = false;
     uint32_t enable;
+    uint32_t dir;
     session_callback sessionCb;
     uint64_t cbCookie;
 
@@ -111,6 +112,7 @@ private:
     int populate_rx_mfc_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
     int populate_vsid_payload(Stream *s, uint8_t **payload, size_t *payloadSize);
     int payloadDtmfGenTaged(Stream *s,int tag, void *pData, int dir);
+    int registerDtmfEvent(int tagId, int dir);
     int setDtmfGenTKV(Stream * s, std::vector <std::pair<int,int>> &tkv, int index,
                      int size, uint32_t* gsltag);
     int populateFreqPair();

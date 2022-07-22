@@ -59,18 +59,20 @@ void SessionAlsaVoice::HandleDtmfCallBack(uint64_t hdl, uint32_t event_id,
     Stream *s = NULL;
 
     PAL_ERR(LOG_TAG, "Enter");
-    PAL_ERR(LOG_TAG, "Enter, event detected on SPF, event id = 0x%x", event_id);
 
     if ((hdl == 0) || !data || !event_size) {
         PAL_ERR(LOG_TAG, "Invalid stream handle or event data or event size");
         return;
     }
+    PAL_ERR(LOG_TAG, "Enter, event detected on SPF, event id = 0x%x", event_id);
     if (event_id != EVENT_ID_DTMF_DETECTION) {
         return;
     }
-
-    s = reinterpret_cast<Stream *>(hdl);
+    PAL_ERR(LOG_TAG, "EVENT_ID_DTMF_DETECTION detected on SPF, event id = 0x%x", event_id);
     dtmf_info = (struct dtmf_detect_event_t *)data;
+    PAL_ERR(LOG_TAG, "high_freq: %d, low_freq: %d",
+            dtmf_info->tone_high_freq, dtmf_info->tone_low_freq);
+    s = reinterpret_cast<Stream *>(hdl);
     //payload_size = sizeof(struct dtmf_detect_event_t);
     event_data.dtmf_high_freq = dtmf_info->tone_high_freq;
     event_data.dtmf_low_freq = dtmf_info->tone_low_freq;
@@ -78,6 +80,7 @@ void SessionAlsaVoice::HandleDtmfCallBack(uint64_t hdl, uint32_t event_id,
             event_data.dtmf_high_freq, event_data.dtmf_low_freq);
 
     if (s->getCallBack(&cb) == 0) {
+        PAL_ERR(LOG_TAG, "found callback");
          cb(reinterpret_cast<pal_stream_handle_t *>(s), PAL_DTMF_CBK_EVENT, (uint32_t *)&event_data,
             event_size, s->cookie);
     }
@@ -92,6 +95,8 @@ SessionAlsaVoice::SessionAlsaVoice(std::shared_ptr<ResourceManager> Rm)
    builder = new PayloadBuilder();
    customPayload = NULL;
    customPayloadSize = 0;
+   sessionCb = NULL;
+   this->cbCookie = 0;
 }
 
 SessionAlsaVoice::~SessionAlsaVoice()
@@ -149,6 +154,7 @@ int SessionAlsaVoice::open(Stream * s)
     int status = -EINVAL;
     struct pal_stream_attributes sAttr;
     std::vector<std::shared_ptr<Device>> associatedDevices;
+    PAL_DBG(LOG_TAG,"Enter \n");
 
     status = s->getStreamAttributes(&sAttr);
     if(0 != status) {
@@ -188,18 +194,32 @@ int SessionAlsaVoice::open(Stream * s)
         PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
         rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXDIR);
         rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXDIR);
+        goto exit;
     }
 
-    if (!status && sAttr.type ==  PAL_STREAM_VOICE_CALL_TX) {
-         status = rm->registerMixerEventCallback(pcmDevTxIds,
+    if (((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+        (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX)) &&
+        (rm->dtmf_enabled)) {
+        PAL_DBG(LOG_TAG, "before registerMixerEventCallback");
+        if (!sessionCb) {
+            PAL_ERR(LOG_TAG, "SessionCb is null, registerCallback");
+            registerCallBack(HandleDtmfCallBack, (uint64_t)s);
+        }
+        status = rm->registerMixerEventCallback(pcmDevRxIds,
             sessionCb, cbCookie, true);
-
-         if (status != 0) {
-            PAL_ERR(LOG_TAG, "Failed to register callback to rm");
-         }
+        if (status != 0) {
+            PAL_ERR(LOG_TAG, "Failed to register callback to rm for RX");
+        }
+        status = rm->registerMixerEventCallback(pcmDevTxIds,
+            sessionCb, cbCookie, true);
+        if (status != 0) {
+            PAL_ERR(LOG_TAG, "Failed to register callback to rm for TX");
+        }
+        PAL_DBG(LOG_TAG, "after registerMixerEventCallback for DTMF RX/TX");
     }
 
 exit:
+    PAL_DBG(LOG_TAG,"Exit \n");
     return status;
 }
 
@@ -555,6 +575,7 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
     int device = pcmDevRxIds.at(0);
     uint8_t* paramData = NULL;
     size_t paramSize = 0;
+    pal_param_module_enable_t* dtmf_detect_payload;
 
     uint32_t tty_mode;
 
@@ -592,15 +613,23 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
 
         case MODULE_ENABLE:
         case MODULE_DISABLE:
+            PAL_ERR(LOG_TAG, "Enter MODULE_ENABLE/Disable");
+            dtmf_detect_payload = (pal_param_module_enable_t*) payload;
             device = pcmDevRxIds.at(0);
-            enable = *((bool *)PalPayload->payload);
-            status = payloadTaged(s, MODULE, tagId, device, TXDIR);
+            enable = dtmf_detect_payload->enable;
+            dir = dtmf_detect_payload->dir;
+            PAL_ERR(LOG_TAG, "Dtmf detect params, Enable= %d, Dir = %d",
+                        enable, dir);
+            status = registerDtmfEvent(tagId, dir);
+            if (status != 0) {
+                PAL_ERR(LOG_TAG,"registerDtmfEvent failed");
+            }
+            status = payloadTaged(s, MODULE, tagId, device, dir);
             if (status) {
                 PAL_ERR(LOG_TAG, "Failed to set Dtmf detect params status = %d",
                         status);
             }
             PAL_ERR(LOG_TAG, "Exit MODULE_ENABLE, Disable case");
-            registerCallBack(HandleDtmfCallBack, (uint64_t)s); /* to do : seperate module_disable*/
             break;
 
         case TTY_MODE:
@@ -893,6 +922,47 @@ done:
     return status;
 }
 
+int SessionAlsaVoice::registerDtmfEvent(int tagId, int dir) {
+    int status = 0;
+    int payload_size = 0;
+    struct agm_event_reg_cfg *event_cfg;
+
+    PAL_DBG(LOG_TAG, "Enter");
+
+    payload_size = sizeof(struct agm_event_reg_cfg);
+    event_cfg = (struct agm_event_reg_cfg *)calloc(1, payload_size);
+    if (!event_cfg) {
+        PAL_ERR(LOG_TAG, "Failed to allocate memory for event_cfg");
+        status = -ENOMEM;
+    } else {
+        event_cfg->event_id = EVENT_ID_DTMF_DETECTION;
+        event_cfg->event_config_payload_size = 0;
+
+        if (tagId == MODULE_ENABLE) {
+            PAL_ERR(LOG_TAG, "Enter with tagID:%d", tagId);
+            event_cfg->is_register = 1;
+        } else {
+            PAL_ERR(LOG_TAG, "Enter with tagID:%d", tagId);
+            event_cfg->is_register = 0;
+        }
+
+        if (dir == TXDIR) {
+            status = SessionAlsaUtils::registerMixerEvent(mixer, pcmDevTxIds.at(0),
+            txAifBackEnds[0].second.data(), DTMF_DETECTOR, (void *)event_cfg,
+            payload_size);
+        } else {
+            status = SessionAlsaUtils::registerMixerEvent(mixer, pcmDevRxIds.at(0),
+            rxAifBackEnds[0].second.data(), DTMF_DETECTOR, (void *)event_cfg,
+            payload_size);
+        }
+        if (status != 0) {
+            PAL_ERR(LOG_TAG,"registerMixerEvent failed");
+        }
+    }
+    PAL_DBG(LOG_TAG, "Exit");
+    return status;
+}
+
 int SessionAlsaVoice::payloadTaged(Stream * s, configType type, int tag,
                                    int device __unused, int dir){
     int status = 0;
@@ -935,6 +1005,7 @@ int SessionAlsaVoice::payloadTaged(Stream * s, configType type, int tag,
                 PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", tagCntrlName.str().data());
                 return -ENOENT;
             }
+            PAL_DBG(LOG_TAG, " mixer control: %s\n", tagCntrlName.str().data());
 
             tkv_size = tkv.size()*sizeof(struct agm_key_value);
             status = mixer_ctl_set_array(ctl, tagConfig, sizeof(struct agm_tag_config) + tkv_size);
