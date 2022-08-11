@@ -266,10 +266,12 @@ parse_sndcards_error:
 
 SndCardMonitor::~SndCardMonitor()
 {
-   PAL_DBG(LOG_TAG, "destructor called");
-   write(intPipe[1], "Q", 1);
-   mThread.join();
-   close(intPipe[0]);
-   close(intPipe[1]);
-   sndCards.clear();
+    PAL_DBG(LOG_TAG, "destructor called");
+    if(mThread.joinable()) {
+        write(intPipe[1], "Q", 1);
+        mThread.join();
+        close(intPipe[0]);
+        close(intPipe[1]);
+        sndCards.clear();
+    }
 }
