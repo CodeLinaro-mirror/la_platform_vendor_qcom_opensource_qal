@@ -2322,6 +2322,8 @@ int ResourceManager::registerMixerEventCallback(const std::vector<int> &DevIds,
     int status = 0;
     std::map<int, std::pair<session_callback, uint64_t>>::iterator it;
 
+    PAL_DBG(LOG_TAG, "Enter");
+
     if (!callback || DevIds.size() <= 0) {
         PAL_ERR(LOG_TAG, "Invalid callback or pcm ids");
         return -EINVAL;
@@ -2334,25 +2336,27 @@ int ResourceManager::registerMixerEventCallback(const std::vector<int> &DevIds,
 
     if (is_register) {
         for (int i = 0; i < DevIds.size(); i++) {
+            PAL_DBG(LOG_TAG, "pcm id %d", DevIds[i]);
             it = mixerEventCallbackMap.find(DevIds[i]);
             if (it != mixerEventCallbackMap.end()) {
-                PAL_DBG(LOG_TAG, "callback exists for pcm id %d, overwrite",
+                PAL_ERR(LOG_TAG, "callback exists for pcm id %d, overwrite",
                     DevIds[i]);
                 mixerEventCallbackMap.erase(it);
             }
+            PAL_DBG(LOG_TAG, "Make callback for pcm id %d", DevIds[i]);
             mixerEventCallbackMap.insert(std::make_pair(DevIds[i],
                 std::make_pair(callback, cookie)));
 
         }
         if (mixerEventRegisterCount++ == 0) {
-            PAL_DBG(LOG_TAG, "Creating mixer event thread");
+            PAL_ERR(LOG_TAG, "Creating mixer event thread");
             mixerEventTread = std::thread(mixerEventWaitThreadLoop, rm);
         }
     } else {
         for (int i = 0; i < DevIds.size(); i++) {
             it = mixerEventCallbackMap.find(DevIds[i]);
             if (it != mixerEventCallbackMap.end()) {
-                PAL_DBG(LOG_TAG, "callback found for pcm id %d, remove",
+                PAL_ERR(LOG_TAG, "callback found for pcm id %d, remove",
                     DevIds[i]);
                 if (callback == it->second.first) {
                     mixerEventCallbackMap.erase(it);
@@ -2368,10 +2372,10 @@ int ResourceManager::registerMixerEventCallback(const std::vector<int> &DevIds,
             if (mixerEventTread.joinable()) {
                 mixerEventTread.join();
             }
-            PAL_DBG(LOG_TAG, "Mixer event thread joined");
+            PAL_ERR(LOG_TAG, "Mixer event thread joined");
         }
     }
-
+    PAL_DBG(LOG_TAG, "Exit");
     return status;
 }
 
@@ -2381,13 +2385,15 @@ void ResourceManager::mixerEventWaitThreadLoop(
     struct ctl_event mixer_event = {0, {.data8 = {0}}};
     struct mixer *mixer = nullptr;
 
+    PAL_DBG(LOG_TAG, "Enter");
+
     ret = rm->getVirtualAudioMixer(&mixer);
     if (ret) {
         PAL_ERR(LOG_TAG, "Failed to get audio mxier");
         return;
     }
 
-    PAL_VERBOSE(LOG_TAG, "subscribing for event");
+    PAL_DBG(LOG_TAG, "subscribing for event");
     mixer_subscribe_events(mixer, 1);
 
     while (1) {
@@ -2396,30 +2402,31 @@ void ResourceManager::mixerEventWaitThreadLoop(
          * Better if AGM side can provide one event indicating stop
          */
         ret = mixer_wait_event(mixer, 1000);
-        PAL_VERBOSE(LOG_TAG, "mixer_wait_event returns %d", ret);
+        PAL_DBG(LOG_TAG, "mixer_wait_event returns %d", ret);
         if (ret <= 0) {
-            PAL_DBG(LOG_TAG, "mixer_wait_event err! ret = %d", ret);
+            PAL_ERR(LOG_TAG, "mixer_wait_event err! ret = %d", ret);
         } else if (ret > 0) {
             ret = mixer_read_event(mixer, &mixer_event);
             if (ret >= 0) {
-                PAL_INFO(LOG_TAG, "Event Received %s",
+                PAL_ERR(LOG_TAG, "Event Received %s",
                     mixer_event.data.elem.id.name);
                 if (strstr((char *)mixer_event.data.elem.id.name, (char *)"event"))
                     ret = rm->handleMixerEvent(mixer,
                         (char *)mixer_event.data.elem.id.name);
                 else
-                    PAL_VERBOSE(LOG_TAG, "Unwanted event, Skipping");
+                    PAL_ERR(LOG_TAG, "Unwanted event, Skipping");
             } else {
-                PAL_DBG(LOG_TAG, "mixer_read failed, ret = %d", ret);
+                PAL_ERR(LOG_TAG, "mixer_read failed, ret = %d", ret);
             }
         }
         if (!rm->isCallbackRegistered()) {
-            PAL_VERBOSE(LOG_TAG, "Exit thread as no session registered");
+            PAL_ERR(LOG_TAG, "Exit thread as no session registered");
             break;
         }
     }
     PAL_VERBOSE(LOG_TAG, "unsubscribing for event");
     mixer_subscribe_events(mixer, 0);
+    PAL_DBG(LOG_TAG, "Exit");
 }
 
 int ResourceManager::handleMixerEvent(struct mixer *mixer, char *mixer_str) {
@@ -2442,6 +2449,13 @@ int ResourceManager::handleMixerEvent(struct mixer *mixer, char *mixer_str) {
     std::map<int, std::pair<session_callback, uint64_t>>::iterator it;
 
     PAL_DBG(LOG_TAG, "Enter");
+    if (strstr(mixer_str, (char *)"PCM106")) {
+        mixer_str = (char *)"VOICEMMODE1p event";
+    } else if (strstr(mixer_str, (char *)"PCM108")) {
+        mixer_str = (char *)"VOICEMMODE1c event";
+    }
+    PAL_DBG(LOG_TAG, " mixer control: %s\n", mixer_str);
+
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s", mixer_str);
@@ -2498,7 +2512,9 @@ int ResourceManager::handleMixerEvent(struct mixer *mixer, char *mixer_str) {
     }
 
     length = suffix_idx - prefix_idx;
+    PAL_DBG(LOG_TAG, " length: %d\n", length);
     pcm_id = std::stoi(event_str.substr(prefix_idx, length));
+    PAL_DBG(LOG_TAG, " pcm_id: %d\n", pcm_id);
 
     // acquire callback/cookie with pcm dev id
     it = mixerEventCallbackMap.find(pcm_id);
@@ -2512,6 +2528,7 @@ int ResourceManager::handleMixerEvent(struct mixer *mixer, char *mixer_str) {
         PAL_ERR(LOG_TAG, "Invalid session callback");
         goto exit;
     }
+    PAL_DBG(LOG_TAG, "Valid session callback");
 
     // callback
     session_cb(cookie, params->event_id, (void *)params->event_payload,
@@ -2763,7 +2780,7 @@ std::shared_ptr<Device> ResourceManager::getActiveEchoReferenceRxDevices_l(
         rx_device_list.clear();
         if (rx_attr.direction != PAL_AUDIO_INPUT) {
             if (!getEcRefStatus(tx_attr.type, rx_attr.type)) {
-                PAL_DBG(LOG_TAG, "No need to enable ec ref for rx %d tx %d",
+                PAL_ERR(LOG_TAG, "No need to enable ec ref for rx %d tx %d",
                         rx_attr.type, tx_attr.type);
                 continue;
             }
@@ -4557,6 +4574,12 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
             hpcm_enabled_ = param_hpcm_cfg->enable;
         }
         break;
+        case PAL_PARAM_ID_DTMF_CFG:
+        {
+            pal_param_dtmf_cfg_t* param_dtmf_cfg = (pal_param_dtmf_cfg_t*) param_payload;
+            dtmf_enabled = param_dtmf_cfg->enable;
+        }
+        break;
         case PAL_PARAM_ID_MODULE_ENABLE:
         {
             pal_param_module_enable_t* param_module_enable =
@@ -4567,6 +4590,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                 goto exit;
             }
             PAL_INFO(LOG_TAG, "DTMF Detection Module Enable:%d", param_module_enable->enable);
+            PAL_INFO(LOG_TAG, "DTMF Detection Direction:%d", param_module_enable->dir);
             if (payload_size == sizeof(pal_param_module_enable_t)) {
                 status = handleDtmfDetectModuleEnable(*param_module_enable);
             } else {

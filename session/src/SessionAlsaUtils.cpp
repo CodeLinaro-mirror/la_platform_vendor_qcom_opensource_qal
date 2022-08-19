@@ -916,6 +916,8 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
     struct mixer_ctl *ctl;
     int ctl_len = 0,status = 0;
     uint32_t miid;
+
+    PAL_DBG(LOG_TAG, "Enter");
     std::shared_ptr<ResourceManager> rm = ResourceManager::getInstance();
 
     pcmDeviceName = rm->getDeviceNameFromID(device);
@@ -923,6 +925,7 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
         PAL_ERR(LOG_TAG, "Device name from id %d not found", device);
         return -EINVAL;
     }
+    PAL_DBG(LOG_TAG, "Device name from id %d found", device);
 
     // get module instance id
     status = SessionAlsaUtils::getModuleInstanceId(mixer, device, intf_name, tag_id, &miid);
@@ -930,6 +933,7 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
         PAL_ERR(LOG_TAG, "Failed to get tage info %x, status = %d", tag_id, status);
         return EINVAL;
     }
+    PAL_DBG(LOG_TAG, "Get miid success");
 
     ctl_len = strlen(pcmDeviceName) + 1 + strlen(control) + 1;
     mixer_str = (char *)calloc(1, ctl_len);
@@ -938,13 +942,14 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
 
     snprintf(mixer_str, ctl_len, "%s %s", pcmDeviceName, control);
 
-    PAL_DBG(LOG_TAG, "- mixer -%s-\n", mixer_str);
+    PAL_ERR(LOG_TAG, "- mixer -%s-\n", mixer_str);
     ctl = mixer_get_ctl_by_name(mixer, mixer_str);
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
         return ENOENT;
     }
+    PAL_DBG(LOG_TAG, " mixer control: %s\n", mixer_str);
 
     event_cfg = (struct agm_event_reg_cfg *)payload;
     event_cfg->module_instance_id = miid;
@@ -952,6 +957,7 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
     status = mixer_ctl_set_array(ctl, (struct agm_event_reg_cfg *)payload,
                         payload_size);
     free(mixer_str);
+    PAL_DBG(LOG_TAG, "Exit");
     return status;
 }
 

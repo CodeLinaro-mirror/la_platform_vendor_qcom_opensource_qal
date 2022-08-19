@@ -30,7 +30,11 @@
 #ifndef AUDIO_HW
 #define AUDIO_HW
 
+#ifdef FEATURE_IPQ_OPENWRT
+#include "audio_route.h"
+#else
 #include "audio_route/audio_route.h"
+#endif
 
 inline void enableDevice(struct audio_route *ar, char * device_name)
 {

@@ -36,7 +36,11 @@
 #include <thread>
 #include <mutex>
 #include <string>
+#ifdef FEATURE_IPQ_OPENWRT
+#include "audio_route.h"
+#else
 #include "audio_route/audio_route.h"
+#endif
 #include <tinyalsa/asoundlib.h>
 #include "PalCommon.h"
 #include <map>
@@ -352,6 +356,7 @@ public:
     static bool isGaplessEnabled;
     static int spQuickCalTime;
     bool hpcm_enabled_;
+    bool dtmf_enabled;
     int hpcm_config;
     pal_spkr_prot_payload mSpkrProtModeValue;
     pal_global_callback globalCb = NULL;

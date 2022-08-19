@@ -2,39 +2,50 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = pal.pc
 EXTRA_DIST = $(pkgconfig_DATA)
 
-
 if BUILDSYSTEM_OPENWRT
 h_sources = ./stream/inc/Stream.h \
             ./stream/inc/StreamCompress.h \
+            ./stream/inc/StreamInCall.h \
             ./stream/inc/StreamPCM.h \
             ./stream/inc/StreamSoundTrigger.h \
-            ./device/inc/Device.h \
-            ./device/inc/Speaker.h \
             ./device/inc/Bluetooth.h \
-            ./plugins/codecs/bt_intf.h \
-            ./device/inc/Headphone.h \
-            ./device/inc/USBAudio.h \
-            ./device/inc/SpeakerMic.h \
-            ./device/inc/HeadsetMic.h \
+            ./device/inc/Device.h \
+            ./device/inc/DisplayPort.h \
             ./device/inc/Handset.h \
             ./device/inc/HandsetMic.h \
             ./device/inc/HandsetVaMic.h \
+            ./device/inc/Headphone.h \
+            ./device/inc/HeadsetMic.h \
+            ./device/inc/HeadsetVaMic.h \
+            ./device/inc/RTProxy.h \
+            ./device/inc/Speaker.h \
+            ./device/inc/SpeakerMic.h \
+            ./device/inc/SpeakerProtection.h \
+            ./device/inc/USBAudio.h \
+            ./plugins/codecs/bt_intf.h \
             ./session/inc/Session.h \
             ./session/inc/PayloadBuilder.h \
             ./session/inc/SessionGsl.h \
-            ./session/inc/SessionAlsaUtils.h \
             ./session/inc/SessionAlsaPcm.h \
             ./session/inc/SessionAlsaCompress.h \
             ./session/inc/SessionAlsaVoice.h \
+            ./session/inc/SessionAlsaUtils.h \
             ./session/inc/SoundTriggerEngine.h \
             ./session/inc/SoundTriggerEngineGsl.h \
             ./session/inc/SoundTriggerEngineCapi.h \
+            $(TOPDIR)/src/audio/mm-audio-headers/capiv2_api/capi_v2.h \
+            $(TOPDIR)/src/audio/mm-audio-headers/capiv2_api/capi_v2_events.h \
+            $(TOPDIR)/src/audio/mm-audio-headers/capiv2_api/capi_v2_extn.h \
+            $(TOPDIR)/src/audio/mm-audio-headers/capiv2_api/capi_v2_properties.h \
+            $(TOPDIR)/src/audio/mm-audio-headers/capiv2_api/capi_v2_types.h \
             ./resource_manager/inc/ResourceManager.h \
             ./PalDefs.h \
             ./PalApi.h \
             ./PalAudioRoute.h \
             ./PalCommon.h \
-            ./utils/inc/PalRingBuffer.h
+            ./utils/inc/PalRingBuffer.h \
+            ./plugins/codecs/bt_intf.h \
+            ./utils/inc/SoundTriggerPlatformInfo.h
 
 AM_CPPFLAGS := -I ./stream/inc
 AM_CPPFLAGS += -I ./device/inc
@@ -43,32 +54,43 @@ AM_CPPFLAGS += -I ./resource_manager/inc
 AM_CPPFLAGS += -I ./utils/inc
 AM_CPPFLAGS += -I ./
 
+AM_CPPFLAGS += $(SPF_CFLAGS)/
+AM_CPPFLAGS += $(ACDBDATA_CFLAGS)
+AM_CPPFLAGS += -I $(TOPDIR)/src/audio/mm-audio-headers/capiv2_api/
+
 pal_sources = ./stream/src/Stream.cpp \
               ./stream/src/StreamCompress.cpp \
+              ./stream/src/StreamInCall.cpp \
               ./stream/src/StreamPCM.cpp \
               ./stream/src/StreamSoundTrigger.cpp \
-              ./device/src/Device.cpp \
-              ./device/src/Speaker.cpp \
-              ./device/src/Headphone.cpp \
-              ./device/inc/USBAudio.cpp \
-              ./device/src/SpeakerMic.cpp \
               ./device/src/Bluetooth.cpp \
-              ./device/src/HeadsetMic.cpp \
+              ./device/src/Device.cpp \
+              ./device/src/DisplayPort.cpp \
+              ./device/src/Handset.cpp \
               ./device/src/HandsetMic.cpp \
               ./device/src/HandsetVaMic.cpp \
-              ./device/src/Handset.cpp \
+              ./device/src/Headphone.cpp \
+              ./device/src/HeadsetMic.cpp \
+              ./device/src/HeadsetVaMic.cpp \
+              ./device/src/RTProxy.cpp \
+              ./device/src/Speaker.cpp \
+              ./device/src/SpeakerMic.cpp \
+              ./device/src/SpeakerProtection.cpp \
+              ./device/src/USBAudio.cpp \
               ./session/src/Session.cpp \
               ./session/src/PayloadBuilder.cpp \
               ./session/src/SessionAlsaUtils.cpp \
               ./session/src/SessionAlsaPcm.cpp \
-              ./session/src/SessionAlsaCompress.cpp\
-              ./session/src/SessionAlsaVoice.cpp\
+              ./session/src/SessionAlsaCompress.cpp \
+              ./session/src/SessionAlsaVoice.cpp \
               ./session/src/SoundTriggerEngine.cpp \
               ./session/src/SoundTriggerEngineGsl.cpp \
               ./session/src/SoundTriggerEngineCapi.cpp \
               ./resource_manager/src/ResourceManager.cpp \
+              ./resource_manager/src/SndCardMonitor.cpp \
               ./Pal.cpp \
-              ./utils/src/PalRingBuffer.cpp
+              ./utils/src/PalRingBuffer.cpp \
+              ./utils/src/SoundTriggerPlatformInfo.cpp
 else
 h_sources = ${top_srcdir}/stream/inc/Stream.h \
             ${top_srcdir}/stream/inc/StreamCompress.h \
@@ -132,9 +154,6 @@ AM_CPPFLAGS += -D__unused=__attribute__\(\(__unused__\)\) -DLINUX_ENABLED
 
 AM_CPPFLAGS += -DCONFIG_GSL
 
-library_include_HEADERS = $(h_sources)
-library_includedir = $(includedir)/pal
-
 pal_sources = ${top_srcdir}/stream/src/Stream.cpp \
               ${top_srcdir}/stream/src/StreamCompress.cpp \
               ${top_srcdir}/stream/src/StreamInCall.cpp \
@@ -189,7 +208,6 @@ libpal_la_CPPFLAGS += $(GLIB_CFLAGS) -Dstrlcpy=g_strlcpy -Dstrlcat=g_strlcat -in
 if BUILDSYSTEM_OPENWRT
 libpal_la_LIBADD += -lglib-2.0
 endif
-
 if COMPILE_COMPRESS
 libpal_la_CPPFLAGS += -DSND_COMPRESS_DEC_HDR
 endif

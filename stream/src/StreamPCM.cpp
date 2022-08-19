@@ -135,7 +135,6 @@ StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_devic
         throw std::runtime_error("failed to create session object");
     }
 
-    session->registerCallBack(handleSessionCallBack, (uint64_t)this);
     PAL_VERBOSE(LOG_TAG, "Create new Devices with no_of_devices - %d", no_of_devices);
     for (int i = 0; i < no_of_devices; i++) {
         //Check with RM if the configuration given can work or not
@@ -996,8 +995,12 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
         case PAL_PARAM_ID_MODULE_ENABLE:
         {
             uint32_t enable = 0;
+            uint32_t dir = 0;
 
             enable = (uint32_t)(((pal_param_module_enable_t *)payload)->enable);
+            dir = (uint32_t)(((pal_param_module_enable_t *)payload)->dir);
+            PAL_DBG(LOG_TAG, "Dtmf detect params, Enable= %d, Dir = %d",
+                        enable, dir);
             uint32_t enable_tag =
                         enable ? MODULE_ENABLE : MODULE_DISABLE;
             status = session->setParameters(this, enable_tag,
