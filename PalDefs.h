@@ -729,6 +729,7 @@ typedef enum {
     PAL_PARAM_ID_DTMF_GEN_TONE_CFG = 29,
     PAL_PARAM_ID_MODULE_ENABLE = 30,
     PAL_PARAM_ID_HPCM_CFG = 31,
+    PAL_PARAM_ID_DTMF_CFG = 32,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
@@ -844,6 +845,7 @@ typedef struct pal_param_dtmf_gen_tone_cfg {
 */
 typedef struct pal_param_module_enable {
     uint32_t enable;
+    uint32_t dir;
 } pal_param_module_enable_t;
 
 /* Payload For ID: PAL_PARAM_ID_HPCM_CONFIG
@@ -857,6 +859,10 @@ typedef struct pal_param_hpcm_cfg {
     uint32_t duration_ms;
     uint32_t reserved;
 } pal_param_hpcm_cfg_t;
+
+typedef struct pal_param_dtmf_cfg {
+    uint32_t enable;
+} pal_param_dtmf_cfg_t;
 
 /* Payload For ID: PAL_PARAM_ID_BT_SCO*
  * Description   : BT SCO related device parameters

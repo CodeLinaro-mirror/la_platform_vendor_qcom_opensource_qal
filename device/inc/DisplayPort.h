@@ -34,7 +34,11 @@
 #include "PalAudioRoute.h"
 #include "PalDefs.h"
 #include "ResourceManager.h"
+#ifdef FEATURE_IPQ_OPENWRT
+#include <audio.h>
+#else
 #include <system/audio.h>
+#endif
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))

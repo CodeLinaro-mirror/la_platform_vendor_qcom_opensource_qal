@@ -34,7 +34,12 @@
 #include <ar_osal_types.h>
 #include <common_enc_dec_api.h>
 #include <media_fmt_api.h>
+
+#ifdef FEATURE_IPQ_OPENWRT
+#include <audio-base.h>
+#else
 #include <system/audio-base.h>
+#endif
 
 /*
  * Below enum values are extended from audio_base.h to
