@@ -32,6 +32,7 @@
 #include "StreamSoundTrigger.h"
 
 #include <unistd.h>
+#include <cstring>
 
 #include "Session.h"
 #include "SessionGsl.h"
