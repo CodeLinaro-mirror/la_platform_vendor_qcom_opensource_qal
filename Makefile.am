@@ -198,7 +198,8 @@ library_includedir = $(includedir)/pal
 
 lib_LTLIBRARIES     = libpal.la
 libpal_la_SOURCES   = $(pal_sources)
-libpal_la_LIBADD    = $(GLIB_LIBS) -ltinyalsa -laudioroute -lar_osal -lexpat -ltinycompress
+libpal_la_LIBADD    = $(GLIB_LIBS) -ltinyalsa -laudioroute -lar_osal -lexpat -ltinycompress -lagm
+libpal_la_LIBADD   += -lar_gsl -lacdbdata
 libpal_la_CPPFLAGS := $(AM_CPPFLAGS)
 libpal_la_CPPFLAGS += -std=c++14 -DHAVE_PTHREADS -DHAVE_ANDROID_OS
 libpal_la_CPPFLAGS += -DDEBUG_REFS_CALLSTACK_ENABLED=0
