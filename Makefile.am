@@ -150,10 +150,6 @@ AM_CPPFLAGS += -I $(PKG_CONFIG_SYSROOT_DIR)/usr/include/
 
 AM_CPPFLAGS += -I ${WORKSPACE}/audio/mm-audio-headers/capiv2_api/
 
-AM_CPPFLAGS += -D__unused=__attribute__\(\(__unused__\)\) -DLINUX_ENABLED
-
-AM_CPPFLAGS += -DCONFIG_GSL
-
 pal_sources = ${top_srcdir}/stream/src/Stream.cpp \
               ${top_srcdir}/stream/src/StreamCompress.cpp \
               ${top_srcdir}/stream/src/StreamInCall.cpp \
@@ -190,7 +186,7 @@ pal_sources = ${top_srcdir}/stream/src/Stream.cpp \
 
 endif
 
-AM_CPPFLAGS += -D__unused=__attribute__\(\(__unused__\)\)
+AM_CPPFLAGS += -D__unused=__attribute__\(\(__unused__\)\) -DLINUX_ENABLED
 AM_CPPFLAGS += -DCONFIG_GSL
 
 library_include_HEADERS = $(h_sources)
