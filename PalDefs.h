@@ -28,7 +28,7 @@
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -735,6 +735,7 @@ typedef enum {
     PAL_PARAM_ID_MODULE_ENABLE = 30,
     PAL_PARAM_ID_HPCM_CFG = 31,
     PAL_PARAM_ID_DTMF_CFG = 32,
+    PAL_PARAM_ID_CUSTOM_CONFIGURATION = 33,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
