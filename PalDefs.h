@@ -80,6 +80,9 @@ typedef enum {
     PAL_AUDIO_FMT_FLAC = 0xB,
     PAL_AUDIO_FMT_FLAC_OGG = 0xC,
     PAL_AUDIO_FMT_VORBIS = 0xD,
+    PAL_AUDIO_FMT_AMR_NB = 0xE,
+    PAL_AUDIO_FMT_AMR_WB = 0xF,
+    PAL_AUDIO_FMT_AMR_WB_PLUS = 0x10,
     PAL_AUDIO_FMT_COMPRESSED_RANGE_BEGIN = 0xF0000000,  /* Reserved for beginning of compressed codecs */
     PAL_AUDIO_FMT_COMPRESSED_EXTENDED_RANGE_BEGIN   = 0xF0000F00,  /* Reserved for beginning of 3rd party codecs */
     PAL_AUDIO_FMT_COMPRESSED_EXTENDED_RANGE_END     = 0xF0000FFF,  /* Reserved for beginning of 3rd party codecs */
@@ -107,7 +110,10 @@ static const std::map<std::string, pal_audio_fmt_t> PalAudioFormatMap
     { "WMA_PRO", PAL_AUDIO_FMT_WMA_PRO},
     { "FLAC", PAL_AUDIO_FMT_FLAC},
     { "FLAC_OGG", PAL_AUDIO_FMT_FLAC_OGG},
-    { "VORBIS", PAL_AUDIO_FMT_VORBIS}
+    { "VORBIS", PAL_AUDIO_FMT_VORBIS},
+    { "AMR_NB", PAL_AUDIO_FMT_AMR_NB},
+    { "AMR_WB", PAL_AUDIO_FMT_AMR_WB},
+    { "AMR_WB_PLUS", PAL_AUDIO_FMT_AMR_WB_PLUS}
 
 };
 #endif
