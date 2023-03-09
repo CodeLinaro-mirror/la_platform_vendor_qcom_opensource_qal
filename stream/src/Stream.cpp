@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following lice
+nse:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: Stream"
@@ -89,8 +95,15 @@ Stream* Stream::create(struct pal_stream_attributes *sAttr, struct pal_device *d
             mPalDevice[count].id == PAL_DEVICE_IN_USB_HEADSET) {
             mPalDevice[count].address = dAttr[i].address;
         }
-        rm->getDeviceInfo(mPalDevice[count].id, sAttr->type, &devinfo);
-        if (devinfo.channels == 0 || devinfo.channels > devinfo.max_channels) {
+
+        if (strlen(dAttr[i].custom_config.custom_key)) {
+            strlcpy(mPalDevice[count].custom_config.custom_key, dAttr[i].custom_config.custom_key, PAL_MAX_CUSTOM_KEY_SIZE);
+            rm->getDeviceInfo(mPalDevice[count].id, sAttr->type, dAttr[i].custom_config.custom_key, &devinfo);
+        } else {
+            strlcpy(mPalDevice[count].custom_config.custom_key, "", PAL_MAX_CUSTOM_KEY_SIZE);
+            rm->getDeviceInfo(mPalDevice[count].id, sAttr->type, &devinfo);
+        }
+         if (devinfo.channels == 0 || devinfo.channels > devinfo.max_channels) {
             PAL_ERR(LOG_TAG, "Invalid num channels[%d], failed to create stream",
                     devinfo.channels);
             goto exit;
@@ -166,7 +179,7 @@ int32_t  Stream::getStreamAttributes(struct pal_stream_attributes *sAttr)
 {
     int32_t status = 0;
 
-    if (!sAttr) {
+    if (!sAttr || !mStreamAttr) {
         status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream attribute pointer, status %d", status);
         goto exit;
@@ -424,6 +437,79 @@ int32_t Stream::getBufInfo(size_t *in_buf_size, size_t *in_buf_count,
         PAL_DBG(LOG_TAG, "Out Buffer size %zu and Out Buffer count %zu",
                 *out_buf_size, *out_buf_count);
 
+    return status;
+}
+
+int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
+{
+    int32_t status = 0;
+    struct pal_stream_attributes *sattr = NULL;
+    sattr = (struct pal_stream_attributes *)calloc(1, sizeof(struct pal_stream_attributes));
+    if (!sattr) {
+        status = -ENOMEM;
+        PAL_ERR(LOG_TAG, "stream attribute malloc failed %s, status %d", strerror(errno), status);
+        goto exit;
+    }
+
+    if (!in_buf_size)
+        PAL_DBG(LOG_TAG, "Invalid In Buffer size");
+
+    if (!out_buf_size)
+        PAL_DBG(LOG_TAG, "Invalid Out Buffer size");
+
+    status = getStreamAttributes(sattr);
+    if (sattr->direction == PAL_AUDIO_OUTPUT) {
+        if(!out_buf_size) {
+            status = -EINVAL;
+            PAL_ERR(LOG_TAG, "Invalid output buffer size status %d", status);
+            goto exit;
+        }
+        switch (sattr->type) {
+            case PAL_STREAM_DEEP_BUFFER:
+            case PAL_STREAM_PCM_OFFLOAD:
+                *out_buf_size = ((sattr->out_media_config.bit_width) / 8) *
+                                (sattr->out_media_config.sample_rate) *
+                                (sattr->out_media_config.ch_info.channels);
+
+                *out_buf_size = *out_buf_size / 1000;
+                *out_buf_size = *out_buf_size * DEEP_BUFFER_OUTPUT_PERIOD_DURATION;
+                break;
+            case PAL_STREAM_COMPRESSED:
+                *out_buf_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
+                break;
+            default:
+                PAL_ERR(LOG_TAG, "unsupported stream type 0x%x", sattr->type);
+                break;
+        }
+        PAL_DBG(LOG_TAG, "out_buf_size %zu", *out_buf_size);
+    } else if (sattr->direction == PAL_AUDIO_INPUT) {
+        if(!in_buf_size) {
+            status = -EINVAL;
+            PAL_ERR(LOG_TAG, "Invalid input buffer size status %d", status);
+            goto exit;
+        }
+
+        switch (sattr->type) {
+            case PAL_STREAM_DEEP_BUFFER:
+            case PAL_STREAM_PCM_OFFLOAD:
+                *in_buf_size = ((sattr->out_media_config.bit_width) / 8) *
+                                (sattr->out_media_config.sample_rate) *
+                                (sattr->out_media_config.ch_info.channels);
+
+                *in_buf_size = *in_buf_size / 1000;
+                *in_buf_size = *in_buf_size * AUDIO_CAPTURE_PERIOD_DURATION_MSEC;
+                break;
+            case PAL_STREAM_COMPRESSED:
+                *in_buf_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
+                break;
+            default:
+                PAL_ERR(LOG_TAG, "unsupported stream type 0x%x", sattr->type);
+                break;
+        }
+        PAL_DBG(LOG_TAG, "in_buf_size %zu", *in_buf_size);
+    }
+
+exit:
     return status;
 }
 
@@ -831,6 +917,16 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
                 } else {
                     streamDevDisconnect.push_back(elem);
                     StreamDevConnect.push_back({std::get<0>(elem), &newDevices[newDeviceSlots[i]]});
+                    if (strlen(newDevices[newDeviceSlots[i]].custom_config.custom_key)) {
+                        PAL_DBG(LOG_TAG, "new device has custom key %s",
+                                          newDevices[newDeviceSlots[i]].custom_config.custom_key);
+                        rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type,
+                                          newDevices[newDeviceSlots[i]].custom_config.custom_key);
+                    } else {
+                        PAL_DBG(LOG_TAG, "Setting device info for device %d",
+                                          newDevices[newDeviceSlots[i]].id);
+                        rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type);
+                    }
                 }
             }
         }
@@ -840,6 +936,17 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
             if (rm->matchDevDir(mDevices[curDeviceSlots[j]]->getSndDeviceId(), newDevices[newDeviceSlots[i]].id))
                 streamDevDisconnect.push_back({streamHandle, mDevices[curDeviceSlots[j]]->getSndDeviceId()});
         }
+        if (strlen(newDevices[newDeviceSlots[i]].custom_config.custom_key)) {
+            PAL_DBG(LOG_TAG, "new device has custom key %s",
+                             newDevices[newDeviceSlots[i]].custom_config.custom_key);
+            rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type,
+                              newDevices[newDeviceSlots[i]].custom_config.custom_key);
+        } else {
+            PAL_DBG(LOG_TAG, "Setting device info for device %d",
+                              newDevices[newDeviceSlots[i]].id);
+            rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type);
+        }
+
         StreamDevConnect.push_back({streamHandle, &newDevices[newDeviceSlots[i]]});
     }
 
