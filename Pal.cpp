@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following lice
+nse:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: API"
@@ -498,6 +504,27 @@ int32_t pal_stream_set_buffer_size (pal_stream_handle_t *stream_handle,
     return status;
 }
 
+int32_t pal_stream_get_buffer_size(pal_stream_handle_t *stream_handle,
+                                   size_t *in_buf_size, size_t *out_buf_size)
+{
+    Stream *s = NULL;
+    int status;
+    if (!stream_handle) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG, "Invalid input parameters status %d", status);
+        return status;
+    }
+    PAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
+    s =  reinterpret_cast<Stream *>(stream_handle);
+    status = s->getBufSize(in_buf_size, out_buf_size);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG, "pal_stream_get_buffer_size failed with status %d", status);
+        return status;
+    }
+    PAL_DBG(LOG_TAG, "Exit. status %d", status);
+    return status;
+}
+
 int32_t pal_get_timestamp(pal_stream_handle_t *stream_handle,
                           struct pal_session_time *stime)
 {
@@ -587,7 +614,14 @@ int32_t pal_stream_set_device(pal_stream_handle_t *stream_handle,
     }
 
     for (int i = 0; i < no_of_devices; i++) {
-        rm->getDeviceInfo(devices[i].id, sattr.type, &devinfo);
+        if (strlen(devices[i].custom_config.custom_key)) {
+             PAL_DBG(LOG_TAG, "Device has custom key %s",
+                               devices[i].custom_config.custom_key);
+             rm->getDeviceInfo(devices[i].id, sattr.type,
+                               devices[i].custom_config.custom_key, &devinfo);
+        } else {
+             rm->getDeviceInfo(devices[i].id, sattr.type, &devinfo);
+        }
         if (devinfo.channels == 0 || devinfo.channels > devinfo.max_channels) {
             PAL_ERR(LOG_TAG, "Num channels[%d] is invalid", devinfo.channels);
             return -EINVAL;
