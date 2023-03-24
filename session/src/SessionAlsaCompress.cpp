@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following lice
+nse:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: SessionAlsaCompress"
@@ -58,6 +64,15 @@ int SessionAlsaCompress::getSndCodecId(pal_audio_fmt_t fmt)
     switch (fmt) {
         case PAL_AUDIO_FMT_MP3:
             id = SND_AUDIOCODEC_MP3;
+            break;
+        case PAL_AUDIO_FMT_AMR_NB:
+            id = SND_AUDIOCODEC_AMR;
+            break;
+        case PAL_AUDIO_FMT_AMR_WB:
+            id = SND_AUDIOCODEC_AMRWB;
+            break;
+        case PAL_AUDIO_FMT_AMR_WB_PLUS:
+            id = SND_AUDIOCODEC_AMRWBPLUS ;
             break;
 #ifdef SND_COMPRESS_DEC_HDR
         case PAL_AUDIO_FMT_COMPRESSED_RANGE_BEGIN:

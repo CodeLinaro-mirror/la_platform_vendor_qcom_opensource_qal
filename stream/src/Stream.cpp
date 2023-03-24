@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following lice
+nse:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: Stream"
@@ -89,8 +95,15 @@ Stream* Stream::create(struct pal_stream_attributes *sAttr, struct pal_device *d
             mPalDevice[count].id == PAL_DEVICE_IN_USB_HEADSET) {
             mPalDevice[count].address = dAttr[i].address;
         }
-        rm->getDeviceInfo(mPalDevice[count].id, sAttr->type, &devinfo);
-        if (devinfo.channels == 0 || devinfo.channels > devinfo.max_channels) {
+
+        if (strlen(dAttr[i].custom_config.custom_key)) {
+            strlcpy(mPalDevice[count].custom_config.custom_key, dAttr[i].custom_config.custom_key, PAL_MAX_CUSTOM_KEY_SIZE);
+            rm->getDeviceInfo(mPalDevice[count].id, sAttr->type, dAttr[i].custom_config.custom_key, &devinfo);
+        } else {
+            strlcpy(mPalDevice[count].custom_config.custom_key, "", PAL_MAX_CUSTOM_KEY_SIZE);
+            rm->getDeviceInfo(mPalDevice[count].id, sAttr->type, &devinfo);
+        }
+         if (devinfo.channels == 0 || devinfo.channels > devinfo.max_channels) {
             PAL_ERR(LOG_TAG, "Invalid num channels[%d], failed to create stream",
                     devinfo.channels);
             goto exit;
@@ -904,6 +917,16 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
                 } else {
                     streamDevDisconnect.push_back(elem);
                     StreamDevConnect.push_back({std::get<0>(elem), &newDevices[newDeviceSlots[i]]});
+                    if (strlen(newDevices[newDeviceSlots[i]].custom_config.custom_key)) {
+                        PAL_DBG(LOG_TAG, "new device has custom key %s",
+                                          newDevices[newDeviceSlots[i]].custom_config.custom_key);
+                        rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type,
+                                          newDevices[newDeviceSlots[i]].custom_config.custom_key);
+                    } else {
+                        PAL_DBG(LOG_TAG, "Setting device info for device %d",
+                                          newDevices[newDeviceSlots[i]].id);
+                        rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type);
+                    }
                 }
             }
         }
@@ -913,6 +936,17 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
             if (rm->matchDevDir(mDevices[curDeviceSlots[j]]->getSndDeviceId(), newDevices[newDeviceSlots[i]].id))
                 streamDevDisconnect.push_back({streamHandle, mDevices[curDeviceSlots[j]]->getSndDeviceId()});
         }
+        if (strlen(newDevices[newDeviceSlots[i]].custom_config.custom_key)) {
+            PAL_DBG(LOG_TAG, "new device has custom key %s",
+                             newDevices[newDeviceSlots[i]].custom_config.custom_key);
+            rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type,
+                              newDevices[newDeviceSlots[i]].custom_config.custom_key);
+        } else {
+            PAL_DBG(LOG_TAG, "Setting device info for device %d",
+                              newDevices[newDeviceSlots[i]].id);
+            rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type);
+        }
+
         StreamDevConnect.push_back({streamHandle, &newDevices[newDeviceSlots[i]]});
     }
 

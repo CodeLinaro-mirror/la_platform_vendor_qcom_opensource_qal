@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following
+ * license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef SESSION_ALSAVOICE_H
@@ -70,6 +76,7 @@ private:
     uint32_t dir;
     session_callback sessionCb;
     uint64_t cbCookie;
+    sessionState mState;
 
 public:
 
@@ -95,6 +102,7 @@ public:
                              pal_stream_type_t streamType,
                              std::shared_ptr<Device> deviceToConnect);
     int setECRef(Stream *s, std::shared_ptr<Device> rx_dev, bool is_enable) override;
+    bool isActive();
 private:
     int payloadCalKeys(Stream * s, uint8_t **payload, size_t *size);
     int payloadTaged(Stream * s, configType type, int tag, int device, int dir);
