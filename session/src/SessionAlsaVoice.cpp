@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following
+ * license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 
@@ -100,6 +106,7 @@ SessionAlsaVoice::SessionAlsaVoice(std::shared_ptr<ResourceManager> Rm)
    customPayload = NULL;
    customPayloadSize = 0;
    sessionCb = NULL;
+   mState = SESSION_IDLE;
    this->cbCookie = 0;
 }
 
@@ -107,6 +114,12 @@ SessionAlsaVoice::~SessionAlsaVoice()
 {
    delete builder;
 
+}
+
+bool SessionAlsaVoice::isActive()
+{
+    PAL_VERBOSE(LOG_TAG, "state = %d", mState);
+    return mState == SESSION_STARTED;
 }
 
 uint32_t SessionAlsaVoice::getMIID(const char *backendName, uint32_t tagId, uint32_t *miid)
@@ -378,57 +391,60 @@ int SessionAlsaVoice::start(Stream * s)
         return status;
     }
 
-    s->getBufInfo(&in_buf_size,&in_buf_count,&out_buf_size,&out_buf_count);
-    memset(&config, 0, sizeof(config));
+    if (mState == SESSION_IDLE) {
+        s->getBufInfo(&in_buf_size,&in_buf_count,&out_buf_size,&out_buf_count);
+        memset(&config, 0, sizeof(config));
 
-    config.rate = sAttr.out_media_config.sample_rate;
-    if (sAttr.out_media_config.bit_width == 32)
-        config.format = PCM_FORMAT_S32_LE;
-    else if (sAttr.out_media_config.bit_width == 24)
-        config.format = PCM_FORMAT_S24_3LE;
-    else if (sAttr.out_media_config.bit_width == 16)
-        config.format = PCM_FORMAT_S16_LE;
-    config.channels = sAttr.out_media_config.ch_info.channels;
-    config.period_size = out_buf_size;
-    config.period_count = out_buf_count;
-    config.start_threshold = 0;
-    config.stop_threshold = 0;
-    config.silence_threshold = 0;
+        config.rate = sAttr.out_media_config.sample_rate;
+        if (sAttr.out_media_config.bit_width == 32)
+            config.format = PCM_FORMAT_S32_LE;
+        else if (sAttr.out_media_config.bit_width == 24)
+            config.format = PCM_FORMAT_S24_3LE;
+        else if (sAttr.out_media_config.bit_width == 16)
+            config.format = PCM_FORMAT_S16_LE;
+        config.channels = sAttr.out_media_config.ch_info.channels;
+        config.period_size = out_buf_size;
+        config.period_count = out_buf_count;
+        config.start_threshold = 0;
+        config.stop_threshold = 0;
+        config.silence_threshold = 0;
 
-    pcmRx = pcm_open(rm->getVirtualSndCard(), pcmDevRxIds.at(0), PCM_OUT, &config);
-    if (!pcmRx) {
-        PAL_ERR(LOG_TAG, "pcm-rx open failed");
-        return -EINVAL;
+        pcmRx = pcm_open(rm->getVirtualSndCard(), pcmDevRxIds.at(0), PCM_OUT, &config);
+        if (!pcmRx) {
+            PAL_ERR(LOG_TAG, "pcm-rx open failed");
+            return -EINVAL;
+        }
+
+        if (!pcm_is_ready(pcmRx)) {
+            PAL_ERR(LOG_TAG, "pcm-rx open not ready");
+            pcmRx = NULL;
+            return -EINVAL;
+        }
+
+        config.rate = sAttr.in_media_config.sample_rate;
+        if (sAttr.in_media_config.bit_width == 32)
+            config.format = PCM_FORMAT_S32_LE;
+        else if (sAttr.in_media_config.bit_width == 24)
+            config.format = PCM_FORMAT_S24_3LE;
+        else if (sAttr.in_media_config.bit_width == 16)
+            config.format = PCM_FORMAT_S16_LE;
+        config.channels = sAttr.in_media_config.ch_info.channels;
+        config.period_size = in_buf_size;
+        config.period_count = in_buf_count;
+
+        pcmTx = pcm_open(rm->getVirtualSndCard(), pcmDevTxIds.at(0), PCM_IN, &config);
+        if (!pcmTx) {
+            PAL_ERR(LOG_TAG, "pcm-tx open failed");
+            return -EINVAL;
+        }
+
+        if (!pcm_is_ready(pcmTx)) {
+            PAL_ERR(LOG_TAG, "pcm-tx open not ready");
+            pcmTx = NULL;
+            return -EINVAL;
+        }
     }
-
-    if (!pcm_is_ready(pcmRx)) {
-        PAL_ERR(LOG_TAG, "pcm-rx open not ready");
-        pcmRx = NULL;
-        return -EINVAL;
-    }
-
-    config.rate = sAttr.in_media_config.sample_rate;
-    if (sAttr.in_media_config.bit_width == 32)
-        config.format = PCM_FORMAT_S32_LE;
-    else if (sAttr.in_media_config.bit_width == 24)
-        config.format = PCM_FORMAT_S24_3LE;
-    else if (sAttr.in_media_config.bit_width == 16)
-        config.format = PCM_FORMAT_S16_LE;
-    config.channels = sAttr.in_media_config.ch_info.channels;
-    config.period_size = in_buf_size;
-    config.period_count = in_buf_count;
-
-    pcmTx = pcm_open(rm->getVirtualSndCard(), pcmDevTxIds.at(0), PCM_IN, &config);
-    if (!pcmTx) {
-        PAL_ERR(LOG_TAG, "pcm-tx open failed");
-        return -EINVAL;
-    }
-
-    if (!pcm_is_ready(pcmTx)) {
-        PAL_ERR(LOG_TAG, "pcm-tx open not ready");
-        pcmTx = NULL;
-        return -EINVAL;
-    }
+    mState = SESSION_OPENED;
 
     SessionAlsaVoice::setConfig(s, MODULE, VSID, RXDIR);
     /*if no volume is set set a default volume*/
@@ -502,6 +518,8 @@ int SessionAlsaVoice::start(Stream * s)
         goto exit;
     }
 
+    mState = SESSION_STARTED;
+
 exit:
     if (payload)
         free(payload);
@@ -525,19 +543,21 @@ int SessionAlsaVoice::stop(Stream * s __unused)
             PAL_ERR(LOG_TAG,"disabling sidetone failed");
         }
     }
-    if (pcmRx) {
+    if (pcmRx && isActive()) {
         status = pcm_stop(pcmRx);
         if (status) {
             PAL_ERR(LOG_TAG, "pcm_stop - rx failed %d", status);
         }
     }
 
-    if (pcmTx) {
+    if (pcmTx && isActive()) {
         status = pcm_stop(pcmTx);
         if (status) {
             PAL_ERR(LOG_TAG, "pcm_stop - tx failed %d", status);
         }
     }
+
+    mState = SESSION_STOPPED;
 
     return status;
 }
@@ -569,7 +589,7 @@ int SessionAlsaVoice::close(Stream * s)
     pcmRx = NULL;
     pcmTx = NULL;
 
-
+    mState = SESSION_IDLE;
     return status;
 }
 
