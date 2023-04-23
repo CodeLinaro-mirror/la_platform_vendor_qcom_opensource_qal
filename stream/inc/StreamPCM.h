@@ -52,7 +52,9 @@ public:
    int32_t prepare() override;
    int32_t setStreamAttributes( struct pal_stream_attributes *sattr) override;
    int32_t setVolume( struct pal_volume_data *volume) override;
+   int32_t getVolume( struct pal_volume_data *volume) override;
    int32_t mute(bool state) override;
+   int32_t getMute(bool *state) override;
    int32_t pause() override;
    int32_t resume() override;
    int32_t flush();

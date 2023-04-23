@@ -786,3 +786,81 @@ int32_t pal_gef_rw_param(uint32_t param_id, void *param_payload,
 
     return status;
 }
+
+int32_t pal_stream_get_device(pal_stream_handle_t *stream_handle,
+                              uint32_t *no_of_devices, struct pal_device *devices){
+    std::vector<std::shared_ptr<Device>> associatedDevices;
+    std::vector<struct pal_device> palDevices;
+    int status;
+    Stream *s = NULL;
+    if (!stream_handle || !no_of_devices || !devices) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG, "Invalid input parameters status %d", status);
+        return status;
+    }
+    PAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
+    s =  reinterpret_cast<Stream *>(stream_handle);
+    status = s->getAssociatedDevices(associatedDevices);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG,"getAssociatedDevices Failed\n");
+        return status;
+    }
+    *no_of_devices = associatedDevices.size();
+    palDevices.resize(*no_of_devices);
+    for (int i = 0; i < *no_of_devices; i++) {
+        associatedDevices[i]->getDeviceAttributes(&palDevices[i]);
+    }
+    ar_mem_cpy(devices, sizeof(struct pal_device) * *no_of_devices,
+               &palDevices[0], sizeof(struct pal_device) * *no_of_devices);
+    PAL_DBG(LOG_TAG, "Exit. status %d", status);
+    return status;
+}
+
+int32_t pal_stream_get_volume(pal_stream_handle_t *stream_handle,
+                              struct pal_volume_data *volume){
+    Stream *s = NULL;
+    int status;
+    if (!stream_handle || !volume) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG,"Invalid input parameters status %d", status);
+        return status;
+    }
+    PAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
+    s =  reinterpret_cast<Stream *>(stream_handle);
+    status = s->getVolume(volume);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG, "getVolume failed with status %d", status);
+        return status;
+    }
+    PAL_DBG(LOG_TAG, "Exit. status %d", status);
+    return status;
+}
+
+int32_t pal_stream_get_mute(pal_stream_handle_t *stream_handle, bool *state){
+    Stream *s = NULL;
+    int status;
+    if (!stream_handle || !state) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
+        return status;
+    }
+    PAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
+    s =  reinterpret_cast<Stream *>(stream_handle);
+    status = s->getMute(state);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG, "get mute failed with status %d", status);
+        return status;
+    }
+    PAL_DBG(LOG_TAG, "Exit. status %d", status);
+    return status;
+}
+
+int32_t pal_get_mic_mute(bool *state){
+    PAL_ERR(LOG_TAG, "error: API: pal_get_mic_mute not implemented");
+    return -ENOSYS;
+}
+
+int32_t pal_set_mic_mute(bool state){
+    PAL_ERR(LOG_TAG, "error: API: pal_set_mic_mute not implemented");
+    return -ENOSYS;
+}

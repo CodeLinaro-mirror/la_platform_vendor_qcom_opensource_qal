@@ -353,6 +353,7 @@ int ResourceManager::mixerEventRegisterCount = 0;
 int ResourceManager::concurrentRxStreamCount = 0;
 int ResourceManager::concurrentTxStreamCount = 0;
 static int max_session_num;
+static int skip_stream_restart = 0;
 bool ResourceManager::isSpeakerProtectionEnabled;
 bool ResourceManager::isRasEnabled = false;
 int ResourceManager::spQuickCalTime;
@@ -692,32 +693,38 @@ void ResourceManager::ssrHandlingLoop(std::shared_ptr<ResourceManager> rm)
                 }
             }
 
-            if (rm->mActiveStreams.empty()) {
-                PAL_INFO(LOG_TAG, "Idle SSR : No streams registered yet.");
-                prevState = state;
-            } else if (state == prevState) {
-                PAL_INFO(LOG_TAG, "%d state already handled", state);
-            } else if (state == CARD_STATUS_OFFLINE) {
-                for (auto str: rm->mActiveStreams) {
-                        ret = str->ssrDownHandler();
-                        if (0 != ret) {
-                            PAL_ERR(LOG_TAG, "Ssr down handling failed for %pK ret %d",
-                                          str, ret);
-                        }
-                }
-                prevState = state;
-            } else if (state == CARD_STATUS_ONLINE) {
-                for (auto str: rm->mActiveStreams) {
-                    ret = str->ssrUpHandler();
-                    if (0 != ret) {
-                        PAL_ERR(LOG_TAG, "Ssr up handling failed for %pK ret %d",
-                                          str, ret);
-                    }
-                }
+            if (skip_stream_restart)
+            {
                 prevState = state;
             } else {
-                PAL_ERR(LOG_TAG, "Invalid state. state %d", state);
+                if (rm->mActiveStreams.empty()) {
+                    PAL_INFO(LOG_TAG, "Idle SSR : No streams registered yet.");
+                    prevState = state;
+                } else if (state == prevState) {
+                    PAL_INFO(LOG_TAG, "%d state already handled", state);
+                } else if (state == CARD_STATUS_OFFLINE) {
+                    for (auto str: rm->mActiveStreams) {
+                            ret = str->ssrDownHandler();
+                            if (0 != ret) {
+                                PAL_ERR(LOG_TAG, "Ssr down handling failed for %pK ret %d",
+                                              str, ret);
+                            }
+                    }
+                    prevState = state;
+                } else if (state == CARD_STATUS_ONLINE) {
+                    for (auto str: rm->mActiveStreams) {
+                        ret = str->ssrUpHandler();
+                        if (0 != ret) {
+                            PAL_ERR(LOG_TAG, "Ssr up handling failed for %pK ret %d",
+                                              str, ret);
+                        }
+                    }
+                    prevState = state;
+                } else {
+                    PAL_ERR(LOG_TAG, "Invalid state. state %d", state);
+                }
             }
+
             mActiveStreamMutex.unlock();
             lock.lock();
         }
@@ -4378,6 +4385,14 @@ int ResourceManager::setNativeAudioParams(struct str_parms *parms,
               PAL_VERBOSE(LOG_TAG,"napb: native audio cannot be enabled from UI");
         }
     }
+
+    ret = str_parms_get_str(parms, AUDIO_PARAMETER_SKIP_STREAM_RESTART,
+                                value, len);
+    if (ret >= 0) {
+        skip_stream_restart = std::stoi(value);
+        PAL_INFO(LOG_TAG, "Skip stream restart %d", skip_stream_restart);
+    }
+
     return ret;
 }
 void ResourceManager::updatePcmId(int32_t deviceId, int32_t pcmId)
