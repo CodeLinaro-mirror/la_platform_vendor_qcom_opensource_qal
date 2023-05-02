@@ -1301,7 +1301,19 @@ int PayloadBuilder::populateStreamKV(Stream* s,
             keyVector.push_back(std::make_pair(STREAMTX,INCALL_RECORD));
             break;
         case PAL_STREAM_VOICE_CALL_MUSIC:
-            keyVector.push_back(std::make_pair(STREAMRX,INCALL_MUSIC));
+            if(sattr->out_media_config.aud_fmt_id == PAL_AUDIO_FMT_DEFAULT_PCM) {
+                keyVector.push_back(std::make_pair(STREAMRX,INCALL_MUSIC));
+            } else {
+                if(sattr->info.incall_music_info.music_dir == INCALL_MUSIC_UPLINK) {
+                    keyVector.push_back(std::make_pair(STREAMRX,
+                            INCALL_MUSIC_COMPRESS_DOWNLINK));
+                } else if(sattr->info.incall_music_info.music_dir == INCALL_MUSIC_DOWNLINK) {
+                    keyVector.push_back(std::make_pair(STREAMRX,
+                            INCALL_MUSIC_COMPRESS_UPLINK));
+                } else if(sattr->info.incall_music_info.music_dir == INCALL_MUSIC_UPLINK_DOWNLINK) {
+                    PAL_ERR(LOG_TAG,"unsupported direction %d", sattr->direction);
+                }
+            }
             break;
         case PAL_STREAM_HPCM_RX_PLAYBACK:
             keyVector.push_back(std::make_pair(STREAMRX,VOICE_CALL_RX_HPCM_PLAYBACK));
