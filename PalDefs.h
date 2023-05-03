@@ -485,6 +485,8 @@ typedef enum {
     PAL_STREAM_LOOPBACK_HFP_RX,
     PAL_STREAM_LOOPBACK_HFP_TX,
     PAL_STREAM_LOOPBACK_COMPRESS,
+    PAL_STREAM_LOOPBACK_PLAYBACK_ONLY,
+    PAL_STREAM_LOOPBACK_CAPTURE_ONLY
 } pal_stream_loopback_type_t;
 
 typedef enum {
@@ -860,6 +862,7 @@ typedef struct pal_param_device_rotation {
 typedef struct pal_param_dtmf_gen_tone_cfg {
     uint16_t high_freq;
     uint16_t low_freq;
+    /* gain and duration are unused params */
     uint16_t gain;
     int16_t duration_ms;
 } pal_param_dtmf_gen_tone_cfg_t;

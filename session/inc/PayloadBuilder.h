@@ -25,6 +25,11 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #ifndef PAYLOAD_BUILDER_H_
@@ -134,6 +139,7 @@ public:
     int populateStreamKV(Stream* s, std::vector <std::pair<int,int>> &keyVector);
     int populateStreamKV(Stream* s, std::vector <std::pair<int,int>> &keyVectorRx,
         std::vector <std::pair<int,int>> &keyVectorTx ,struct vsid_info vsidinfo);
+    int populateStreamPPKV(Stream* s, std::vector <std::pair<int,int>> &keyVector);
     int populateStreamPPKV(Stream* s, std::vector <std::pair<int,int>> &keyVectorRx,
         std::vector <std::pair<int,int>> &keyVectorTx);
     int populateStreamDeviceKV(Stream* s, int32_t beDevId, std::vector <std::pair<int,int>> &keyVector);

@@ -5407,6 +5407,7 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
                 goto exit;
             }
             if (((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                (sAttr.type == PAL_STREAM_LOOPBACK) ||
                 (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX))) {
                 status = (*sIter)->setParameters(PAL_PARAM_ID_DTMF_GEN_TONE_CFG,
                                                  (void*)&param_dtmf_gen);

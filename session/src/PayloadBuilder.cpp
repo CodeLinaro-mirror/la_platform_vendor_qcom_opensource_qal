@@ -1169,6 +1169,42 @@ exit:
     return status;
 }
 
+
+/** Used for Loopback stream types only */
+int PayloadBuilder::populateStreamPPKV(Stream* s, std::vector <std::pair<int,int>> &keyVector)
+{
+    int status = 0;
+    struct pal_stream_attributes *sattr = NULL;
+
+    PAL_DBG(LOG_TAG,"enter");
+    sattr = new struct pal_stream_attributes();
+    if (!sattr) {
+        PAL_ERR(LOG_TAG,"sattr alloc failed %s status %d", strerror(errno), status);
+        status = -ENOMEM;
+        goto exit;
+    }
+    status = s->getStreamAttributes(sattr);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG,"getStreamAttributes Failed status %d\n",status);
+        goto free_sattr;
+    }
+
+    PAL_DBG(LOG_TAG, "stream attribute type %d", sattr->type);
+    switch (sattr->type) {
+        case PAL_STREAM_LOOPBACK:
+            if (sattr->info.opt_stream_info.loopback_type == PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) {
+                keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
+            }
+            break;
+        default:
+            PAL_ERR(LOG_TAG,"unsupported stream type %d", sattr->type);
+    }
+free_sattr:
+    delete sattr;
+exit:
+    return status;
+}
+
 int PayloadBuilder::populateStreamKV(Stream* s,
         std::vector <std::pair<int,int>> &keyVector)
 {
@@ -1329,6 +1365,10 @@ int PayloadBuilder::populateStreamKV(Stream* s,
         case PAL_STREAM_HPCM_TX_RECORD:
             keyVector.push_back(std::make_pair(STREAMTX,VOICE_CALL_TX_HPCM_RECORD));
             break;
+        case PAL_STREAM_LOOPBACK:
+            keyVector.push_back(std::make_pair(STREAMRX, PCM_RX_LOOPBACK));
+            break;
+
         default:
             status = -EINVAL;
             PAL_ERR(LOG_TAG,"unsupported stream type %d", sattr->type);

@@ -336,14 +336,33 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
         PAL_ERR(LOG_TAG, "get stream KV failed %d", status);
         goto exit;
     }
-    if (sAttr.type != PAL_STREAM_VOICE_UI) {
-        status = builder->populateStreamCkv(streamHandle, streamCKV, 0,
-                (struct pal_volume_data **)nullptr);
-        if (status) {
-            PAL_ERR(LOG_TAG, "get stream ckv failed %d", status);
-            goto exit;
-        }
+
+    // get streamPPKV
+    if ((builder->populateStreamPPKV(streamHandle, streamKV)) != 0) {
+        PAL_ERR(LOG_TAG, "get streamPP KV for Rx/Tx not  done, ignore");
     }
+
+    switch (sAttr.type) {
+        case PAL_STREAM_VOICE_UI:
+            // No need to set volume ckv
+            break;
+        case PAL_STREAM_LOOPBACK:
+            if ((sAttr.info.opt_stream_info.loopback_type ==
+                            PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) ||
+                (sAttr.info.opt_stream_info.loopback_type ==
+                            PAL_STREAM_LOOPBACK_CAPTURE_ONLY)) {
+                // No need to set volume ckv
+                break;
+            }
+        default :
+            status = builder->populateStreamCkv(streamHandle, streamCKV, 0,
+                    (struct pal_volume_data **)nullptr);
+            if (status) {
+                PAL_ERR(LOG_TAG, "get stream ckv failed %d", status);
+                goto exit;
+            }
+    }
+
     if ((streamKV.size() > 0) || (streamCKV.size() > 0)) {
         getAgmMetaData(streamKV, streamCKV, (struct prop_data *)streamPropId,
                 streamMetaData);
