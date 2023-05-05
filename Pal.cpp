@@ -26,8 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following lice
-nse:
+ * Changes from Qualcomm Innovation Center are provided under the following license:
  *
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -788,30 +787,42 @@ int32_t pal_gef_rw_param(uint32_t param_id, void *param_payload,
 }
 
 int32_t pal_stream_get_device(pal_stream_handle_t *stream_handle,
-                              uint32_t *no_of_devices, struct pal_device *devices){
+                              uint32_t no_of_devices, struct pal_device *devices){
     std::vector<std::shared_ptr<Device>> associatedDevices;
     std::vector<struct pal_device> palDevices;
     int status;
+    int device_count = 0;
     Stream *s = NULL;
-    if (!stream_handle || !no_of_devices || !devices) {
+    if (!stream_handle || !devices) {
         status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid input parameters status %d", status);
         return status;
     }
     PAL_DBG(LOG_TAG, "Enter. Stream handle :%pK", stream_handle);
+
     s =  reinterpret_cast<Stream *>(stream_handle);
     status = s->getAssociatedDevices(associatedDevices);
     if (0 != status) {
         PAL_ERR(LOG_TAG,"getAssociatedDevices Failed\n");
         return status;
     }
-    *no_of_devices = associatedDevices.size();
-    palDevices.resize(*no_of_devices);
-    for (int i = 0; i < *no_of_devices; i++) {
+    device_count = associatedDevices.size();
+    if (no_of_devices < device_count) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG, "Not enough memory allocated for %d devices", device_count);
+        return status;
+    }
+
+    palDevices.resize(device_count);
+    for (int i = 0; i < device_count; i++) {
         associatedDevices[i]->getDeviceAttributes(&palDevices[i]);
     }
-    ar_mem_cpy(devices, sizeof(struct pal_device) * *no_of_devices,
-               &palDevices[0], sizeof(struct pal_device) * *no_of_devices);
+    ar_mem_cpy(devices, sizeof(struct pal_device) * device_count,
+               &palDevices[0], sizeof(struct pal_device) * device_count);
+
+    /* Return the number of devices assosicated with the stream */
+    status = device_count;
+
     PAL_DBG(LOG_TAG, "Exit. status %d", status);
     return status;
 }
