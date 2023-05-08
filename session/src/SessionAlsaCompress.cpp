@@ -344,10 +344,13 @@ int SessionAlsaCompress::open(Stream * s)
         PAL_ERR(LOG_TAG, "IO mode 0x%x not supported", ioMode);
         return -EINVAL;
     }
-    status = s->getAssociatedDevices(associatedDevices);
-    if (0 != status) {
-        PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
-        return status;
+
+    if (sAttr.type != PAL_STREAM_VOICE_CALL_MUSIC) {
+        status = s->getAssociatedDevices(associatedDevices);
+        if (0 != status) {
+            PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
+            return status;
+        }
     }
 
     compressDevIds = rm->allocateFrontEndIds(sAttr, 0);
@@ -359,7 +362,9 @@ int SessionAlsaCompress::open(Stream * s)
         //compressDevIds[i] = 5;
         PAL_DBG(LOG_TAG, "devid size %zu, compressDevIds[%d] %d", compressDevIds.size(), i, compressDevIds[i]);
     }
-    rm->getBackEndNames(associatedDevices, rxAifBackEnds, emptyBackEnds);
+    if (sAttr.type != PAL_STREAM_VOICE_CALL_MUSIC)
+        rm->getBackEndNames(associatedDevices, rxAifBackEnds, emptyBackEnds);
+
     status = rm->getVirtualAudioMixer(&mixer);
     if (status) {
         PAL_ERR(LOG_TAG,"mixer error");
@@ -815,6 +820,9 @@ int SessionAlsaCompress::start(Stream * s)
 
     switch (sAttr.direction) {
         case PAL_AUDIO_OUTPUT:
+            if (sAttr.type == PAL_STREAM_VOICE_CALL_MUSIC)
+                break;
+
             status = s->getAssociatedDevices(associatedDevices);
             if (0 != status) {
                 PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
@@ -961,14 +969,17 @@ int SessionAlsaCompress::close(Stream * s)
         }
         return -EINVAL;
     }
-    disconnectCtrlName << "COMPRESS" << compressDevIds.at(0) << " disconnect";
-    disconnectCtrl = mixer_get_ctl_by_name(mixer, disconnectCtrlName.str().data());
-    if (!disconnectCtrl) {
-        PAL_ERR(LOG_TAG, "invalid mixer control: %s", disconnectCtrlName.str().data());
-        return -EINVAL;
+
+    if (sAttr.type != PAL_STREAM_VOICE_CALL_MUSIC) {
+        disconnectCtrlName << "COMPRESS" << compressDevIds.at(0) << " disconnect";
+        disconnectCtrl = mixer_get_ctl_by_name(mixer, disconnectCtrlName.str().data());
+        if (!disconnectCtrl) {
+            PAL_ERR(LOG_TAG, "invalid mixer control: %s", disconnectCtrlName.str().data());
+            return -EINVAL;
+        }
+        /** Disconnect FE to BE */
+        mixer_ctl_set_enum_by_string(disconnectCtrl, rxAifBackEnds[0].second.data());
     }
-    /** Disconnect FE to BE */
-    mixer_ctl_set_enum_by_string(disconnectCtrl, rxAifBackEnds[0].second.data());
     compress_close(compress);
     PAL_DBG(LOG_TAG, "out of compress close");
 
