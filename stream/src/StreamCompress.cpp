@@ -520,6 +520,22 @@ int32_t StreamCompress::setParameters(uint32_t param_id, void *payload)
     return status;
 }
 
+int32_t StreamCompress::getVolume(struct pal_volume_data *volume)
+{
+    int32_t status = 0;
+    if (!volume) {
+        PAL_ERR(LOG_TAG, "NULL volume pointer sent");
+        status = -EINVAL;
+        return status;
+    }
+    if (mVolumeData) {
+        memcpy(volume, mVolumeData, (sizeof(uint32_t) +
+                          (sizeof(struct pal_channel_vol_kv) *
+                          (mVolumeData->no_of_volpair))));
+    }
+    return status;
+}
+
 int32_t StreamCompress::setVolume(struct pal_volume_data *volume)
 {
     int32_t status = 0;
@@ -582,8 +598,23 @@ int32_t StreamCompress::mute(bool state)
        PAL_ERR(LOG_TAG,"session setConfig for mute failed with status %d",status);
        goto exit;
     }
+    mMuteState = state;
     PAL_VERBOSE(LOG_TAG,"session mute successful");
 exit:
+    return status;
+}
+
+int32_t StreamCompress::getMute(bool *state)
+{
+    int32_t status = 0;
+    PAL_DBG(LOG_TAG, "Enter. ");
+    if(!state)
+    {
+        PAL_ERR(LOG_TAG, "NULL volume pointer sent");
+        status = -EINVAL;
+        return status;
+    }
+    *state = mMuteState;
     return status;
 }
 
