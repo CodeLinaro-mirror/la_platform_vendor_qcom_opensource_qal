@@ -26,8 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following lice
-nse:
+ * Changes from Qualcomm Innovation Center are provided under the following license:
  *
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -144,6 +143,8 @@ protected:
     struct pal_stream_attributes* mStreamAttr;
     struct pal_volume_data* mVolumeData = NULL;
     bool mMuteState = false;
+    bool deviceMuteStateRx = false;
+    bool deviceMuteStateTx = false;
     int mGainLevel;
     std::mutex mStreamMutex;
     static std::mutex mBaseStreamMutex; //TBD change this. as having a single static mutex for all instances of Stream is incorrect. Replace
@@ -179,6 +180,8 @@ public:
     virtual int32_t getVolume(struct pal_volume_data *volume) = 0;
     virtual int32_t mute(bool state) = 0;
     virtual int32_t getMute(bool *state) = 0;
+    virtual int32_t getDeviceMute(pal_stream_direction_t dir, bool *state) = 0;
+    virtual int32_t setDeviceMute(pal_stream_direction_t dir, bool state) = 0;
     virtual int32_t pause() = 0;
     virtual int32_t resume() = 0;
     virtual int32_t flush() {return 0;}
