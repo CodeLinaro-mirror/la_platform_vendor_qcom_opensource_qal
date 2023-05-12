@@ -25,6 +25,11 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: StreamPCM"
@@ -999,7 +1004,6 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
             bool slow_talk = false;
             param_payload = (pal_param_payload *)payload;
             slow_talk = *((bool *)param_payload->payload);
-            PAL_ERR(LOG_TAG,"slow talk %d", slow_talk);
 
             uint32_t slow_talk_tag =
                           slow_talk ? VOICE_SLOW_TALK_ON : VOICE_SLOW_TALK_OFF;
@@ -1036,6 +1040,15 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
                 PAL_ERR(LOG_TAG, "Dtmf Gen setParams Failed with status %d",
                         status);
             }
+            break;
+        }
+        case PAL_PARAM_ID_DEVICE_MUTE:
+        {
+            status = session->setParameters(this, DEVICE_MUTE,
+                                            param_id, payload);
+            if (status)
+               PAL_ERR(LOG_TAG, "setParam for device mute failed with %d",
+                       status);
             break;
         }
         default:

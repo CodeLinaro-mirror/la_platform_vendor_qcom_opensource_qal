@@ -115,6 +115,9 @@ typedef enum {
 #define MODULE_DISABLE 39
 #define HPCM_ENABLE 40
 #define HPCM_DISABLE 41
+#define DEVICE_MUTE 42
+#define DEVICE_UNMUTE 43
+
 /* This sleep is added to give time to kernel and
  * spf to recover from SSR so that audio-hal will
  * not continously try to open a session if it fails
