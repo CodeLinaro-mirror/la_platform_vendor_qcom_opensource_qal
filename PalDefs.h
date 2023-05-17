@@ -742,6 +742,7 @@ typedef enum {
     PAL_PARAM_ID_HPCM_CFG = 31,
     PAL_PARAM_ID_DTMF_CFG = 32,
     PAL_PARAM_ID_CUSTOM_CONFIGURATION = 33,
+    PAL_PARAM_ID_DEVICE_MUTE = 34,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
@@ -1116,9 +1117,15 @@ struct pal_compr_gapless_mdata {
 };
 
 struct dtmf_event_data {
-	uint32_t dtmf_high_freq;
+    uint32_t dtmf_high_freq;
     uint32_t dtmf_low_freq;
 };
+
+typedef struct pal_device_mute_t {
+    pal_stream_direction_t dir;
+    bool mute;
+}pal_device_mute_t;
+
 
 /** @brief Callback function prototype to be given for
  *         pal_open_stream.

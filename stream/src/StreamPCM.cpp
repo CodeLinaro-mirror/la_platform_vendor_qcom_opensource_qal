@@ -25,6 +25,11 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: StreamPCM"
@@ -920,8 +925,56 @@ int32_t  StreamPCM::getCallBack(pal_stream_callback *cb)
     return 0;
 }
 
-int32_t StreamPCM::getParameters(uint32_t /*param_id*/, void ** /*payload*/)
+int32_t StreamPCM::setDeviceMute(pal_stream_direction_t dir, bool state)
 {
+    int32_t status = 0;
+    PAL_DBG(LOG_TAG, "Enter. ");
+
+    if (dir == PAL_AUDIO_OUTPUT)
+        deviceMuteStateRx = state;
+    else
+        deviceMuteStateTx = state;
+
+    return status;
+}
+
+int32_t StreamPCM::getDeviceMute(pal_stream_direction_t dir, bool *state)
+{
+    int32_t status = 0;
+    PAL_DBG(LOG_TAG, "Enter. ");
+
+    if(!state)
+    {
+        PAL_ERR(LOG_TAG, "NULL volume pointer sent");
+        status = -EINVAL;
+        return status;
+    }
+    if (dir == PAL_AUDIO_OUTPUT)
+        *state = deviceMuteStateRx;
+    else
+        *state = deviceMuteStateTx;
+
+    return status;
+}
+
+int32_t StreamPCM::getParameters(uint32_t param_id, void ** payload)
+{
+    pal_param_payload *param_payload = nullptr;
+    PAL_DBG(LOG_TAG, "Enter.");
+
+    switch(param_id) {
+        case PAL_PARAM_ID_DEVICE_MUTE:
+        {
+            param_payload = (pal_param_payload *)(*payload);
+            pal_device_mute_t *deviceMutePayload = (pal_device_mute_t *) (param_payload + sizeof(pal_param_payload));
+            getDeviceMute(deviceMutePayload->dir, &(deviceMutePayload->mute));
+            break;
+        }
+        default:
+            PAL_INFO(LOG_TAG, "Not supported for param id %u", param_id);
+            break;
+    }
+
     return 0;
 }
 
@@ -930,6 +983,7 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
     int32_t status = 0;
     pal_param_payload *param_payload = NULL;
     effect_pal_payload_t *effectPalPayload = nullptr;
+    pal_device_mute_t *deviceMutePayload = nullptr;
 
     if (!payload)
     {
@@ -999,7 +1053,6 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
             bool slow_talk = false;
             param_payload = (pal_param_payload *)payload;
             slow_talk = *((bool *)param_payload->payload);
-            PAL_ERR(LOG_TAG,"slow talk %d", slow_talk);
 
             uint32_t slow_talk_tag =
                           slow_talk ? VOICE_SLOW_TALK_ON : VOICE_SLOW_TALK_OFF;
@@ -1035,6 +1088,20 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
             if (0 != status) {
                 PAL_ERR(LOG_TAG, "Dtmf Gen setParams Failed with status %d",
                         status);
+            }
+            break;
+        }
+        case PAL_PARAM_ID_DEVICE_MUTE:
+        {
+            param_payload = (pal_param_payload *)payload;
+            deviceMutePayload = (pal_device_mute_t *)(param_payload->payload);
+            status = session->setParameters(this, DEVICE_MUTE,
+                                            param_id, payload);
+            if (status) {
+               PAL_ERR(LOG_TAG, "setParam for device mute failed with %d",
+                       status);
+            } else {
+               setDeviceMute(deviceMutePayload->dir, deviceMutePayload->mute);
             }
             break;
         }

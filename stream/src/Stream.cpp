@@ -475,7 +475,15 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
                 *out_buf_size = *out_buf_size * DEEP_BUFFER_OUTPUT_PERIOD_DURATION;
                 break;
             case PAL_STREAM_COMPRESSED:
-                *out_buf_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
+                if ((sattr->out_media_config.aud_fmt_id == PAL_AUDIO_FMT_AMR_NB) ||
+                        (sattr->out_media_config.aud_fmt_id == PAL_AUDIO_FMT_AMR_WB) ||
+                        (sattr->out_media_config.aud_fmt_id == PAL_AUDIO_FMT_AMR_WB_PLUS))
+                    *out_buf_size = PAL_COMPRESSED_OFFLOAD_AMR_OUT_BUF_SIZE;
+                else
+                    *out_buf_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
+                break;
+            case PAL_STREAM_VOICE_CALL_MUSIC:
+                *out_buf_size = PAL_INCALL_MUSIC_OUT_BUF_SIZE;
                 break;
             default:
                 PAL_ERR(LOG_TAG, "unsupported stream type 0x%x", sattr->type);
@@ -501,6 +509,9 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
                 break;
             case PAL_STREAM_COMPRESSED:
                 *in_buf_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
+                break;
+            case PAL_STREAM_VOICE_CALL_RECORD:
+                *in_buf_size = PAL_VOICE_CALL_RECORD_IN_BUF_SIZE;
                 break;
             default:
                 PAL_ERR(LOG_TAG, "unsupported stream type 0x%x", sattr->type);
