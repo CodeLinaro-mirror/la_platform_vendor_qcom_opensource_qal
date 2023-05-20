@@ -962,9 +962,10 @@ void ResourceManager::setDeviceInfo(pal_device_id_t deviceId,
                         deviceInfo[i].channel = deviceInfo[i].usecase[j].channel;
                         PAL_DBG(LOG_TAG, "channels overwitten to %d", deviceInfo[i].channel);
                     }
+                    /* Clear KV Pair so that if usecase required then only it will be added */
+                    deviceInfo[i].kvpair.clear();
                     /*overwrite the kv pairs if needed*/
                     if (deviceInfo[i].usecase[j].kvpair.size()) {
-                        deviceInfo[i].kvpair.clear();
                         for (int32_t kvsize = 0; kvsize < deviceInfo[i].usecase[j].kvpair.size(); kvsize++) {
                               kv.key =  deviceInfo[i].usecase[j].kvpair[kvsize].key;
                               kv.value =  deviceInfo[i].usecase[j].kvpair[kvsize].value;
