@@ -4797,6 +4797,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
         }
         break;
         case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
+        case PAL_PARAM_ID_DTMF_GEN_WITH_PARAM:
         {
             pal_param_dtmf_gen_tone_cfg_t* param_dtmf_gen =
                                       (pal_param_dtmf_gen_tone_cfg_t*) param_payload;
@@ -4806,7 +4807,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                 goto exit;
             }
             if (payload_size == sizeof(pal_param_dtmf_gen_tone_cfg_t)) {
-                status = handleDtmfToneGeneration(*param_dtmf_gen);
+                status = handleDtmfToneGeneration(*param_dtmf_gen, param_id);
             } else {
                 PAL_ERR(LOG_TAG,"Incorrect size : expected (%zu), received(%zu)",
                         sizeof(pal_param_dtmf_gen_tone_cfg_t), payload_size);
@@ -5383,7 +5384,7 @@ exit:
 }
 
 int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
-                                                param_dtmf_gen) {
+                                                param_dtmf_gen, uint32_t param_id) {
     std::vector<Stream*>::iterator sIter;
     std::vector<Stream*> activestreams;
     pal_stream_type_t streamType;
@@ -5409,7 +5410,7 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
             if (((sAttr.type == PAL_STREAM_VOICE_CALL) ||
                 (sAttr.type == PAL_STREAM_LOOPBACK) ||
                 (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX))) {
-                status = (*sIter)->setParameters(PAL_PARAM_ID_DTMF_GEN_TONE_CFG,
+                status = (*sIter)->setParameters(param_id,
                                                  (void*)&param_dtmf_gen);
                 if (0 != status) {
                     PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);

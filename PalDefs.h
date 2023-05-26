@@ -756,6 +756,7 @@ typedef enum {
     PAL_PARAM_ID_DTMF_CFG = 32,
     PAL_PARAM_ID_CUSTOM_CONFIGURATION = 33,
     PAL_PARAM_ID_DEVICE_MUTE = 34,
+    PAL_PARAM_ID_DTMF_GEN_WITH_PARAM = 35,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
@@ -856,7 +857,7 @@ typedef struct pal_param_device_rotation {
     pal_speaker_rotation_type    rotation_type;
 } pal_param_device_rotation_t;
 
-/* Payload For ID: PAL_PARAM_ID_DTMF_GEN_TONE_CFG
+/* Payload For ID: PAL_PARAM_ID_DTMF_GEN_TONE_CFG and PAL_PARAM_ID_DTMF_GEN_WITH_PARAM
  * Description   : DTMF Generator module parameters
  */
 typedef struct pal_param_dtmf_gen_tone_cfg {

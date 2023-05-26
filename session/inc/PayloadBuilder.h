@@ -119,6 +119,8 @@ public:
                     struct audio_dam_downstream_setup_duration *pSetupDuration);
     void payloadHpcmConfig(uint8_t **payload, size_t *size, uint32_t moduleId,
                     pal_param_hpcm_cfg_t *hpcm_payload);
+    void payloadDTMFGenConfig(uint8_t **payload, size_t *size, uint32_t moduleId,
+                    pal_param_dtmf_gen_tone_cfg_t *dtmf_payload);
     void payloadSVAEventConfig(uint8_t **payload, size_t *size, uint32_t moduleId,
                        struct detection_engine_generic_event_cfg *pEventConfig);
     void payloadSVAEngineReset(uint8_t **payload, size_t *size, uint32_t moduleId);

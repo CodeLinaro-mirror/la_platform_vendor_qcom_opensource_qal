@@ -1082,6 +1082,7 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
             break;
         }
         case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
+        case PAL_PARAM_ID_DTMF_GEN_WITH_PARAM:
         {
             status = session->setParameters(this, DTMF_GEN,
                                             param_id, payload);

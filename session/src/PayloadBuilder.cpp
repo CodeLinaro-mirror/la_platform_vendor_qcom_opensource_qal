@@ -51,6 +51,8 @@
 #define PARAM_ID_USB_AUDIO_INTF_CFG                               0x080010D6
 /*Parameter used to enable module and send HPCM configuration */
 #define PARAM_ID_HPCM_CONFIG             0x08001378
+ /** Parameter ID for DTMF generation */
+#define PARAM_ID_DTMF_GEN_TONE_CFG       0x08001121
 
 /* ID of the Output Media Format parameters used by MODULE_ID_MFC */
 #define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT            0x08001024
@@ -701,6 +703,46 @@ void PayloadBuilder::payloadHpcmConfig(uint8_t **payload, size_t *size,
     *payload = payloadInfo;
     PAL_DBG(LOG_TAG, "customPayload address %pK and size %zu", payloadInfo, *size);
 }
+
+void PayloadBuilder::payloadDTMFGenConfig(uint8_t **payload, size_t *size,
+    uint32_t moduleId, pal_param_dtmf_gen_tone_cfg_t *dtmf_payload)
+{
+    struct apm_module_param_data_t* header;
+    pal_param_dtmf_gen_tone_cfg_t *dtmf_config;
+    uint8_t* payloadInfo = NULL;
+    size_t payloadSize = 0, padBytes = 0;
+
+    payloadSize = sizeof(struct apm_module_param_data_t) +
+                  sizeof(pal_param_dtmf_gen_tone_cfg_t);
+    padBytes = PAL_PADDING_8BYTE_ALIGN(payloadSize);
+    payloadInfo = new uint8_t[payloadSize + padBytes]();
+    if (!payloadInfo) {
+        PAL_ERR(LOG_TAG, "payloadInfo malloc failed %s", strerror(errno));
+        return;
+    }
+    header = (struct apm_module_param_data_t*)payloadInfo;
+    header->module_instance_id = moduleId;
+    header->param_id = PARAM_ID_DTMF_GEN_TONE_CFG;
+    header->error_code = 0x0;
+    header->param_size = payloadSize - sizeof(struct apm_module_param_data_t);
+    PAL_DBG(LOG_TAG, "header params \n IID:%x param_id:%x error_code:%d param_size:%d",
+                       header->module_instance_id, header->param_id,
+                       header->error_code, header->param_size);
+    dtmf_config = (pal_param_dtmf_gen_tone_cfg_t*)(payloadInfo +
+                   sizeof(struct apm_module_param_data_t));
+    dtmf_config->high_freq = dtmf_payload->high_freq;
+    dtmf_config->low_freq = dtmf_payload->low_freq;
+    dtmf_config->gain = dtmf_payload->gain;
+    dtmf_config->duration_ms = dtmf_payload->duration_ms;
+    PAL_DBG(LOG_TAG, "high_freq:%d, low_freq:%d, gain:%d,duration_ms:%d",
+            dtmf_config->high_freq, dtmf_config->low_freq, dtmf_config->gain,
+            dtmf_config->duration_ms);
+
+    *size = payloadSize + padBytes;
+    *payload = payloadInfo;
+    PAL_DBG(LOG_TAG, "customPayload address %pK and size %zu", payloadInfo, *size);
+}
+
 
 void PayloadBuilder::payloadSVAEventConfig(uint8_t **payload, size_t *size,
      uint32_t moduleId, struct detection_engine_generic_event_cfg *pEventConfig)

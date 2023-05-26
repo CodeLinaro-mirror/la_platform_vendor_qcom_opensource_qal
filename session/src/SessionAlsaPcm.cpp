@@ -1663,7 +1663,7 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint
 
     PAL_DBG(LOG_TAG, "Enter.");
 
-    if (param_id != PAL_PARAM_ID_DTMF_GEN_TONE_CFG) {
+    if (param_id != PAL_PARAM_ID_DTMF_GEN_WITH_PARAM) {
         device = pcmDevIds.at(0);
     }
 
@@ -1847,14 +1847,24 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint
             }
             return 0;
         }
-        case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
-            status = payloadDtmfGenTaged(streamHandle, DTMF_GEN, payload);
-            if (status) {
-                PAL_ERR(LOG_TAG, "Failed to get dtmf gen params status = %d",
-                        status);
-                goto exit;
+        case PAL_PARAM_ID_DTMF_GEN_WITH_PARAM:
+        {
+            pal_param_dtmf_gen_tone_cfg_t *dtmf_payload = (pal_param_dtmf_gen_tone_cfg_t *)payload;
+            status = SessionAlsaUtils::getModuleInstanceId(mixer, pcmDevRxIds.at(0),
+                               rxAifBackEnds[0].second.data(), DTMF_GENERATOR, &miid);
+            builder->payloadDTMFGenConfig(&paramData, &paramSize, miid, dtmf_payload);
+            if (paramSize) {
+                status = SessionAlsaUtils::setMixerParameter(mixer, pcmDevRxIds.at(0),
+                                                paramData, paramSize);
+                if (status != 0) {
+                    PAL_ERR(LOG_TAG,"setMixerParameter failed");
+                    return status;
+                }
+            } else {
+                PAL_ERR(LOG_TAG,"payloadDTMFGenConfig failed");
             }
             goto exit;
+        }
 
         default:
             status = -EINVAL;
