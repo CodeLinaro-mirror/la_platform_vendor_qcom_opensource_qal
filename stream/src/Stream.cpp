@@ -146,13 +146,21 @@ stream_create:
                                             noOfModifiers, rm);
                 break;
             case PAL_STREAM_VOICE_CALL_RECORD:
-            case PAL_STREAM_VOICE_CALL_MUSIC:
             case PAL_STREAM_HPCM_RX_PLAYBACK:
             case PAL_STREAM_HPCM_RX_RECORD:
             case PAL_STREAM_HPCM_TX_PLAYBACK:
             case PAL_STREAM_HPCM_TX_RECORD:
                 stream = new StreamInCall(sAttr, mPalDevice, count, modifiers,
                                             noOfModifiers, rm);
+                break;
+            case PAL_STREAM_VOICE_CALL_MUSIC:
+                if(sAttr->out_media_config.aud_fmt_id == PAL_AUDIO_FMT_DEFAULT_PCM) {
+                    stream = new StreamInCall(sAttr, mPalDevice, count, modifiers,
+                                            noOfModifiers, rm);
+                } else {
+                    stream = new StreamCompress(sAttr, mPalDevice, count, modifiers,
+                                        noOfModifiers, rm);
+                }
                 break;
             default:
                 PAL_ERR(LOG_TAG, "unsupported stream type 0x%x", sAttr->type);

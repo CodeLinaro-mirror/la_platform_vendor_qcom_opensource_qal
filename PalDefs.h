@@ -534,6 +534,16 @@ struct pal_voice_call_info {
 };
 
 typedef enum {
+    INCALL_MUSIC_UPLINK = 1,
+    INCALL_MUSIC_DOWNLINK,
+    INCALL_MUSIC_UPLINK_DOWNLINK,
+} pal_incall_music_direction;
+
+struct pal_incall_music_info {
+    pal_incall_music_direction music_dir;         /** use direction enum to indicate content to be incall music */
+};
+
+typedef enum {
     VOICEMMODE1 = 0x11C05000,
     VOICEMMODE2 = 0x11DC5000,
     VOICELBMMODE1 = 0x12006000,
@@ -551,6 +561,7 @@ typedef union {
     struct pal_stream_info opt_stream_info; /* optional */
     struct pal_voice_record_info voice_rec_info; /* mandatory */
     struct pal_voice_call_info voice_call_info; /* manatory for voice call*/
+    struct pal_incall_music_info incall_music_info;
 } pal_stream_info_t;
 
 /** Media configuraiton */
