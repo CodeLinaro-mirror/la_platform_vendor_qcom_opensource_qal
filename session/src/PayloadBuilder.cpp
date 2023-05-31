@@ -732,6 +732,13 @@ void PayloadBuilder::payloadDTMFGenConfig(uint8_t **payload, size_t *size,
                    sizeof(struct apm_module_param_data_t));
     dtmf_config->high_freq = dtmf_payload->high_freq;
     dtmf_config->low_freq = dtmf_payload->low_freq;
+
+    if (dtmf_config->high_freq == 0) {
+        dtmf_config->high_freq = dtmf_payload->low_freq;
+    } else if (dtmf_config->low_freq == 0) {
+        dtmf_config->low_freq = dtmf_payload->high_freq;
+    }
+
     dtmf_config->gain = dtmf_payload->gain;
     dtmf_config->duration_ms = dtmf_payload->duration_ms;
     PAL_DBG(LOG_TAG, "high_freq:%d, low_freq:%d, gain:%d,duration_ms:%d",
