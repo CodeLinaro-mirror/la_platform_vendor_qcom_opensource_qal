@@ -77,6 +77,7 @@ private:
     session_callback sessionCb;
     uint64_t cbCookie;
     sessionState mState;
+    pal_device_mute_t dev_mute = {};
 
 public:
 
