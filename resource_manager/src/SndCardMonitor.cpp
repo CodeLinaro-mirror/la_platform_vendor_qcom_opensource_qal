@@ -25,6 +25,12 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center are provided under the following
+ * license:
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: SndMonitor"
@@ -49,7 +55,7 @@ int SndCardMonitor::parseSndcards(int sndNum)
     char path[128] = {0};
     int fd = -1;
 
-    snprintf(path, sizeof(path), "/proc/asound/card%d/state", sndNum);
+    snprintf(path, sizeof(path), "/sys/kernel/snd_card/card_state", sndNum);
     PAL_VERBOSE(LOG_TAG, "Opening sound card state : %s", path);
 
     if ((fd = open(path, O_RDONLY)) < 0) {
@@ -82,9 +88,9 @@ int  SndCardMonitor::onSndcardStateUpdate(sndcard_t *s)
 
     PAL_VERBOSE(LOG_TAG, "card num %d, new state %s old state %d", s->card, rd_buf, s->status);
 
-    if (strstr(rd_buf, "OFFLINE"))
+    if (strstr(rd_buf, "0"))
         status = CARD_STATUS_OFFLINE;
-    else if (strstr(rd_buf, "ONLINE"))
+    else if (strstr(rd_buf, "1"))
         status = CARD_STATUS_ONLINE;
     else {
         ret = -EINVAL;
@@ -141,7 +147,7 @@ int SndCardMonitor::addNewSndCard(int card, int fd)
         PAL_ERR(LOG_TAG, "Failed to read the state, card %d", card);
         return -EINVAL;
     }
-    online = state && !strcmp(state, "ONLINE");
+    online = state && !strcmp(state, "1");
     PAL_DBG(LOG_TAG, "card %d initial state %s %d", card, state, online);
 
     s = (sndcard_t *)calloc(sizeof(sndcard_t), 1);
@@ -266,10 +272,12 @@ parse_sndcards_error:
 
 SndCardMonitor::~SndCardMonitor()
 {
-   PAL_DBG(LOG_TAG, "destructor called");
-   write(intPipe[1], "Q", 1);
-   mThread.join();
-   close(intPipe[0]);
-   close(intPipe[1]);
-   sndCards.clear();
+    PAL_DBG(LOG_TAG, "destructor called");
+    if(mThread.joinable()) {
+        write(intPipe[1], "Q", 1);
+        mThread.join();
+        close(intPipe[0]);
+        close(intPipe[1]);
+        sndCards.clear();
+    }
 }

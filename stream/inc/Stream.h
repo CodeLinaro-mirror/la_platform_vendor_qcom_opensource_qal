@@ -26,8 +26,7 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following lice
-nse:
+ * Changes from Qualcomm Innovation Center are provided under the following license:
  *
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
@@ -69,6 +68,9 @@ typedef enum {
 #define DEEP_BUFFER_OUTPUT_PERIOD_DURATION 40
 #define PCM_OFFLOAD_OUTPUT_PERIOD_DURATION 80
 #define COMPRESS_OFFLOAD_FRAGMENT_SIZE (32 * 1024)
+#define PAL_COMPRESSED_OFFLOAD_AMR_OUT_BUF_SIZE 4096
+#define PAL_INCALL_MUSIC_OUT_BUF_SIZE 4096
+#define PAL_VOICE_CALL_RECORD_IN_BUF_SIZE 3840
 #define NO_OF_BUF 4
 #define MUTE_TAG 0
 #define UNMUTE_TAG 1
@@ -112,6 +114,9 @@ typedef enum {
 #define MODULE_DISABLE 39
 #define HPCM_ENABLE 40
 #define HPCM_DISABLE 41
+#define DEVICE_MUTE 42
+#define DEVICE_UNMUTE 43
+
 /* This sleep is added to give time to kernel and
  * spf to recover from SSR so that audio-hal will
  * not continously try to open a session if it fails
@@ -140,6 +145,9 @@ protected:
     Session* session;
     struct pal_stream_attributes* mStreamAttr;
     struct pal_volume_data* mVolumeData = NULL;
+    bool mMuteState = false;
+    bool deviceMuteStateRx = false;
+    bool deviceMuteStateTx = false;
     int mGainLevel;
     std::mutex mStreamMutex;
     static std::mutex mBaseStreamMutex; //TBD change this. as having a single static mutex for all instances of Stream is incorrect. Replace
@@ -172,7 +180,11 @@ public:
     virtual int32_t drain(pal_drain_type_t type __unused) {return 0;}
     virtual int32_t setStreamAttributes(struct pal_stream_attributes *sattr) = 0;
     virtual int32_t setVolume(struct pal_volume_data *volume) = 0;
+    virtual int32_t getVolume(struct pal_volume_data *volume) = 0;
     virtual int32_t mute(bool state) = 0;
+    virtual int32_t getMute(bool *state) = 0;
+    virtual int32_t getDeviceMute(pal_stream_direction_t dir, bool *state) = 0;
+    virtual int32_t setDeviceMute(pal_stream_direction_t dir, bool state) = 0;
     virtual int32_t pause() = 0;
     virtual int32_t resume() = 0;
     virtual int32_t flush() {return 0;}

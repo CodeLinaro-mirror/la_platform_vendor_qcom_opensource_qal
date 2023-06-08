@@ -379,7 +379,7 @@ int SessionAlsaVoice::start(Stream * s)
     struct pal_stream_attributes sAttr;
     int32_t status = 0;
     std::vector<std::shared_ptr<Device>> associatedDevices;
-    pal_param_payload *palPayload;
+    pal_param_payload *palPayload = NULL;
     int txDevId;
     uint8_t* payload = NULL;
     size_t payloadSize = 0;
@@ -523,6 +523,9 @@ int SessionAlsaVoice::start(Stream * s)
 exit:
     if (payload)
         free(payload);
+    if (palPayload) {
+        free(palPayload);
+    }
     if (volume)
         free(volume);
     return status;
@@ -602,7 +605,8 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
     pal_param_module_enable_t* dtmf_detect_payload;
 
     uint32_t tty_mode;
-
+    int mute_dir = RXDIR;
+    int mute_tag = DEVICE_UNMUTE;
     pal_param_payload *PalPayload = (pal_param_payload *)payload;
 
     switch (static_cast<uint32_t>(tagId)) {
@@ -685,8 +689,22 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
                 goto exit;
             }
             break;
-
-        default:
+        case DEVICE_MUTE:
+          dev_mute = *((pal_device_mute_t *)PalPayload->payload);
+          if (dev_mute.dir == PAL_AUDIO_INPUT) {
+              mute_dir = TXDIR;
+          }
+          if (dev_mute.mute == 1) {
+              mute_tag = DEVICE_MUTE;
+          }
+          PAL_DBG(LOG_TAG, "setting device mute dir %d mute flag %d", mute_dir, mute_tag);
+          status = payloadTaged(s, MODULE, mute_tag, device, mute_dir);
+          if (status) {
+              PAL_ERR(LOG_TAG, "Failed to set device mute params status = %d",
+                      status);
+          }
+          break;
+       default:
             PAL_ERR(LOG_TAG,"Failed unsupported tag type %d \n",
                     static_cast<uint32_t>(tagId));
             status = -EINVAL;

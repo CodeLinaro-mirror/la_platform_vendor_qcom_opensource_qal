@@ -65,6 +65,8 @@ nse:
 #define AUDIO_PARAMETER_KEY_NATIVE_AUDIO_MODE "native_audio_mode"
 #define AUDIO_PARAMETER_KEY_MAX_SESSIONS "max_sessions"
 #define AUDIO_PARAMETER_KEY_LOG_LEVEL "logging_level"
+#define AUDIO_PARAMETER_SKIP_STREAM_RESTART "skip_stream_restart"
+
 #define MAX_PCM_NAME_SIZE 50
 #if LINUX_ENABLED
 #if defined(__LP64__)
