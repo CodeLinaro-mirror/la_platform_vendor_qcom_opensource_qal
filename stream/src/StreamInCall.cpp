@@ -493,6 +493,15 @@ int32_t  StreamInCall::setVolume(struct pal_volume_data *volume)
         goto exit;
     }
 
+    if ((mStreamAttr->type == PAL_STREAM_HPCM_TX_RECORD) ||
+        (mStreamAttr->type == PAL_STREAM_HPCM_TX_PLAYBACK) ||
+        (mStreamAttr->type == PAL_STREAM_HPCM_RX_PLAYBACK) ||
+        (mStreamAttr->type == PAL_STREAM_HPCM_RX_RECORD)) {
+        PAL_ERR(LOG_TAG, "Not supported on this stream");
+        status = -EINVAL;
+        goto exit;
+    }
+
     //mStreamMutex.lock();
     ar_mem_cpy (mVolumeData, (sizeof(uint32_t) +
                       (sizeof(struct pal_channel_vol_kv) *
