@@ -1022,8 +1022,12 @@ pcm_start_loopback:
            break;
     }
     // Setting the volume as in stream open, no default volume is set.
-    if (sAttr.info.opt_stream_info.loopback_type !=
-                        PAL_STREAM_LOOPBACK_CAPTURE_ONLY) {
+    if ((sAttr.info.opt_stream_info.loopback_type !=
+                        PAL_STREAM_LOOPBACK_CAPTURE_ONLY) &&
+        (sAttr.type != PAL_STREAM_HPCM_TX_RECORD) &&
+        (sAttr.type != PAL_STREAM_HPCM_TX_PLAYBACK) &&
+        (sAttr.type != PAL_STREAM_HPCM_RX_PLAYBACK) &&
+        (sAttr.type != PAL_STREAM_HPCM_RX_RECORD)){
         if (setConfig(s, CALIBRATION, TAG_STREAM_VOLUME) != 0) {
             PAL_ERR(LOG_TAG,"Setting volume failed");
         }
