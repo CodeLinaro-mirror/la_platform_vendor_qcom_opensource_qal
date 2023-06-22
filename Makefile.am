@@ -203,7 +203,7 @@ endif
 libpal_la_CPPFLAGS := $(AM_CPPFLAGS)
 libpal_la_CPPFLAGS += -std=c++14 -DHAVE_PTHREADS -DHAVE_ANDROID_OS
 libpal_la_CPPFLAGS += -DDEBUG_REFS_CALLSTACK_ENABLED=0
-libpal_la_CPPFLAGS += -DNDEBUG -ftest-coverage -fprofile-arcs
+libpal_la_CPPFLAGS += -DNDEBUG
 libpal_la_LDFLAGS   = -shared -avoid-version
 libpal_la_CPPFLAGS += $(GLIB_CFLAGS) -Dstrlcpy=g_strlcpy -Dstrlcat=g_strlcat -include glib.h
 if BUILDSYSTEM_OPENWRT
