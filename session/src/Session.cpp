@@ -25,6 +25,9 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: Session"
@@ -69,6 +72,12 @@ Session* Session::makeSession(const std::shared_ptr<ResourceManager>& rm, const 
             break;
         case PAL_STREAM_VOICE_CALL:
             s = new SessionAlsaVoice(rm);
+            break;
+        case PAL_STREAM_VOICE_CALL_MUSIC:
+            if (sAttr->out_media_config.aud_fmt_id != PAL_AUDIO_FMT_DEFAULT_PCM)
+                s = new SessionAlsaCompress(rm);
+            else
+                s = new SessionAlsaPcm(rm);
             break;
         default:
             s = new SessionAlsaPcm(rm);

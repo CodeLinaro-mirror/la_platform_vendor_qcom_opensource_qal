@@ -135,11 +135,33 @@ int SessionAlsaPcm::open(Stream * s)
             return -EINVAL;
         }
     } else {
-        pcmDevRxIds = rm->allocateFrontEndIds(sAttr, RXLOOPBACK);
-        pcmDevTxIds = rm->allocateFrontEndIds(sAttr, TXLOOPBACK);
-        if (!pcmDevRxIds.size() || !pcmDevTxIds.size()) {
-            PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
-            return -EINVAL;
+        if ((sAttr.type == PAL_STREAM_LOOPBACK) &&
+            (sAttr.info.opt_stream_info.loopback_type ==
+             PAL_STREAM_LOOPBACK_PLAYBACK_ONLY)) {
+            // Loopback for RX path
+            pcmDevRxIds = rm->allocateFrontEndIds(sAttr, RXLOOPBACK);
+            if (!pcmDevRxIds.size()) {
+                PAL_ERR(LOG_TAG, "allocateFrontEndIds for RX loopback failed");
+                return -EINVAL;
+            }
+        }
+        else if ((sAttr.type == PAL_STREAM_LOOPBACK) &&
+                 (sAttr.info.opt_stream_info.loopback_type ==
+                  PAL_STREAM_LOOPBACK_CAPTURE_ONLY)) {
+            // Loopback for TX path
+            pcmDevTxIds = rm->allocateFrontEndIds(sAttr, TXLOOPBACK);
+            if (!pcmDevTxIds.size()) {
+                PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
+                return -EINVAL;
+            }
+        }
+        else {
+            pcmDevRxIds = rm->allocateFrontEndIds(sAttr, RXLOOPBACK);
+            pcmDevTxIds = rm->allocateFrontEndIds(sAttr, TXLOOPBACK);
+            if (!pcmDevRxIds.size() || !pcmDevTxIds.size()) {
+                PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
+                return -EINVAL;
+            }
         }
     }
     switch (sAttr.direction) {
@@ -158,12 +180,30 @@ int SessionAlsaPcm::open(Stream * s)
             }
             break;
         case PAL_AUDIO_INPUT | PAL_AUDIO_OUTPUT:
-            status = SessionAlsaUtils::open(s, rm, pcmDevRxIds, pcmDevTxIds,
-                    rxAifBackEnds, txAifBackEnds);
-            if (status) {
-                PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
-                rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
-                rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
+            if (sAttr.info.opt_stream_info.loopback_type ==
+                    PAL_STREAM_LOOPBACK_CAPTURE_ONLY) {
+                status = SessionAlsaUtils::open(s, rm, pcmDevTxIds, txAifBackEnds);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
+                    rm->freeFrontEndIds(pcmDevIds, sAttr, TXLOOPBACK);
+                }
+            }
+            else if (sAttr.info.opt_stream_info.loopback_type ==
+                        PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) {
+                status = SessionAlsaUtils::open(s, rm, pcmDevRxIds, rxAifBackEnds);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
+                    rm->freeFrontEndIds(pcmDevIds, sAttr, RXLOOPBACK);
+                }
+            }
+            else {
+                status = SessionAlsaUtils::open(s, rm, pcmDevRxIds, pcmDevTxIds,
+                        rxAifBackEnds, txAifBackEnds);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
+                    rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
+                    rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
+                }
             }
             break;
         default:
@@ -380,7 +420,17 @@ int SessionAlsaPcm::setConfig(Stream * s, configType type, int tag)
 
             status = SessionAlsaUtils::getCalMetadata(ckv, calConfig);
             if (PAL_STREAM_LOOPBACK == sAttr.type) {
-                calCntrlName<<stream<<pcmDevRxIds.at(0)<<" "<<setCalibrationControl;
+                if ((sAttr.info.opt_stream_info.loopback_type ==
+                                PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) ||
+                    (sAttr.info.opt_stream_info.loopback_type ==
+                                PAL_STREAM_LOOPBACK_CAPTURE_ONLY)) {
+                    // Currently Playback only and Capture only loopback don't
+                    // support volume
+                    PAL_DBG(LOG_TAG, "RX/TX only Loopback don't support volume");
+                    return -EINVAL;
+                }
+                else
+                    calCntrlName<<stream<<pcmDevRxIds.at(0)<<" "<<setCalibrationControl;
             } else {
                 calCntrlName<<stream<<pcmDevIds.at(0)<<" "<<setCalibrationControl;
             }
@@ -662,25 +712,29 @@ int SessionAlsaPcm::start(Stream * s)
                 }
                 break;
             case PAL_AUDIO_INPUT | PAL_AUDIO_OUTPUT:
-                pcmRx = pcm_open(rm->getVirtualSndCard(), pcmDevRxIds.at(0), PCM_OUT, &config);
-                if (!pcmRx) {
-                    PAL_ERR(LOG_TAG, "pcm-rx open failed");
-                    return -EINVAL;
-                }
+                if (!pcmDevRxIds.empty()) {
+                    pcmRx = pcm_open(rm->getVirtualSndCard(), pcmDevRxIds.at(0), PCM_OUT, &config);
+                    if (!pcmRx) {
+                        PAL_ERR(LOG_TAG, "pcm-rx open failed");
+                        return -EINVAL;
+                    }
 
-                if (!pcm_is_ready(pcmRx)) {
-                    PAL_ERR(LOG_TAG, "pcm-rx open not ready");
-                    return -EINVAL;
+                    if (!pcm_is_ready(pcmRx)) {
+                        PAL_ERR(LOG_TAG, "pcm-rx open not ready");
+                        return -EINVAL;
+                    }
                 }
-                pcmTx = pcm_open(rm->getVirtualSndCard(), pcmDevTxIds.at(0), PCM_IN, &config);
-                if (!pcmTx) {
-                    PAL_ERR(LOG_TAG, "pcm-tx open failed");
-                    return -EINVAL;
-                }
+                if (!pcmDevTxIds.empty()) {
+                    pcmTx = pcm_open(rm->getVirtualSndCard(), pcmDevTxIds.at(0), PCM_IN, &config);
+                    if (!pcmTx) {
+                        PAL_ERR(LOG_TAG, "pcm-tx open failed");
+                        return -EINVAL;
+                    }
 
-                if (!pcm_is_ready(pcmTx)) {
-                    PAL_ERR(LOG_TAG, "pcm-tx open not ready");
-                    return -EINVAL;
+                    if (!pcm_is_ready(pcmTx)) {
+                        PAL_ERR(LOG_TAG, "pcm-tx open not ready");
+                        return -EINVAL;
+                    }
                 }
                 break;
         }
@@ -952,19 +1006,27 @@ pcm_start:
                 }
            }
 pcm_start_loopback:
-            status = pcm_start(pcmRx);
-            if (status) {
-                PAL_ERR(LOG_TAG, "pcm_start rx failed %d", status);
+            if (pcmRx) {
+                status = pcm_start(pcmRx);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "pcm_start rx failed %d", status);
+                }
             }
-            status = pcm_start(pcmTx);
-            if (status) {
-                PAL_ERR(LOG_TAG, "pcm_start tx failed %d", status);
+            if (pcmTx) {
+                status = pcm_start(pcmTx);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "pcm_start tx failed %d", status);
+                }
             }
+            PAL_DBG(LOG_TAG,"PCM loopback start done");
            break;
     }
     // Setting the volume as in stream open, no default volume is set.
-    if (setConfig(s, CALIBRATION, TAG_STREAM_VOLUME) != 0) {
+    if (sAttr.info.opt_stream_info.loopback_type !=
+                        PAL_STREAM_LOOPBACK_CAPTURE_ONLY) {
+        if (setConfig(s, CALIBRATION, TAG_STREAM_VOLUME) != 0) {
             PAL_ERR(LOG_TAG,"Setting volume failed");
+        }
     }
 
     mState = SESSION_STARTED;
@@ -1157,8 +1219,11 @@ int SessionAlsaPcm::close(Stream * s)
             if (status) {
                PAL_ERR(LOG_TAG, "pcm_close - tx failed %d", status);
             }
-            rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
-            rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
+
+            if (pcmDevRxIds.size())
+                rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
+            if (pcmDevTxIds.size())
+                rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
             pcmRx = NULL;
             pcmTx = NULL;
             break;
@@ -1468,10 +1533,128 @@ int SessionAlsaPcm::writeBufferInit(Stream * /*streamHandle*/, size_t /*noOfBuf*
     return 0;
 }
 
+int SessionAlsaPcm::setDtmfGenTKV(Stream * s, std::vector <std::pair<int,int>> &tkv, int index, int size, uint32_t* gsltag)
+{
+    int status = 0;
+    int i = 0;
+
+    PAL_DBG(LOG_TAG,"enter, index: %d", index);
+
+    const Key_DTMF_GEN taglist[] = {DTMF_GEN_1, DTMF_GEN_2, DTMF_GEN_3,
+                                   DTMF_GEN_4, DTMF_GEN_5, DTMF_GEN_6,
+                                   DTMF_GEN_7, DTMF_GEN_8, DTMF_GEN_9,
+                                   DTMF_GEN_10, DTMF_GEN_11, DTMF_GEN_12,
+                                   DTMF_GEN_13, DTMF_GEN_14, DTMF_GEN_15,
+                                   DTMF_GEN_16};
+
+    std::vector<Key_DTMF_GEN> dtmfGenTagList(taglist, taglist+size);
+    tkv.push_back(std::make_pair(TAG_KEY_DTMF_GEN_TONE, dtmfGenTagList[index]));
+    *gsltag = DTMF_GENERATOR;
+
+    PAL_DBG(LOG_TAG, "exit, status: %d", status);
+    return status;
+}
+
+int SessionAlsaPcm::populateFreqPair() {
+    int size_lFreq = 0;
+    int size_hFreq = 0;
+    int totalSize = 0;
+    int highFreq[] = {1209, 1336, 1477, 1633};
+    int lowFreq[] = {697, 770, 852, 941};
+
+    size_hFreq = sizeof(highFreq)/sizeof(highFreq[0]);
+    size_lFreq = sizeof(lowFreq)/sizeof(lowFreq[0]);
+    totalSize = size_hFreq * size_lFreq;
+
+    for (int i=0; i<size_hFreq; i++){
+        for (int j=0;j<size_lFreq;j++) {
+            freqPair.push_back(std::make_pair(highFreq[i],lowFreq[j]));
+        }
+    }
+
+    return totalSize;
+}
+
+int SessionAlsaPcm::payloadDtmfGenTaged(Stream *s, int tag, void *pData){
+    int status = 0;
+    int totalSize = 0;
+    int index = 0;
+    int tkv_size = 0;
+    uint32_t tagsent = 0;
+    struct mixer_ctl *ctl = NULL;
+    struct agm_tag_config* tagConfig;
+    const char *stream = "PCM";
+    const char *setParamTagControl = "setParamTag";
+    std::ostringstream tagCntrlName;
+
+    PAL_DBG(LOG_TAG, "Enter\n");
+    pal_param_dtmf_gen_tone_cfg_t* dtmf_gen_payload =
+                                (pal_param_dtmf_gen_tone_cfg_t*) pData;
+    totalSize = populateFreqPair();
+    for (int i=0; i<totalSize; i++) {
+        if (freqPair[i].first == dtmf_gen_payload->high_freq) {
+            if (freqPair[i].second == dtmf_gen_payload->low_freq) {
+                index = i+1;
+                PAL_ERR(LOG_TAG, "found freq at index: %d", index);
+                break;
+            }
+        }
+    }
+
+    status = setDtmfGenTKV(s, tkv, index-1, totalSize, &tagsent);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG,"Failed to set the tkv for index: %d \n", index);
+    }
+
+    if (tkv.size() == 0) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG,"invalid tkv size\n");
+        goto done;
+    }
+
+    tagConfig = (struct agm_tag_config*)malloc (sizeof(struct agm_tag_config) +
+                 (tkv.size() * sizeof(agm_key_value)));
+    if(!tagConfig) {
+        status = -EINVAL;
+        PAL_ERR(LOG_TAG,"invalid tagConfig\n");
+        goto done;
+    }
+
+    status = SessionAlsaUtils::getTagMetadata(tagsent, tkv, tagConfig);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG,"getTagMetadata failed\n");
+        goto done;
+    }
+
+    tagCntrlName<<stream<<pcmDevRxIds.at(0)<<" "<<setParamTagControl;
+
+    ctl = mixer_get_ctl_by_name(mixer, tagCntrlName.str().data());
+    if (!ctl) {
+        PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", tagCntrlName.str().data());
+        return -ENOENT;
+    }
+
+    tkv_size = tkv.size()*sizeof(struct agm_key_value);
+    status = mixer_ctl_set_array(ctl, tagConfig, sizeof(struct agm_tag_config) + tkv_size);
+    if (status != 0) {
+         PAL_ERR(LOG_TAG,"failed to set the tag calibration %d", status);
+         goto done;
+    }
+    ctl = NULL;
+    tkv.clear();
+    if (tagConfig) {
+        free(tagConfig);
+    }
+
+done:
+    PAL_DBG(LOG_TAG, "Exit");
+    return status;
+}
+
 int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint32_t param_id, void *payload)
 {
     int status = 0;
-    int device = pcmDevIds.at(0);
+    int device = 0;
     uint8_t* paramData = NULL;
     size_t paramSize = 0;
     uint32_t miid = 0;
@@ -1479,6 +1662,11 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint
     struct pal_stream_attributes sattr;
 
     PAL_DBG(LOG_TAG, "Enter.");
+
+    if (param_id != PAL_PARAM_ID_DTMF_GEN_WITH_PARAM) {
+        device = pcmDevIds.at(0);
+    }
+
     switch (param_id) {
         case PAL_PARAM_ID_DEVICE_ROTATION:
         {
@@ -1659,6 +1847,25 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint
             }
             return 0;
         }
+        case PAL_PARAM_ID_DTMF_GEN_WITH_PARAM:
+        {
+            pal_param_dtmf_gen_tone_cfg_t *dtmf_payload = (pal_param_dtmf_gen_tone_cfg_t *)payload;
+            status = SessionAlsaUtils::getModuleInstanceId(mixer, pcmDevRxIds.at(0),
+                               rxAifBackEnds[0].second.data(), DTMF_GENERATOR, &miid);
+            builder->payloadDTMFGenConfig(&paramData, &paramSize, miid, dtmf_payload);
+            if (paramSize) {
+                status = SessionAlsaUtils::setMixerParameter(mixer, pcmDevRxIds.at(0),
+                                                paramData, paramSize);
+                if (status != 0) {
+                    PAL_ERR(LOG_TAG,"setMixerParameter failed");
+                    return status;
+                }
+            } else {
+                PAL_ERR(LOG_TAG,"payloadDTMFGenConfig failed");
+            }
+            goto exit;
+        }
+
         default:
             status = -EINVAL;
             PAL_ERR(LOG_TAG, "Unsupported param id %u status %d", param_id, status);
