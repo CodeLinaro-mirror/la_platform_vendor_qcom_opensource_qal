@@ -337,6 +337,7 @@ std::vector <int> ResourceManager::listAllPcmVoice2RxFrontEnds = {0};
 std::vector <int> ResourceManager::listAllPcmVoice2TxFrontEnds = {0};
 std::vector <int> ResourceManager::listAllPcmInCallRecordFrontEnds = {0};
 std::vector <int> ResourceManager::listAllPcmInCallMusicFrontEnds = {0};
+std::vector <int> ResourceManager::listAllPcmInCallCompressMusicFrontEnds = {0};
 struct audio_mixer* ResourceManager::audio_virt_mixer = NULL;
 struct audio_mixer* ResourceManager::audio_hw_mixer = NULL;
 struct audio_route* ResourceManager::audio_route = NULL;
@@ -529,6 +530,7 @@ ResourceManager::ResourceManager()
     listAllPcmVoice2TxFrontEnds.clear();
     listAllPcmInCallRecordFrontEnds.clear();
     listAllPcmInCallMusicFrontEnds.clear();
+    listAllPcmInCallCompressMusicFrontEnds.clear();
 
     for (int i=0; i < devInfo.size(); i++) {
         if (devInfo[i].type == PCM) {
@@ -546,10 +548,12 @@ ResourceManager::ResourceManager()
                 listAllPcmInCallMusicFrontEnds.push_back(devInfo[i].deviceId);
             }
         } else if (devInfo[i].type == COMPRESS) {
-            if (devInfo[i].playback == 1) {
+            if (devInfo[i].playback == 1 && devInfo[i].sess_mode != NON_TUNNEL) {
                 listAllCompressPlaybackFrontEnds.push_back(devInfo[i].deviceId);
-            } else if (devInfo[i].record == 1) {
+            } else if (devInfo[i].record == 1 && devInfo[i].sess_mode != NON_TUNNEL) {
                 listAllCompressRecordFrontEnds.push_back(devInfo[i].deviceId);
+            } else if (devInfo[i].sess_mode == NON_TUNNEL && devInfo[i].playback == 1) {
+                listAllPcmInCallCompressMusicFrontEnds.push_back(devInfo[i].deviceId);
             }
         } else if (devInfo[i].type == VOICE1) {
             if (devInfo[i].sess_mode == HOSTLESS && devInfo[i].playback == 1) {
@@ -962,9 +966,10 @@ void ResourceManager::setDeviceInfo(pal_device_id_t deviceId,
                         deviceInfo[i].channel = deviceInfo[i].usecase[j].channel;
                         PAL_DBG(LOG_TAG, "channels overwitten to %d", deviceInfo[i].channel);
                     }
+                    /* Clear KV Pair so that if usecase required then only it will be added */
+                    deviceInfo[i].kvpair.clear();
                     /*overwrite the kv pairs if needed*/
                     if (deviceInfo[i].usecase[j].kvpair.size()) {
-                        deviceInfo[i].kvpair.clear();
                         for (int32_t kvsize = 0; kvsize < deviceInfo[i].usecase[j].kvpair.size(); kvsize++) {
                               kv.key =  deviceInfo[i].usecase[j].kvpair[kvsize].key;
                               kv.value =  deviceInfo[i].usecase[j].kvpair[kvsize].value;
@@ -1725,8 +1730,19 @@ int ResourceManager::registerStream(Stream *s)
         }
         case PAL_STREAM_VOICE_CALL_MUSIC:
         {
-            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
-            ret = registerstream(sPCM, active_streams_incall_music);
+            struct pal_stream_attributes sAttr;
+            ret = s->getStreamAttributes(&sAttr);
+            if (0 != ret) {
+                PAL_ERR(LOG_TAG, "getStreamAttributes failed with status = %d", ret);
+                return ret;
+            }
+            if (sAttr.out_media_config.aud_fmt_id == PAL_AUDIO_FMT_DEFAULT_PCM) {
+                StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+                ret = registerstream(sPCM, active_streams_incall_music);
+            } else {
+                StreamCompress* sComp = dynamic_cast<StreamCompress*>(s);
+                ret = registerstream(sComp, active_streams_comp);
+            }
             break;
         }
         case PAL_STREAM_VOICE_CALL_RECORD:
@@ -1877,8 +1893,19 @@ int ResourceManager::deregisterStream(Stream *s)
         }
         case PAL_STREAM_VOICE_CALL_MUSIC:
         {
-            StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
-            ret = deregisterstream(sPCM, active_streams_incall_music);
+            struct pal_stream_attributes sAttr;
+            ret = s->getStreamAttributes(&sAttr);
+            if (0 != ret) {
+                PAL_ERR(LOG_TAG, "getStreamAttributes failed with status = %d", ret);
+                return ret;
+            }
+            if (sAttr.out_media_config.aud_fmt_id == PAL_AUDIO_FMT_DEFAULT_PCM) {
+                StreamInCall* sPCM = dynamic_cast<StreamInCall*>(s);
+                ret = deregisterstream(sPCM, active_streams_incall_music);
+            } else {
+                StreamCompress* sComp = dynamic_cast<StreamCompress*>(s);
+                ret = deregisterstream(sComp, active_streams_comp);
+            }
             break;
         }
         case PAL_STREAM_VOICE_CALL_RECORD:
@@ -3543,19 +3570,36 @@ const std::vector<int> ResourceManager::allocateFrontEndIds(const struct pal_str
             }
             break;
         case PAL_STREAM_VOICE_CALL_MUSIC:
-            if ( howMany > listAllPcmInCallMusicFrontEnds.size()) {
-                    PAL_ERR(LOG_TAG, "allocateFrontEndIds: requested for %d front ends, have only %zu error",
-                                      howMany, listAllPcmInCallMusicFrontEnds.size());
-                    goto error;
+            if (sAttr.out_media_config.aud_fmt_id == PAL_AUDIO_FMT_DEFAULT_PCM) {
+                if ( howMany > listAllPcmInCallMusicFrontEnds.size()) {
+                        PAL_ERR(LOG_TAG, "allocateFrontEndIds: requested for %d front ends, have only %zu error",
+                                          howMany, listAllPcmInCallMusicFrontEnds.size());
+                        goto error;
+                    }
+                id = (listAllPcmInCallMusicFrontEnds.size() - 1);
+                it =  (listAllPcmInCallMusicFrontEnds.begin() + id);
+                for (int i = 0; i < howMany; i++) {
+                    f.push_back(listAllPcmInCallMusicFrontEnds.at(id));
+                    listAllPcmInCallMusicFrontEnds.erase(it);
+                    PAL_ERR(LOG_TAG, "allocateFrontEndIds: front end %d", f[i]);
+                    it -= 1;
+                    id -= 1;
                 }
-            id = (listAllPcmInCallMusicFrontEnds.size() - 1);
-            it =  (listAllPcmInCallMusicFrontEnds.begin() + id);
-            for (int i = 0; i < howMany; i++) {
-                f.push_back(listAllPcmInCallMusicFrontEnds.at(id));
-                listAllPcmInCallMusicFrontEnds.erase(it);
-                PAL_ERR(LOG_TAG, "allocateFrontEndIds: front end %d", f[i]);
-                it -= 1;
-                id -= 1;
+            } else {
+                if ( howMany > listAllPcmInCallCompressMusicFrontEnds.size()) {
+                        PAL_ERR(LOG_TAG, "allocateFrontEndIds: requested for %d front ends, have only %zu error",
+                                          howMany, listAllPcmInCallCompressMusicFrontEnds.size());
+                        goto error;
+                    }
+                id = (listAllPcmInCallCompressMusicFrontEnds.size() - 1);
+                it =  (listAllPcmInCallCompressMusicFrontEnds.begin() + id);
+                for (int i = 0; i < howMany; i++) {
+                    f.push_back(listAllPcmInCallCompressMusicFrontEnds.at(id));
+                    listAllPcmInCallCompressMusicFrontEnds.erase(it);
+                    PAL_ERR(LOG_TAG, "allocateFrontEndIds: front end %d", f[i]);
+                    it -= 1;
+                    id -= 1;
+                }
             }
             break;
         default:
@@ -3611,6 +3655,7 @@ void ResourceManager::freeFrontEndIds(const std::vector<int> frontend,
         case PAL_STREAM_HPCM_RX_RECORD:
         case PAL_STREAM_HPCM_TX_PLAYBACK:
         case PAL_STREAM_HPCM_TX_RECORD:
+        case PAL_STREAM_LOOPBACK:
             switch (sAttr.direction) {
                 case PAL_AUDIO_INPUT:
                     for (int i = 0; i < frontend.size(); i++) {
@@ -3688,8 +3733,14 @@ void ResourceManager::freeFrontEndIds(const std::vector<int> frontend,
                 }
                 break;
               case PAL_AUDIO_OUTPUT:
-                for (int i = 0; i < frontend.size(); i++) {
-                    listAllPcmInCallMusicFrontEnds.push_back(frontend.at(i));
+                if (sAttr.out_media_config.aud_fmt_id == PAL_AUDIO_FMT_DEFAULT_PCM) {
+                    for (int i = 0; i < frontend.size(); i++) {
+                        listAllPcmInCallMusicFrontEnds.push_back(frontend.at(i));
+                    }
+                } else {
+                    for (int i = 0; i < frontend.size(); i++) {
+                        listAllPcmInCallCompressMusicFrontEnds.push_back(frontend.at(i));
+                    }
                 }
                 break;
               default:
@@ -4747,6 +4798,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
         }
         break;
         case PAL_PARAM_ID_DTMF_GEN_TONE_CFG:
+        case PAL_PARAM_ID_DTMF_GEN_WITH_PARAM:
         {
             pal_param_dtmf_gen_tone_cfg_t* param_dtmf_gen =
                                       (pal_param_dtmf_gen_tone_cfg_t*) param_payload;
@@ -4756,7 +4808,7 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
                 goto exit;
             }
             if (payload_size == sizeof(pal_param_dtmf_gen_tone_cfg_t)) {
-                status = handleDtmfToneGeneration(*param_dtmf_gen);
+                status = handleDtmfToneGeneration(*param_dtmf_gen, param_id);
             } else {
                 PAL_ERR(LOG_TAG,"Incorrect size : expected (%zu), received(%zu)",
                         sizeof(pal_param_dtmf_gen_tone_cfg_t), payload_size);
@@ -5333,7 +5385,7 @@ exit:
 }
 
 int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
-                                                param_dtmf_gen) {
+                                                param_dtmf_gen, uint32_t param_id) {
     std::vector<Stream*>::iterator sIter;
     std::vector<Stream*> activestreams;
     pal_stream_type_t streamType;
@@ -5357,8 +5409,9 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
                 goto exit;
             }
             if (((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                (sAttr.type == PAL_STREAM_LOOPBACK) ||
                 (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX))) {
-                status = (*sIter)->setParameters(PAL_PARAM_ID_DTMF_GEN_TONE_CFG,
+                status = (*sIter)->setParameters(param_id,
                                                  (void*)&param_dtmf_gen);
                 if (0 != status) {
                     PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);

@@ -485,6 +485,8 @@ typedef enum {
     PAL_STREAM_LOOPBACK_HFP_RX,
     PAL_STREAM_LOOPBACK_HFP_TX,
     PAL_STREAM_LOOPBACK_COMPRESS,
+    PAL_STREAM_LOOPBACK_PLAYBACK_ONLY,
+    PAL_STREAM_LOOPBACK_CAPTURE_ONLY
 } pal_stream_loopback_type_t;
 
 typedef enum {
@@ -534,6 +536,16 @@ struct pal_voice_call_info {
 };
 
 typedef enum {
+    INCALL_MUSIC_UPLINK = 1,
+    INCALL_MUSIC_DOWNLINK,
+    INCALL_MUSIC_UPLINK_DOWNLINK,
+} pal_incall_music_direction;
+
+struct pal_incall_music_info {
+    pal_incall_music_direction music_dir;         /** use direction enum to indicate content to be incall music */
+};
+
+typedef enum {
     VOICEMMODE1 = 0x11C05000,
     VOICEMMODE2 = 0x11DC5000,
     VOICELBMMODE1 = 0x12006000,
@@ -551,6 +563,7 @@ typedef union {
     struct pal_stream_info opt_stream_info; /* optional */
     struct pal_voice_record_info voice_rec_info; /* mandatory */
     struct pal_voice_call_info voice_call_info; /* manatory for voice call*/
+    struct pal_incall_music_info incall_music_info;
 } pal_stream_info_t;
 
 /** Media configuraiton */
@@ -743,6 +756,7 @@ typedef enum {
     PAL_PARAM_ID_DTMF_CFG = 32,
     PAL_PARAM_ID_CUSTOM_CONFIGURATION = 33,
     PAL_PARAM_ID_DEVICE_MUTE = 34,
+    PAL_PARAM_ID_DTMF_GEN_WITH_PARAM = 35,
 }pal_param_id_type_t;
 
 /** HDMI/DP */
@@ -843,12 +857,13 @@ typedef struct pal_param_device_rotation {
     pal_speaker_rotation_type    rotation_type;
 } pal_param_device_rotation_t;
 
-/* Payload For ID: PAL_PARAM_ID_DTMF_GEN_TONE_CFG
+/* Payload For ID: PAL_PARAM_ID_DTMF_GEN_TONE_CFG and PAL_PARAM_ID_DTMF_GEN_WITH_PARAM
  * Description   : DTMF Generator module parameters
  */
 typedef struct pal_param_dtmf_gen_tone_cfg {
     uint16_t high_freq;
     uint16_t low_freq;
+    /* gain and duration are unused params */
     uint16_t gain;
     int16_t duration_ms;
 } pal_param_dtmf_gen_tone_cfg_t;

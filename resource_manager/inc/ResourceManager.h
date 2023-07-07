@@ -286,7 +286,7 @@ private:
     int getDeviceDefaultCapability(pal_param_device_capability_t capability);
 
     int handleScreenStatusChange(pal_param_screen_state_t screen_state);
-    int handleDtmfToneGeneration(pal_param_dtmf_gen_tone_cfg_t param_dtmf_gen);
+    int handleDtmfToneGeneration(pal_param_dtmf_gen_tone_cfg_t param_dtmf_gen, uint32_t param_id);
     int handleDtmfDetectModuleEnable(pal_param_module_enable_t param_module_enable);
     int handleDeviceRotationChange(pal_param_device_rotation_t rotation_type);
     int handleDeviceConnectionChange(pal_param_device_connection_t connection_state);
@@ -348,6 +348,7 @@ protected:
     static std::vector<int> listAllPcmVoice2TxFrontEnds;
     static std::vector<int> listAllPcmInCallRecordFrontEnds;
     static std::vector<int> listAllPcmInCallMusicFrontEnds;
+    static std::vector<int> listAllPcmInCallCompressMusicFrontEnds;
     static std::vector<std::pair<int32_t, std::string>> listAllBackEndIds;
     static std::vector<std::pair<int32_t, std::string>> sndDeviceNameLUT;
     static std::vector<deviceCap> devInfo;
