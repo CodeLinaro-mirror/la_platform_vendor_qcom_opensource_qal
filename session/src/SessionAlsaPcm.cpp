@@ -116,6 +116,18 @@ int SessionAlsaPcm::open(Stream * s)
             return status;
 
         }
+        if (sAttr.direction == PAL_AUDIO_INPUT) {
+            if (txAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG, "no TX backend specified for this stream\n");
+                return -EINVAL;
+            }
+        }
+        if (sAttr.direction == PAL_AUDIO_OUTPUT) {
+            if (rxAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG, "no RX backend specified for this stream\n");
+                return -EINVAL;
+            }
+        }
     }
     status = rm->getVirtualAudioMixer(&mixer);
     if (status) {
@@ -123,20 +135,12 @@ int SessionAlsaPcm::open(Stream * s)
         return status;
     }
     if (sAttr.direction == PAL_AUDIO_INPUT) {
-        if (txAifBackEnds.empty()) {
-            PAL_ERR(LOG_TAG, "no TX backend specified for this stream\n");
-            return -EINVAL;
-        }
         pcmDevIds = rm->allocateFrontEndIds(sAttr, 0);
         if (pcmDevIds.size() == 0) {
             PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
             return -EINVAL;
         }
     } else if (sAttr.direction == PAL_AUDIO_OUTPUT) {
-        if (rxAifBackEnds.empty()) {
-            PAL_ERR(LOG_TAG, "no RX backend specified for this stream\n");
-            return -EINVAL;
-        }
         pcmDevIds = rm->allocateFrontEndIds(sAttr, 0);
         if (pcmDevIds.size() == 0) {
             PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
