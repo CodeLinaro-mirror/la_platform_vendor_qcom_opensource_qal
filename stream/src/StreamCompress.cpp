@@ -26,6 +26,10 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+/*
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
+ */
 
 #define LOG_TAG "PAL: StreamCompress"
 #include "StreamCompress.h"
@@ -112,22 +116,24 @@ StreamCompress::StreamCompress(const struct pal_stream_attributes *sattr, struct
     }
 
     session->registerCallBack(handleSessionCallBack, (uint64_t)this);
-    PAL_VERBOSE(LOG_TAG,"Create new Devices with no_of_devices - %d", no_of_devices);
-    for (uint32_t i = 0; i < no_of_devices; i++) {
-        dev = Device::getInstance((struct pal_device *)&dattr[i] , rm);
-        if (dev == nullptr) {
-            PAL_ERR(LOG_TAG, "Device creation is failed");
-            free(mStreamAttr);
-            mStreamMutex.unlock();
-            throw std::runtime_error("failed to create device object");
-        }
-        isDeviceConfigUpdated = rm->updateDeviceConfig(dev, &dattr[i], sattr);
-        if (isDeviceConfigUpdated)
-            PAL_VERBOSE(LOG_TAG, "Device config updated");
 
-        mDevices.push_back(dev);
-        //rm->registerDevice(dev);
-        dev = nullptr;
+    if (sattr->type != PAL_STREAM_VOICE_CALL_MUSIC) {
+        PAL_VERBOSE(LOG_TAG,"Create new Devices with no_of_devices - %d", no_of_devices);
+        for (uint32_t i = 0; i < no_of_devices; i++) {
+            dev = Device::getInstance((struct pal_device *)&dattr[i] , rm);
+            if (dev == nullptr) {
+                PAL_ERR(LOG_TAG, "Device creation is failed");
+                free(mStreamAttr);
+                mStreamMutex.unlock();
+                throw std::runtime_error("failed to create device object");
+            }
+            isDeviceConfigUpdated = rm->updateDeviceConfig(dev, &dattr[i], sattr);
+            if (isDeviceConfigUpdated)
+                PAL_VERBOSE(LOG_TAG, "Device config updated");
+
+            mDevices.push_back(dev);
+            dev = nullptr;
+        }
     }
     mStreamMutex.unlock();
     rm->registerStream(this);

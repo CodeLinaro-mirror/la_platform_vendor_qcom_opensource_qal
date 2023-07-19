@@ -90,9 +90,11 @@ void SessionAlsaVoice::HandleDtmfCallBack(uint64_t hdl, uint32_t event_id,
             event_data.dtmf_high_freq, event_data.dtmf_low_freq);
 
     if (s->getCallBack(&cb) == 0) {
-        PAL_ERR(LOG_TAG, "found callback");
-         cb(reinterpret_cast<pal_stream_handle_t *>(s), PAL_DTMF_CBK_EVENT, (uint32_t *)&event_data,
-            event_size, s->cookie);
+        if (cb) {
+            PAL_ERR(LOG_TAG, "found callback");
+             cb(reinterpret_cast<pal_stream_handle_t *>(s), PAL_DTMF_CBK_EVENT, (uint32_t *)&event_data,
+                event_size, s->cookie);
+        }
     }
 
     PAL_ERR(LOG_TAG, "Exit");
@@ -596,12 +598,13 @@ int SessionAlsaVoice::close(Stream * s)
     return status;
 }
 
-int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __unused, void *payload)
+int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id , void *payload)
 {
     int status = 0;
     int device = pcmDevRxIds.at(0);
     uint8_t* paramData = NULL;
     size_t paramSize = 0;
+    uint32_t miid = 0;
     pal_param_module_enable_t* dtmf_detect_payload;
 
     uint32_t tty_mode;
@@ -681,12 +684,30 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id __un
             break;
 
         case DTMF_GEN:
-            device = pcmDevRxIds.at(0);
-            status = payloadDtmfGenTaged(s, tagId, payload, RXDIR);
-            if (status) {
-                PAL_ERR(LOG_TAG, "Failed to get dtmf gen params status = %d",
-                        status);
-                goto exit;
+            if (param_id == PAL_PARAM_ID_DTMF_GEN_WITH_PARAM)
+            {
+                pal_param_dtmf_gen_tone_cfg_t *dtmf_payload = (pal_param_dtmf_gen_tone_cfg_t *)payload;
+                status = SessionAlsaUtils::getModuleInstanceId(mixer, pcmDevRxIds.at(0),
+                                   rxAifBackEnds[0].second.data(), DTMF_GENERATOR, &miid);
+                builder->payloadDTMFGenConfig(&paramData, &paramSize, miid, dtmf_payload);
+                if (paramSize) {
+                    status = SessionAlsaUtils::setMixerParameter(mixer, pcmDevRxIds.at(0),
+                                                    paramData, paramSize);
+                    if (status != 0) {
+                        PAL_ERR(LOG_TAG,"setMixerParameter failed");
+                        return status;
+                    }
+                } else {
+                    PAL_ERR(LOG_TAG,"payloadDTMFGenConfig failed");
+                }
+            } else {
+                device = pcmDevRxIds.at(0);
+                status = payloadDtmfGenTaged(s, tagId, payload, RXDIR);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "Failed to get dtmf gen params status = %d",
+                            status);
+                    goto exit;
+                }
             }
             break;
         case DEVICE_MUTE:

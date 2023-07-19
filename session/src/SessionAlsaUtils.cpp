@@ -336,14 +336,33 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
         PAL_ERR(LOG_TAG, "get stream KV failed %d", status);
         goto exit;
     }
-    if (sAttr.type != PAL_STREAM_VOICE_UI) {
-        status = builder->populateStreamCkv(streamHandle, streamCKV, 0,
-                (struct pal_volume_data **)nullptr);
-        if (status) {
-            PAL_ERR(LOG_TAG, "get stream ckv failed %d", status);
-            goto exit;
-        }
+
+    // get streamPPKV
+    if ((builder->populateStreamPPKV(streamHandle, streamKV)) != 0) {
+        PAL_ERR(LOG_TAG, "get streamPP KV for Rx/Tx not  done, ignore");
     }
+
+    switch (sAttr.type) {
+        case PAL_STREAM_VOICE_UI:
+            // No need to set volume ckv
+            break;
+        case PAL_STREAM_LOOPBACK:
+            if ((sAttr.info.opt_stream_info.loopback_type ==
+                            PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) ||
+                (sAttr.info.opt_stream_info.loopback_type ==
+                            PAL_STREAM_LOOPBACK_CAPTURE_ONLY)) {
+                // No need to set volume ckv
+                break;
+            }
+        default :
+            status = builder->populateStreamCkv(streamHandle, streamCKV, 0,
+                    (struct pal_volume_data **)nullptr);
+            if (status) {
+                PAL_ERR(LOG_TAG, "get stream ckv failed %d", status);
+                goto exit;
+            }
+    }
+
     if ((streamKV.size() > 0) || (streamCKV.size() > 0)) {
         getAgmMetaData(streamKV, streamCKV, (struct prop_data *)streamPropId,
                 streamMetaData);
@@ -358,6 +377,12 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
     /** Get mixer controls (struct mixer_ctl *) for both FE and BE */
     if (sAttr.type == PAL_STREAM_COMPRESSED)
         feName << COMPRESS_SND_DEV_NAME_PREFIX << DevIds.at(0);
+    else if (sAttr.type == PAL_STREAM_VOICE_CALL_MUSIC) {
+        if (sAttr.out_media_config.aud_fmt_id != PAL_AUDIO_FMT_DEFAULT_PCM)
+            feName << COMPRESS_SND_DEV_NAME_PREFIX << DevIds.at(0);
+        else
+            feName << PCM_SND_DEV_NAME_PREFIX << DevIds.at(0);
+    }
     else
         feName << PCM_SND_DEV_NAME_PREFIX << DevIds.at(0);
 
@@ -512,6 +537,12 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
     /** Get mixer controls (struct mixer_ctl *) for both FE and BE */
     if (sAttr.type == PAL_STREAM_COMPRESSED)
         feName << COMPRESS_SND_DEV_NAME_PREFIX << DevIds.at(0);
+    else if (sAttr.type == PAL_STREAM_VOICE_CALL_MUSIC) {
+        if (sAttr.out_media_config.aud_fmt_id != PAL_AUDIO_FMT_DEFAULT_PCM)
+            feName << COMPRESS_SND_DEV_NAME_PREFIX << DevIds.at(0);
+        else
+            feName << PCM_SND_DEV_NAME_PREFIX << DevIds.at(0);
+    }
     else
         feName << PCM_SND_DEV_NAME_PREFIX << DevIds.at(0);
 
@@ -1482,6 +1513,17 @@ int SessionAlsaUtils::disconnectSessionDevice(Stream* streamHandle, pal_stream_t
             else if (dAttr.id >= PAL_DEVICE_IN_HANDSET_MIC && dAttr.id <= PAL_DEVICE_IN_PROXY)
                 disconnectCtrlName << PCM_SND_VOICE_DEV_NAME_PREFIX << sub << "c" << " disconnect";
             break;
+        case PAL_STREAM_VOICE_CALL_MUSIC:
+            status = streamHandle->getStreamAttributes(&sAttr);
+            if (status) {
+                PAL_ERR(LOG_TAG, "could not get stream attributes\n");
+                return status;
+            }
+            if (sAttr.out_media_config.aud_fmt_id != PAL_AUDIO_FMT_DEFAULT_PCM)
+                disconnectCtrlName << COMPRESS_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " disconnect";
+            else
+                disconnectCtrlName << PCM_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " disconnect";
+            break;
         default:
             disconnectCtrlName << PCM_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " disconnect";
             break;
@@ -1545,6 +1587,14 @@ int SessionAlsaUtils::connectSessionDevice(Session* sess, Stream* streamHandle, 
                 connectCtrlName << PCM_SND_VOICE_DEV_NAME_PREFIX << sub << "p" << " connect";
             } else if (dAttr.id >= PAL_DEVICE_IN_HANDSET_MIC && dAttr.id <= PAL_DEVICE_IN_PROXY) {
                 connectCtrlName << PCM_SND_VOICE_DEV_NAME_PREFIX << sub << "c" << " connect";
+            }
+            break;
+        case PAL_STREAM_VOICE_CALL_MUSIC:
+            if (sAttr.out_media_config.aud_fmt_id != PAL_AUDIO_FMT_DEFAULT_PCM) {
+                connectCtrlName << COMPRESS_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " connect";
+                is_compress = true;
+            } else {
+                connectCtrlName << PCM_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " connect";
             }
             break;
         default:
@@ -1791,6 +1841,18 @@ int SessionAlsaUtils::setupSessionDevice(Stream* streamHandle, pal_stream_type_t
                 aifMdName << aifBackEndsToConnect[0].second.data() << " metadata";
                 feMdName << PCM_SND_VOICE_DEV_NAME_PREFIX << sub << "c" << " metadata";
 
+            }
+            break;
+        case PAL_STREAM_VOICE_CALL_MUSIC:
+            if (sAttr.out_media_config.aud_fmt_id != PAL_AUDIO_FMT_DEFAULT_PCM) {
+                cntrlName << COMPRESS_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " control";
+                aifMdName << aifBackEndsToConnect[0].second.data() << " metadata";
+                feMdName << COMPRESS_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " metadata";
+                is_compress = true;
+            } else {
+                cntrlName << PCM_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " control";
+                aifMdName << aifBackEndsToConnect[0].second.data() << " metadata";
+                feMdName << PCM_SND_DEV_NAME_PREFIX << pcmDevIds.at(0) << " metadata";
             }
             break;
         default:
