@@ -51,6 +51,8 @@
 #define PARAM_ID_USB_AUDIO_INTF_CFG                               0x080010D6
 /*Parameter used to enable module and send HPCM configuration */
 #define PARAM_ID_HPCM_CONFIG             0x08001378
+ /** Parameter ID for DTMF generation */
+#define PARAM_ID_DTMF_GEN_TONE_CFG       0x08001121
 
 /* ID of the Output Media Format parameters used by MODULE_ID_MFC */
 #define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT            0x08001024
@@ -702,6 +704,53 @@ void PayloadBuilder::payloadHpcmConfig(uint8_t **payload, size_t *size,
     PAL_DBG(LOG_TAG, "customPayload address %pK and size %zu", payloadInfo, *size);
 }
 
+void PayloadBuilder::payloadDTMFGenConfig(uint8_t **payload, size_t *size,
+    uint32_t moduleId, pal_param_dtmf_gen_tone_cfg_t *dtmf_payload)
+{
+    struct apm_module_param_data_t* header;
+    pal_param_dtmf_gen_tone_cfg_t *dtmf_config;
+    uint8_t* payloadInfo = NULL;
+    size_t payloadSize = 0, padBytes = 0;
+
+    payloadSize = sizeof(struct apm_module_param_data_t) +
+                  sizeof(pal_param_dtmf_gen_tone_cfg_t);
+    padBytes = PAL_PADDING_8BYTE_ALIGN(payloadSize);
+    payloadInfo = new uint8_t[payloadSize + padBytes]();
+    if (!payloadInfo) {
+        PAL_ERR(LOG_TAG, "payloadInfo malloc failed %s", strerror(errno));
+        return;
+    }
+    header = (struct apm_module_param_data_t*)payloadInfo;
+    header->module_instance_id = moduleId;
+    header->param_id = PARAM_ID_DTMF_GEN_TONE_CFG;
+    header->error_code = 0x0;
+    header->param_size = payloadSize - sizeof(struct apm_module_param_data_t);
+    PAL_DBG(LOG_TAG, "header params \n IID:%x param_id:%x error_code:%d param_size:%d",
+                       header->module_instance_id, header->param_id,
+                       header->error_code, header->param_size);
+    dtmf_config = (pal_param_dtmf_gen_tone_cfg_t*)(payloadInfo +
+                   sizeof(struct apm_module_param_data_t));
+    dtmf_config->high_freq = dtmf_payload->high_freq;
+    dtmf_config->low_freq = dtmf_payload->low_freq;
+
+    if (dtmf_config->high_freq == 0) {
+        dtmf_config->high_freq = dtmf_payload->low_freq;
+    } else if (dtmf_config->low_freq == 0) {
+        dtmf_config->low_freq = dtmf_payload->high_freq;
+    }
+
+    dtmf_config->gain = dtmf_payload->gain;
+    dtmf_config->duration_ms = dtmf_payload->duration_ms;
+    PAL_DBG(LOG_TAG, "high_freq:%d, low_freq:%d, gain:%d,duration_ms:%d",
+            dtmf_config->high_freq, dtmf_config->low_freq, dtmf_config->gain,
+            dtmf_config->duration_ms);
+
+    *size = payloadSize + padBytes;
+    *payload = payloadInfo;
+    PAL_DBG(LOG_TAG, "customPayload address %pK and size %zu", payloadInfo, *size);
+}
+
+
 void PayloadBuilder::payloadSVAEventConfig(uint8_t **payload, size_t *size,
      uint32_t moduleId, struct detection_engine_generic_event_cfg *pEventConfig)
 {
@@ -1169,6 +1218,42 @@ exit:
     return status;
 }
 
+
+/** Used for Loopback stream types only */
+int PayloadBuilder::populateStreamPPKV(Stream* s, std::vector <std::pair<int,int>> &keyVector)
+{
+    int status = 0;
+    struct pal_stream_attributes *sattr = NULL;
+
+    PAL_DBG(LOG_TAG,"enter");
+    sattr = new struct pal_stream_attributes();
+    if (!sattr) {
+        PAL_ERR(LOG_TAG,"sattr alloc failed %s status %d", strerror(errno), status);
+        status = -ENOMEM;
+        goto exit;
+    }
+    status = s->getStreamAttributes(sattr);
+    if (0 != status) {
+        PAL_ERR(LOG_TAG,"getStreamAttributes Failed status %d\n",status);
+        goto free_sattr;
+    }
+
+    PAL_DBG(LOG_TAG, "stream attribute type %d", sattr->type);
+    switch (sattr->type) {
+        case PAL_STREAM_LOOPBACK:
+            if (sattr->info.opt_stream_info.loopback_type == PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) {
+                keyVector.push_back(std::make_pair(STREAMPP_RX, STREAMPP_RX_DEFAULT));
+            }
+            break;
+        default:
+            PAL_ERR(LOG_TAG,"unsupported stream type %d", sattr->type);
+    }
+free_sattr:
+    delete sattr;
+exit:
+    return status;
+}
+
 int PayloadBuilder::populateStreamKV(Stream* s,
         std::vector <std::pair<int,int>> &keyVector)
 {
@@ -1301,7 +1386,19 @@ int PayloadBuilder::populateStreamKV(Stream* s,
             keyVector.push_back(std::make_pair(STREAMTX,INCALL_RECORD));
             break;
         case PAL_STREAM_VOICE_CALL_MUSIC:
-            keyVector.push_back(std::make_pair(STREAMRX,INCALL_MUSIC));
+            if(sattr->out_media_config.aud_fmt_id == PAL_AUDIO_FMT_DEFAULT_PCM) {
+                keyVector.push_back(std::make_pair(STREAMRX,INCALL_MUSIC));
+            } else {
+                if(sattr->info.incall_music_info.music_dir == INCALL_MUSIC_UPLINK) {
+                    keyVector.push_back(std::make_pair(STREAMRX,
+                            INCALL_MUSIC_COMPRESS_UPLINK));
+                } else if(sattr->info.incall_music_info.music_dir == INCALL_MUSIC_DOWNLINK) {
+                    keyVector.push_back(std::make_pair(STREAMRX,
+                            INCALL_MUSIC_COMPRESS_DOWNLINK));
+                } else if(sattr->info.incall_music_info.music_dir == INCALL_MUSIC_UPLINK_DOWNLINK) {
+                    PAL_ERR(LOG_TAG,"unsupported direction %d", sattr->direction);
+                }
+            }
             break;
         case PAL_STREAM_HPCM_RX_PLAYBACK:
             keyVector.push_back(std::make_pair(STREAMRX,VOICE_CALL_RX_HPCM_PLAYBACK));
@@ -1317,6 +1414,10 @@ int PayloadBuilder::populateStreamKV(Stream* s,
         case PAL_STREAM_HPCM_TX_RECORD:
             keyVector.push_back(std::make_pair(STREAMTX,VOICE_CALL_TX_HPCM_RECORD));
             break;
+        case PAL_STREAM_LOOPBACK:
+            keyVector.push_back(std::make_pair(STREAMRX, PCM_RX_LOOPBACK));
+            break;
+
         default:
             status = -EINVAL;
             PAL_ERR(LOG_TAG,"unsupported stream type %d", sattr->type);
