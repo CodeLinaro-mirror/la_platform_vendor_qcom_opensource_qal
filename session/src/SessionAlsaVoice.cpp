@@ -105,6 +105,8 @@ SessionAlsaVoice::SessionAlsaVoice(std::shared_ptr<ResourceManager> Rm)
 {
    rm = Rm;
    builder = new PayloadBuilder();
+   pcmRx = NULL;
+   pcmTx = NULL;
    customPayload = NULL;
    customPayloadSize = 0;
    sessionCb = NULL;
@@ -394,10 +396,11 @@ int SessionAlsaVoice::start(Stream * s)
     int32_t status = 0;
     std::vector<std::shared_ptr<Device>> associatedDevices;
     pal_param_payload *palPayload = NULL;
-    int txDevId;
+    int txDevId = PAL_DEVICE_NONE;
     uint8_t* payload = NULL;
     size_t payloadSize = 0;
     struct pal_volume_data *volume = NULL;
+    bool isTxStarted = false, isRxStarted = false;
 
     status = s->getStreamAttributes(&sAttr);
     if (status != 0) {
@@ -426,13 +429,14 @@ int SessionAlsaVoice::start(Stream * s)
         pcmRx = pcm_open(rm->getVirtualSndCard(), pcmDevRxIds.at(0), PCM_OUT, &config);
         if (!pcmRx) {
             PAL_ERR(LOG_TAG, "pcm-rx open failed");
-            return -EINVAL;
+            status = -EINVAL;
+            goto err_pcm_open;
         }
 
         if (!pcm_is_ready(pcmRx)) {
             PAL_ERR(LOG_TAG, "pcm-rx open not ready");
-            pcmRx = NULL;
-            return -EINVAL;
+            status = -EINVAL;
+            goto err_pcm_open;
         }
 
         config.rate = sAttr.in_media_config.sample_rate;
@@ -449,13 +453,14 @@ int SessionAlsaVoice::start(Stream * s)
         pcmTx = pcm_open(rm->getVirtualSndCard(), pcmDevTxIds.at(0), PCM_IN, &config);
         if (!pcmTx) {
             PAL_ERR(LOG_TAG, "pcm-tx open failed");
-            return -EINVAL;
+            status = -EINVAL;
+            goto err_pcm_open;
         }
 
         if (!pcm_is_ready(pcmTx)) {
             PAL_ERR(LOG_TAG, "pcm-tx open not ready");
-            pcmTx = NULL;
-            return -EINVAL;
+            status = -EINVAL;
+            goto err_pcm_open;
         }
     }
     mState = SESSION_OPENED;
@@ -470,7 +475,7 @@ int SessionAlsaVoice::start(Stream * s)
         if (!volume) {
             status = -ENOMEM;
             PAL_ERR(LOG_TAG, "volume malloc failed %s", strerror(errno));
-            goto exit;
+            goto err_pcm_open;
         }
         volume->no_of_volpair = 1;
         volume->volume_pair[0].channel_mask = 1;
@@ -490,13 +495,41 @@ int SessionAlsaVoice::start(Stream * s)
         if (!palPayload) {
             status = -ENOMEM;
             PAL_ERR(LOG_TAG,"Failed to allocate memory for palPayload \n");
-            goto exit;
+            goto err_pcm_open;
         }
         palPayload->payload_size = sizeof(ttyMode);
         *(palPayload->payload) = ttyMode;
         setParameters(s, TTY_MODE, PAL_PARAM_ID_TTY_MODE, palPayload);
     }
 
+
+    status = populate_rx_mfc_payload(s, &payload, &payloadSize);
+    if (status != 0) {
+        PAL_ERR(LOG_TAG,"Configuring RX MFC failed");
+        goto err_pcm_open;
+    }
+    status = SessionAlsaUtils::setMixerParameter(mixer, pcmDevRxIds.at(0),
+                                                 payload, payloadSize);
+    if (status != 0) {
+        PAL_ERR(LOG_TAG,"setMixerParameter failed");
+        goto err_pcm_open;
+    }
+
+    status = pcm_start(pcmRx);
+    if (status) {
+        PAL_ERR(LOG_TAG, "pcm_start rx failed %d", status);
+        goto err_pcm_open;
+    }
+   isRxStarted = true;
+
+    status = pcm_start(pcmTx);
+    if (status) {
+        PAL_ERR(LOG_TAG, "pcm_start tx failed %d", status);
+        goto err_pcm_open;
+    }
+    isTxStarted = true;
+
+    mState = SESSION_STARTED;
     /*set sidetone*/
     status = getTXDeviceId(s, &txDevId);
     if (status){
@@ -507,33 +540,22 @@ int SessionAlsaVoice::start(Stream * s)
             PAL_ERR(LOG_TAG,"enabling sidetone failed \n");
         }
     }
+    status = 0;
+    goto exit;
 
-    status = populate_rx_mfc_payload(s, &payload, &payloadSize);
-    if (status != 0) {
-        PAL_ERR(LOG_TAG,"Configuring RX MFC failed");
-        return status;
+err_pcm_open:
+    if (pcmRx) {
+        if (isRxStarted)
+            pcm_stop(pcmRx);
+        pcm_close(pcmRx);
+        pcmRx = NULL;
     }
-    status = SessionAlsaUtils::setMixerParameter(mixer, pcmDevRxIds.at(0),
-                                                 payload, payloadSize);
-    if (status != 0) {
-        PAL_ERR(LOG_TAG,"setMixerParameter failed");
-        goto exit;
+    if (pcmTx) {
+        if (isTxStarted)
+            pcm_stop(pcmTx);
+        pcm_close(pcmTx);
+        pcmTx = NULL;
     }
-
-    status = pcm_start(pcmRx);
-    if (status) {
-        PAL_ERR(LOG_TAG, "pcm_start rx failed %d", status);
-        goto exit;
-    }
-
-    status = pcm_start(pcmTx);
-    if (status) {
-        PAL_ERR(LOG_TAG, "pcm_start tx failed %d", status);
-        goto exit;
-    }
-
-    mState = SESSION_STARTED;
-
 exit:
     if (payload)
         free(payload);
