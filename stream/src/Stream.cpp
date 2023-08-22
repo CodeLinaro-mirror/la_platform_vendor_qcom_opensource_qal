@@ -77,8 +77,10 @@ Stream* Stream::create(struct pal_stream_attributes *sAttr, struct pal_device *d
         PAL_ERR(LOG_TAG, "mPalDevice not created");
         goto exit;
     }
-    if (sAttr->type == PAL_STREAM_VOICE_CALL_MUSIC)
+    if ((sAttr->type == PAL_STREAM_VOICE_CALL_MUSIC) ||
+        (sAttr->type == PAL_STREAM_VOICE_CALL_RECORD))
         goto stream_create;
+
     for (int i = 0; i < noOfDevices; i++) {
         struct pal_device_info devinfo = {};
 
