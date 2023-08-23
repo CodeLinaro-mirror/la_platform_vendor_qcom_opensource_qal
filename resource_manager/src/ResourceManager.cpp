@@ -300,6 +300,7 @@ const std::map<std::string, uint32_t> usecaseIdLUT {
     {std::string{ "PAL_STREAM_LOOPBACK" },                 PAL_STREAM_LOOPBACK},
     {std::string{ "PAL_STREAM_TRANSCODE" },                PAL_STREAM_TRANSCODE},
     {std::string{ "PAL_STREAM_VOICE_UI" },                 PAL_STREAM_VOICE_UI},
+    {std::string{ "PAL_STREAM_PCM_OFFLOAD" },              PAL_STREAM_PCM_OFFLOAD},
     {std::string{ "PAL_STREAM_ULTRA_LOW_LATENCY" },        PAL_STREAM_ULTRA_LOW_LATENCY},
     {std::string{ "PAL_STREAM_PROXY" },                    PAL_STREAM_PROXY},
     {std::string{ "PAL_STREAM_HPCM_RX_PLAYBACK" },         PAL_STREAM_HPCM_RX_PLAYBACK},
