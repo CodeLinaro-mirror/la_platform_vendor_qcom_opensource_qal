@@ -769,7 +769,7 @@ int SessionAlsaUtils::getTimestamp(struct mixer *mixer, const std::vector<int> &
         status = mixer_ctl_get_array(ctl, payload, payloadSize);
         if (0 != status) {
              PAL_ERR(LOG_TAG, "Get failed status = %d", status);
-             delete payload;
+             free(payload);
              goto exit;
         }
     } else {
