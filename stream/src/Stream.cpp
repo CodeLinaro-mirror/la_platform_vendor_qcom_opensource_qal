@@ -475,6 +475,7 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
         switch (sattr->type) {
             case PAL_STREAM_DEEP_BUFFER:
             case PAL_STREAM_PCM_OFFLOAD:
+            case PAL_STREAM_LOW_LATENCY:
                 *out_buf_size = ((sattr->out_media_config.bit_width) / 8) *
                                 (sattr->out_media_config.sample_rate) *
                                 (sattr->out_media_config.ch_info.channels);
