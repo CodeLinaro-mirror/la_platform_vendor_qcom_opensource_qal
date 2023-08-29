@@ -1472,7 +1472,8 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
     size_t max_sessions = 0;
 
     if (!attributes || !devices ||
-        (!no_of_devices && attributes->type != PAL_STREAM_VOICE_CALL_MUSIC)) {
+        (!no_of_devices && (attributes->type != PAL_STREAM_VOICE_CALL_MUSIC)
+         && (attributes->type != PAL_STREAM_VOICE_CALL_RECORD))) {
         PAL_ERR(LOG_TAG, "Invalid input parameter ret %d", result);
         return result;
     }
