@@ -607,14 +607,10 @@ ResourceManager::~ResourceManager()
     listAllPcmVoice2RxFrontEnds.clear();
     listAllPcmVoice2TxFrontEnds.clear();
     devInfo.clear();
-    deviceInfo.clear();
     txEcInfo.clear();
 
     STInstancesLists.clear();
-    listAllBackEndIds.clear();
-    sndDeviceNameLUT.clear();
     devicePcmId.clear();
-    deviceLinkName.clear();
 
     if (admLibHdl) {
         if (admDeInitFn)
@@ -3323,6 +3319,11 @@ void ResourceManager::deinit()
     workerThread.join();
     while (!msgQ.empty())
         msgQ.pop();
+
+    deviceInfo.clear();
+    listAllBackEndIds.clear();
+    sndDeviceNameLUT.clear();
+    deviceLinkName.clear();
 
     rm = nullptr;
 }
