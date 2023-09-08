@@ -200,6 +200,9 @@ libpal_la_LIBADD   += -lar_gsl -lacdbdata
 else
 libpal_la_LIBADD    = $(GLIB_LIBS) -ltinyalsa -laudioroute -lar_osal -lexpat -ltinycompress
 endif
+if IS_SDXLEMUR
+libpal_la_LIBADD    += -lagmclientwrapper
+endif
 libpal_la_CPPFLAGS := $(AM_CPPFLAGS)
 libpal_la_CPPFLAGS += -std=c++14 -DHAVE_PTHREADS -DHAVE_ANDROID_OS
 libpal_la_CPPFLAGS += -DDEBUG_REFS_CALLSTACK_ENABLED=0
