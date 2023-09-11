@@ -116,6 +116,18 @@ int SessionAlsaPcm::open(Stream * s)
             return status;
 
         }
+        if (sAttr.direction == PAL_AUDIO_INPUT) {
+            if (txAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG, "no TX backend specified for this stream\n");
+                return -EINVAL;
+            }
+        }
+        if (sAttr.direction == PAL_AUDIO_OUTPUT) {
+            if (rxAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG, "no RX backend specified for this stream\n");
+                return -EINVAL;
+            }
+        }
     }
     status = rm->getVirtualAudioMixer(&mixer);
     if (status) {
@@ -1208,11 +1220,28 @@ int SessionAlsaPcm::close(Stream * s)
             pcm = NULL;
             break;
         case PAL_AUDIO_INPUT | PAL_AUDIO_OUTPUT:
-            status = SessionAlsaUtils::close(s, rm, pcmDevRxIds, pcmDevTxIds,
-                    rxAifBackEnds, txAifBackEnds);
-            if (status) {
-                PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+            if (sAttr.info.opt_stream_info.loopback_type ==
+                    PAL_STREAM_LOOPBACK_CAPTURE_ONLY) {
+                status = SessionAlsaUtils::close(s, rm, pcmDevTxIds, txAifBackEnds, freeDeviceMetadata);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                }
             }
+            else if (sAttr.info.opt_stream_info.loopback_type ==
+                        PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) {
+                status = SessionAlsaUtils::close(s, rm, pcmDevRxIds, rxAifBackEnds, freeDeviceMetadata);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                }
+            }
+            else {
+                status = SessionAlsaUtils::close(s, rm, pcmDevRxIds, pcmDevTxIds,
+                        rxAifBackEnds, txAifBackEnds);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                }
+            }
+
             if (pcmRx)
                 status = pcm_close(pcmRx);
             if (status) {
