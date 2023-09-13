@@ -611,6 +611,24 @@ int SessionAlsaVoice::close(Stream * s)
         return status;
     }
 
+    if (((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+        (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX)) &&
+        (rm->dtmf_enabled)) {
+        PAL_DBG(LOG_TAG, "before deregisterMixerEventCallback");
+        status = rm->registerMixerEventCallback(pcmDevRxIds,
+            sessionCb, cbCookie, false);
+        if (status != 0) {
+            PAL_ERR(LOG_TAG, "Failed to deregister callback to rm for RX");
+        }
+        status = rm->registerMixerEventCallback(pcmDevTxIds,
+            sessionCb, cbCookie, false);
+        if (status != 0) {
+            PAL_ERR(LOG_TAG, "Failed to deregister callback to rm for TX");
+        }
+        PAL_DBG(LOG_TAG, "after deregisterMixerEventCallback for DTMF RX/TX");
+        status = 0;
+    }
+
     if (pcmRx) {
         status = pcm_close(pcmRx);
         if (status) {
