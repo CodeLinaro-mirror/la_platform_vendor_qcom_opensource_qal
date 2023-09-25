@@ -77,8 +77,10 @@ Stream* Stream::create(struct pal_stream_attributes *sAttr, struct pal_device *d
         PAL_ERR(LOG_TAG, "mPalDevice not created");
         goto exit;
     }
-    if (sAttr->type == PAL_STREAM_VOICE_CALL_MUSIC)
+    if ((sAttr->type == PAL_STREAM_VOICE_CALL_MUSIC) ||
+        (sAttr->type == PAL_STREAM_VOICE_CALL_RECORD))
         goto stream_create;
+
     for (int i = 0; i < noOfDevices; i++) {
         struct pal_device_info devinfo = {};
 
@@ -475,6 +477,7 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
         switch (sattr->type) {
             case PAL_STREAM_DEEP_BUFFER:
             case PAL_STREAM_PCM_OFFLOAD:
+            case PAL_STREAM_LOW_LATENCY:
                 *out_buf_size = ((sattr->out_media_config.bit_width) / 8) *
                                 (sattr->out_media_config.sample_rate) *
                                 (sattr->out_media_config.ch_info.channels);
@@ -522,6 +525,7 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
         switch (sattr->type) {
             case PAL_STREAM_DEEP_BUFFER:
             case PAL_STREAM_PCM_OFFLOAD:
+            case PAL_STREAM_LOW_LATENCY:
             case PAL_STREAM_PROXY:
                 *in_buf_size = ((sattr->in_media_config.bit_width) / 8) *
                                 (sattr->in_media_config.sample_rate) *
