@@ -300,6 +300,7 @@ const std::map<std::string, uint32_t> usecaseIdLUT {
     {std::string{ "PAL_STREAM_LOOPBACK" },                 PAL_STREAM_LOOPBACK},
     {std::string{ "PAL_STREAM_TRANSCODE" },                PAL_STREAM_TRANSCODE},
     {std::string{ "PAL_STREAM_VOICE_UI" },                 PAL_STREAM_VOICE_UI},
+    {std::string{ "PAL_STREAM_PCM_OFFLOAD" },              PAL_STREAM_PCM_OFFLOAD},
     {std::string{ "PAL_STREAM_ULTRA_LOW_LATENCY" },        PAL_STREAM_ULTRA_LOW_LATENCY},
     {std::string{ "PAL_STREAM_PROXY" },                    PAL_STREAM_PROXY},
     {std::string{ "PAL_STREAM_HPCM_RX_PLAYBACK" },         PAL_STREAM_HPCM_RX_PLAYBACK},
@@ -606,14 +607,10 @@ ResourceManager::~ResourceManager()
     listAllPcmVoice2RxFrontEnds.clear();
     listAllPcmVoice2TxFrontEnds.clear();
     devInfo.clear();
-    deviceInfo.clear();
     txEcInfo.clear();
 
     STInstancesLists.clear();
-    listAllBackEndIds.clear();
-    sndDeviceNameLUT.clear();
     devicePcmId.clear();
-    deviceLinkName.clear();
 
     if (admLibHdl) {
         if (admDeInitFn)
@@ -1471,7 +1468,8 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
     size_t max_sessions = 0;
 
     if (!attributes || !devices ||
-        (!no_of_devices && attributes->type != PAL_STREAM_VOICE_CALL_MUSIC)) {
+        (!no_of_devices && (attributes->type != PAL_STREAM_VOICE_CALL_MUSIC)
+         && (attributes->type != PAL_STREAM_VOICE_CALL_RECORD))) {
         PAL_ERR(LOG_TAG, "Invalid input parameter ret %d", result);
         return result;
     }
@@ -3321,6 +3319,11 @@ void ResourceManager::deinit()
     workerThread.join();
     while (!msgQ.empty())
         msgQ.pop();
+
+    deviceInfo.clear();
+    listAllBackEndIds.clear();
+    sndDeviceNameLUT.clear();
+    deviceLinkName.clear();
 
     rm = nullptr;
 }
