@@ -126,7 +126,7 @@ int32_t pal_stream_open(struct pal_stream_attributes *attributes,
     Stream *s = NULL;
     int status;
     const char *param_tag;
-    pal_param_hpcm_cfg_t* param_hpcm_cfg;
+    pal_param_hpcm_cfg_t param_hpcm_cfg;
     std::shared_ptr<ResourceManager> rm = NULL;
 
     rm = ResourceManager::getInstance();
