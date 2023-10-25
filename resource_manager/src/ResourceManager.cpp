@@ -1963,6 +1963,15 @@ bool isStreamActive(T s, std::list<T> &streams)
     return ret;
 }
 
+int ResourceManager::isActiveStream(pal_stream_handle_t *handle) {
+    for (auto &s : mActiveStreams) {
+        if (handle == reinterpret_cast<uint64_t *>(s)) {
+            return true;
+        }
+    }
+    return false;
+}
+
 int ResourceManager::registerDevice_l(std::shared_ptr<Device> d, Stream *s)
 {
     PAL_DBG(LOG_TAG, "Enter.");
