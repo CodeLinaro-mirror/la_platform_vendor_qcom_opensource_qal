@@ -46,6 +46,7 @@ if (test "x${with_glib}" = "xyes"); then
 fi
 
 AM_CONDITIONAL(USE_GLIB, test "x${with_glib}" = "xyes")
+AM_CONDITIONAL([IS_SDXLEMUR], [test x$IS_SDXLEMUR_TARGET = xtrue])
 
 AC_ARG_WITH([spf],
       AC_HELP_STRING([--with-spf],

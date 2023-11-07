@@ -478,12 +478,13 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
             case PAL_STREAM_DEEP_BUFFER:
             case PAL_STREAM_PCM_OFFLOAD:
             case PAL_STREAM_LOW_LATENCY:
-                *out_buf_size = ((sattr->out_media_config.bit_width) / 8) *
-                                (sattr->out_media_config.sample_rate) *
-                                (sattr->out_media_config.ch_info.channels);
+                *out_buf_size = (sattr->out_media_config.sample_rate) *
+                                DEEP_BUFFER_OUTPUT_PERIOD_DURATION;
 
                 *out_buf_size = *out_buf_size / 1000;
-                *out_buf_size = *out_buf_size * DEEP_BUFFER_OUTPUT_PERIOD_DURATION;
+                *out_buf_size = (*out_buf_size) *
+                                ((sattr->out_media_config.bit_width) / 8) *
+                                (sattr->out_media_config.ch_info.channels);
                 break;
             case PAL_STREAM_COMPRESSED:
                 if ((sattr->out_media_config.aud_fmt_id == PAL_AUDIO_FMT_AMR_NB) ||
@@ -494,21 +495,23 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
                     *out_buf_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
                 break;
             case PAL_STREAM_VOICE_CALL_MUSIC:
-                *out_buf_size = ((sattr->out_media_config.bit_width) / 8) *
-                                (sattr->out_media_config.sample_rate) *
-                                (sattr->out_media_config.ch_info.channels);
+                *out_buf_size = (sattr->out_media_config.sample_rate) *
+                                PAL_INCALL_MUSIC_OUT_PERIOD_DURATION;
 
                 *out_buf_size = *out_buf_size / 1000;
-                *out_buf_size = *out_buf_size * PAL_INCALL_MUSIC_OUT_PERIOD_DURATION;
+                *out_buf_size = (*out_buf_size) *
+                                ((sattr->out_media_config.bit_width) / 8) *
+                                (sattr->out_media_config.ch_info.channels);
                 break;
             case PAL_STREAM_HPCM_RX_PLAYBACK:
             case PAL_STREAM_HPCM_TX_PLAYBACK:
-                *out_buf_size = ((sattr->out_media_config.bit_width) / 8) *
-                                (sattr->out_media_config.sample_rate) *
-                                (sattr->out_media_config.ch_info.channels);
+                *out_buf_size = (sattr->out_media_config.sample_rate) *
+                                AUDIO_CAPTURE_PERIOD_DURATION_MSEC;
 
                 *out_buf_size = *out_buf_size / 1000;
-                *out_buf_size = *out_buf_size * AUDIO_CAPTURE_PERIOD_DURATION_MSEC;
+                *out_buf_size = (*out_buf_size) *
+                                ((sattr->out_media_config.bit_width) / 8) *
+                                (sattr->out_media_config.ch_info.channels);
                 break;
             default:
                 PAL_ERR(LOG_TAG, "unsupported stream type 0x%x", sattr->type);
@@ -527,32 +530,35 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
             case PAL_STREAM_PCM_OFFLOAD:
             case PAL_STREAM_LOW_LATENCY:
             case PAL_STREAM_PROXY:
-                *in_buf_size = ((sattr->in_media_config.bit_width) / 8) *
-                                (sattr->in_media_config.sample_rate) *
-                                (sattr->in_media_config.ch_info.channels);
+                *in_buf_size = (sattr->in_media_config.sample_rate) *
+                                AUDIO_CAPTURE_PERIOD_DURATION_MSEC;
 
                 *in_buf_size = *in_buf_size / 1000;
-                *in_buf_size = *in_buf_size * AUDIO_CAPTURE_PERIOD_DURATION_MSEC;
+                *in_buf_size = (*in_buf_size) *
+                               ((sattr->in_media_config.bit_width) / 8) *
+                               (sattr->in_media_config.ch_info.channels);
                 break;
             case PAL_STREAM_COMPRESSED:
                 *in_buf_size = COMPRESS_OFFLOAD_FRAGMENT_SIZE;
                 break;
             case PAL_STREAM_VOICE_CALL_RECORD:
-                *in_buf_size = ((sattr->in_media_config.bit_width) / 8) *
-                                (sattr->in_media_config.sample_rate) *
-                                (sattr->in_media_config.ch_info.channels);
+                *in_buf_size = (sattr->in_media_config.sample_rate) *
+                                PCM_VOICE_CALL_RECORD_PERIOD_DURATION;
 
                 *in_buf_size = *in_buf_size / 1000;
-                *in_buf_size = *in_buf_size * PCM_VOICE_CALL_RECORD_PERIOD_DURATION;
+                *in_buf_size = (*in_buf_size) *
+                               ((sattr->in_media_config.bit_width) / 8) *
+                               (sattr->in_media_config.ch_info.channels);
                 break;
             case PAL_STREAM_HPCM_RX_RECORD:
             case PAL_STREAM_HPCM_TX_RECORD:
-                *in_buf_size = ((sattr->in_media_config.bit_width) / 8) *
-                                (sattr->in_media_config.sample_rate) *
-                                (sattr->in_media_config.ch_info.channels);
+                *in_buf_size = (sattr->in_media_config.sample_rate) *
+                                AUDIO_CAPTURE_PERIOD_DURATION_MSEC;
 
                 *in_buf_size = *in_buf_size / 1000;
-                *in_buf_size = *in_buf_size * AUDIO_CAPTURE_PERIOD_DURATION_MSEC;
+                *in_buf_size = (*in_buf_size) *
+                               ((sattr->in_media_config.bit_width) / 8) *
+                               (sattr->in_media_config.ch_info.channels);
                 break;
             default:
                 PAL_ERR(LOG_TAG, "unsupported stream type 0x%x", sattr->type);
