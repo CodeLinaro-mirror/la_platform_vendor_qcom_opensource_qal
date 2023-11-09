@@ -117,14 +117,14 @@ int SessionAlsaPcm::open(Stream * s)
 
         }
         if (sAttr.direction == PAL_AUDIO_INPUT) {
-            if (txAifBackEnds.empty()) {
-                PAL_ERR(LOG_TAG, "no TX backend specified for this stream\n");
+            if (txAifBackEnds.empty() || !rxAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG, "backend specified incorrectly for this stream\n");
                 return -EINVAL;
             }
         }
         if (sAttr.direction == PAL_AUDIO_OUTPUT) {
-            if (rxAifBackEnds.empty()) {
-                PAL_ERR(LOG_TAG, "no RX backend specified for this stream\n");
+            if (rxAifBackEnds.empty() || !txAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG, "backend specified incorrectly for this stream\n");
                 return -EINVAL;
             }
         }

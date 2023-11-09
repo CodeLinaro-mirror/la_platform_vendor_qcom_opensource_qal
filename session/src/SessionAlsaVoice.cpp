@@ -629,6 +629,9 @@ int SessionAlsaVoice::close(Stream * s)
         status = 0;
     }
 
+    status = SessionAlsaUtils::close(s, rm, pcmDevRxIds, pcmDevTxIds,
+             rxAifBackEnds, txAifBackEnds);
+
     if (pcmRx) {
         status = pcm_close(pcmRx);
         if (status) {
