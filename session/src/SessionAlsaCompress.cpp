@@ -969,7 +969,9 @@ int SessionAlsaCompress::close(Stream * s)
             if (sessionCb)
                 sessionCb(cbCookie, PAL_STREAM_CBK_EVENT_ERROR, NULL, 0);
         }
-        return -EINVAL;
+        PAL_DBG(LOG_TAG, "Return after freeing the resource");
+
+        return 0;
     }
 
     if (sAttr.type != PAL_STREAM_VOICE_CALL_MUSIC) {
