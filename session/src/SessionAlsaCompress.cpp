@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following lice
 nse:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -353,6 +353,22 @@ int SessionAlsaCompress::open(Stream * s)
             PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
             return status;
         }
+
+        rm->getBackEndNames(associatedDevices, rxAifBackEnds, txAifBackEnds);
+        if (rxAifBackEnds.empty() && txAifBackEnds.empty()) {
+            status = -EINVAL;
+            PAL_ERR(LOG_TAG, "no backend specified for this stream");
+            goto exit;
+        }
+
+        if (sAttr.direction == PAL_AUDIO_OUTPUT) {
+            if (rxAifBackEnds.empty() || !txAifBackEnds.empty()) {
+                status = -EINVAL;
+                PAL_ERR(LOG_TAG, "backend specified incorrectly for this stream\n");
+                goto exit;
+            }
+        }
+
     }
 
     compressDevIds = rm->allocateFrontEndIds(sAttr, 0);
@@ -379,6 +395,10 @@ int SessionAlsaCompress::open(Stream * s)
     }
     audio_fmt = sAttr.out_media_config.aud_fmt_id;
     isGaplessFmt = isGaplessFormat(audio_fmt);
+    return status;
+
+exit:
+    PAL_DBG(LOG_TAG, "Exit status: %d", status);
     return status;
 }
 
