@@ -3271,6 +3271,11 @@ int ResourceManager::getHwSndCard()
     return snd_hw_card;
 }
 
+int ResourceManager::getSkipStreamRestart()
+{
+    return skip_stream_restart;
+}
+
 int ResourceManager::getSndDeviceName(int deviceId, char *device_name)
 {
     if (isValidDevId(deviceId)) {
