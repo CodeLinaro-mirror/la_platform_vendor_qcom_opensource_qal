@@ -720,15 +720,25 @@ int32_t  StreamPCM::read(struct pal_buffer* buf)
 {
     int32_t status = 0;
     int32_t size;
+    uint32_t streamSize;
+    uint32_t byteWidth;
+    uint32_t sampleRate;
+    struct pal_channel_info chInfo;
     PAL_VERBOSE(LOG_TAG, "Enter. session handle - %pK, state %d",
             session, currentState);
 
     if ((rm->cardState == CARD_STATUS_OFFLINE) || cachedState != STREAM_IDLE) {
+
+        if(rm->getSkipStreamRestart() == 1) {
+            PAL_ERR(LOG_TAG, "SSR occured skip further processing");
+            status =  -EINVAL;
+            goto exit;
+        }
+
        /* calculate sleep time based on buf->size, sleep and return buf->size */
-        uint32_t streamSize;
-        uint32_t byteWidth = mStreamAttr->in_media_config.bit_width / 8;
-        uint32_t sampleRate = mStreamAttr->in_media_config.sample_rate;
-        struct pal_channel_info chInfo = mStreamAttr->in_media_config.ch_info;
+        byteWidth = mStreamAttr->in_media_config.bit_width / 8;
+        sampleRate = mStreamAttr->in_media_config.sample_rate;
+        pal_channel_info chInfo = mStreamAttr->in_media_config.ch_info;
 
         streamSize = byteWidth * chInfo.channels;
         if ((streamSize == 0) || (sampleRate == 0)) {
@@ -817,6 +827,11 @@ int32_t StreamPCM::write(struct pal_buffer* buf)
     if (isA2dpSuspended || (mDevices.size() == 0)
             || (rm->cardState == CARD_STATUS_OFFLINE)
             || cachedState != STREAM_IDLE) {
+        if(rm->getSkipStreamRestart() == 1) {
+            PAL_ERR(LOG_TAG, "SSR occured skip further processing");
+            mStreamMutex.unlock();
+            return -EINVAL;
+        }
         byteWidth = mStreamAttr->out_media_config.bit_width / 8;
         sampleRate = mStreamAttr->out_media_config.sample_rate;
         channelCount = mStreamAttr->out_media_config.ch_info.channels;
