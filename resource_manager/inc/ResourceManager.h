@@ -462,6 +462,7 @@ public:
                      pal_stream_type_t pal_stream_type);
     int getVirtualSndCard();
     int getHwSndCard();
+    int getSkipStreamRestart();
     int getPcmDeviceId(int deviceId);
     int getAudioRoute(struct audio_route** ar);
     int getVirtualAudioMixer(struct audio_mixer **am);
