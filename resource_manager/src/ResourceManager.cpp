@@ -107,7 +107,7 @@ nse:
 #define MAX_SESSIONS_DEEP_BUFFER 3
 #define MAX_SESSIONS_COMPRESSED 10
 #define MAX_SESSIONS_GENERIC 1
-#define MAX_SESSIONS_PCM_OFFLOAD 1
+#define MAX_SESSIONS_PCM_OFFLOAD 2
 #define MAX_SESSIONS_VOICE_UI 2
 #define MAX_SESSIONS_PROXY 8
 #define DEFAULT_MAX_SESSIONS 8
@@ -3269,6 +3269,11 @@ int ResourceManager::getVirtualSndCard()
 int ResourceManager::getHwSndCard()
 {
     return snd_hw_card;
+}
+
+int ResourceManager::getSkipStreamRestart()
+{
+    return skip_stream_restart;
 }
 
 int ResourceManager::getSndDeviceName(int deviceId, char *device_name)
