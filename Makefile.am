@@ -203,6 +203,9 @@ endif
 if IS_SDXLEMUR
 libpal_la_LIBADD    += -lagmclientwrapper
 endif
+if IS_SA525M
+libpal_la_LIBADD    += -lagmclientwrapper
+endif
 libpal_la_CPPFLAGS := $(AM_CPPFLAGS)
 libpal_la_CPPFLAGS += -std=c++14 -DHAVE_PTHREADS -DHAVE_ANDROID_OS
 libpal_la_CPPFLAGS += -DDEBUG_REFS_CALLSTACK_ENABLED=0
