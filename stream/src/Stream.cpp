@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following lice
 nse:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -455,6 +455,7 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
     int32_t status = 0;
     struct pal_stream_attributes *sattr = NULL;
     sattr = (struct pal_stream_attributes *)calloc(1, sizeof(struct pal_stream_attributes));
+    struct pal_device dAttr;
     if (!sattr) {
         status = -ENOMEM;
         PAL_ERR(LOG_TAG, "stream attribute malloc failed %s, status %d", strerror(errno), status);
@@ -476,11 +477,33 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
         }
         switch (sattr->type) {
             case PAL_STREAM_DEEP_BUFFER:
-            case PAL_STREAM_PCM_OFFLOAD:
             case PAL_STREAM_LOW_LATENCY:
                 *out_buf_size = (sattr->out_media_config.sample_rate) *
                                 DEEP_BUFFER_OUTPUT_PERIOD_DURATION;
 
+                *out_buf_size = *out_buf_size / 1000;
+                *out_buf_size = (*out_buf_size) *
+                                ((sattr->out_media_config.bit_width) / 8) *
+                                (sattr->out_media_config.ch_info.channels);
+                break;
+            case PAL_STREAM_PCM_OFFLOAD:
+                for (int i = 0; i < mDevices.size();i++) {
+                    status = mDevices[i]->getDeviceAttributes(&dAttr);
+                    if (0 != status) {
+                        PAL_ERR(LOG_TAG,"getDeviceAttributes Failed \n");
+                        status = -EINVAL;
+                        goto exit;
+                    }
+                    if (dAttr.id == PAL_DEVICE_OUT_PROXY) {
+                        *out_buf_size = (sattr->out_media_config.sample_rate) *
+                                        AFE_PROXY_OUTPUT_PERIOD_DURATION;
+                         break;
+                    }
+                }
+                if (dAttr.id != PAL_DEVICE_OUT_PROXY) {
+                    *out_buf_size = (sattr->out_media_config.sample_rate) *
+                                     DEEP_BUFFER_OUTPUT_PERIOD_DURATION;
+                }
                 *out_buf_size = *out_buf_size / 1000;
                 *out_buf_size = (*out_buf_size) *
                                 ((sattr->out_media_config.bit_width) / 8) *
