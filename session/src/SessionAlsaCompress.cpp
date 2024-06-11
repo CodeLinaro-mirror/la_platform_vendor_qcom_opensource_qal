@@ -834,7 +834,6 @@ int SessionAlsaCompress::start(Stream * s)
     if (!is_compress_ready(compress)) {
         PAL_ERR(LOG_TAG, "compress open not ready %s", compress_get_error(compress));
         status = -EINVAL;
-        worker_thread.reset(NULL);
         goto exit;
     }
     /** set non blocking mode for writes */
