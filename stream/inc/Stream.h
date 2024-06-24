@@ -28,7 +28,7 @@
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -66,6 +66,7 @@ typedef enum {
 #define BUF_SIZE_CAPTURE 960
 #define AUDIO_CAPTURE_PERIOD_DURATION_MSEC 20
 #define DEEP_BUFFER_OUTPUT_PERIOD_DURATION 40
+#define AFE_PROXY_OUTPUT_PERIOD_DURATION 20
 #define PCM_OFFLOAD_OUTPUT_PERIOD_DURATION 80
 #define PCM_VOICE_CALL_RECORD_PERIOD_DURATION 20
 #define PAL_INCALL_MUSIC_OUT_PERIOD_DURATION 40
