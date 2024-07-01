@@ -28,7 +28,7 @@
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -93,19 +93,6 @@ StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_devic
     std::ignore = modifiers;
     std::ignore = no_of_modifiers;
 
-    // Setting default volume to unity
-    mVolumeData = (struct pal_volume_data *)malloc(sizeof(struct pal_volume_data)
-                      +sizeof(struct pal_channel_vol_kv));
-    if (!mVolumeData) {
-        PAL_ERR(LOG_TAG, "Failed to allocate memory for volume data");
-        mStreamMutex.unlock();
-        throw std::runtime_error("failed to allocate memory for volume data");
-    }
-
-    mVolumeData->no_of_volpair = 1;
-    mVolumeData->volume_pair[0].channel_mask = 0x03;
-    mVolumeData->volume_pair[0].vol = 1.0f;
-
     if (!sattr || !dattr) {
         PAL_ERR(LOG_TAG,"invalid arguments");
         mStreamMutex.unlock();
@@ -129,6 +116,21 @@ StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_devic
     if (mStreamAttr->out_media_config.ch_info.channels > PAL_MAX_CHANNELS_SUPPORTED) {
         PAL_ERR(LOG_TAG,"out_channels is invalid %d", out_channels);
         mStreamAttr->out_media_config.ch_info.channels = PAL_MAX_CHANNELS_SUPPORTED;
+    }
+
+    // Setting default volume to unity
+    mVolumeData = (struct pal_volume_data *)malloc(sizeof(struct pal_volume_data)
+                      +(sizeof(struct pal_channel_vol_kv) * mStreamAttr->in_media_config.ch_info.channels));
+    if (!mVolumeData) {
+        PAL_ERR(LOG_TAG, "Failed to allocate memory for volume data");
+        mStreamMutex.unlock();
+        throw std::runtime_error("failed to allocate memory for volume data");
+    }
+
+    mVolumeData->no_of_volpair = mStreamAttr->in_media_config.ch_info.channels;
+    for (int i = 0; i < mVolumeData->no_of_volpair; i++) {
+        mVolumeData->volume_pair[i].channel_mask = mStreamAttr->in_media_config.ch_info.ch_map[i];
+        mVolumeData->volume_pair[i].vol = 1.0f;
     }
 
     PAL_VERBOSE(LOG_TAG, "Create new Session");
