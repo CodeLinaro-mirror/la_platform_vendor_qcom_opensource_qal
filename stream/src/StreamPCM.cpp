@@ -118,19 +118,39 @@ StreamPCM::StreamPCM(const struct pal_stream_attributes *sattr, struct pal_devic
         mStreamAttr->out_media_config.ch_info.channels = PAL_MAX_CHANNELS_SUPPORTED;
     }
 
-    // Setting default volume to unity
-    mVolumeData = (struct pal_volume_data *)malloc(sizeof(struct pal_volume_data)
-                      +(sizeof(struct pal_channel_vol_kv) * mStreamAttr->in_media_config.ch_info.channels));
+    if (mStreamAttr->direction == PAL_AUDIO_INPUT)
+    {
+        // Setting default volume to unity
+        mVolumeData = (struct pal_volume_data *)malloc(sizeof(struct pal_volume_data)
+                          +(sizeof(struct pal_channel_vol_kv) * mStreamAttr->in_media_config.ch_info.channels));
+    }
+    else
+    {
+        // Setting default volume to unity
+        mVolumeData = (struct pal_volume_data *)malloc(sizeof(struct pal_volume_data)
+                          +(sizeof(struct pal_channel_vol_kv) * mStreamAttr->out_media_config.ch_info.channels));
+    }
     if (!mVolumeData) {
         PAL_ERR(LOG_TAG, "Failed to allocate memory for volume data");
         mStreamMutex.unlock();
         throw std::runtime_error("failed to allocate memory for volume data");
     }
 
-    mVolumeData->no_of_volpair = mStreamAttr->in_media_config.ch_info.channels;
-    for (int i = 0; i < mVolumeData->no_of_volpair; i++) {
-        mVolumeData->volume_pair[i].channel_mask = mStreamAttr->in_media_config.ch_info.ch_map[i];
-        mVolumeData->volume_pair[i].vol = 1.0f;
+    if (mStreamAttr->direction == PAL_AUDIO_INPUT)
+    {
+        mVolumeData->no_of_volpair = mStreamAttr->in_media_config.ch_info.channels;
+        for (int i = 0; i < mVolumeData->no_of_volpair; i++) {
+            mVolumeData->volume_pair[i].channel_mask = mStreamAttr->in_media_config.ch_info.ch_map[i];
+            mVolumeData->volume_pair[i].vol = 1.0f;
+        }
+    }
+    else
+    {
+        mVolumeData->no_of_volpair = mStreamAttr->out_media_config.ch_info.channels;
+        for (int i = 0; i < mVolumeData->no_of_volpair; i++) {
+            mVolumeData->volume_pair[i].channel_mask = mStreamAttr->out_media_config.ch_info.ch_map[i];
+            mVolumeData->volume_pair[i].vol = 1.0f;
+        }
     }
 
     PAL_VERBOSE(LOG_TAG, "Create new Session");

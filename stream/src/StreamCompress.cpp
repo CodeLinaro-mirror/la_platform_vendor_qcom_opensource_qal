@@ -27,7 +27,7 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -85,19 +85,6 @@ StreamCompress::StreamCompress(const struct pal_stream_attributes *sattr, struct
     std::ignore = no_of_modifiers;
     currentState = STREAM_IDLE;
 
-    // Setting default volume to unity
-    mVolumeData = (struct pal_volume_data *)calloc(1, sizeof(struct pal_volume_data)
-                          + sizeof(struct pal_channel_vol_kv));
-    if (!mVolumeData) {
-        PAL_ERR(LOG_TAG, "malloc for volume data failed");
-        mStreamMutex.unlock();
-        throw std::runtime_error("failed to malloc for volume data");
-    }
-
-    mVolumeData->no_of_volpair = 1;
-    mVolumeData->volume_pair[0].channel_mask = 0x03;
-    mVolumeData->volume_pair[0].vol = 1.0f;
-
     mStreamAttr = (struct pal_stream_attributes *)calloc(1, sizeof(struct pal_stream_attributes));
     if (!mStreamAttr) {
         PAL_ERR(LOG_TAG,"malloc for stream attributes failed");
@@ -106,6 +93,41 @@ StreamCompress::StreamCompress(const struct pal_stream_attributes *sattr, struct
     }
     ar_mem_cpy(mStreamAttr, sizeof(pal_stream_attributes), sattr, sizeof(pal_stream_attributes));
     PAL_VERBOSE(LOG_TAG,"Create new compress session");
+
+    if (mStreamAttr->direction == PAL_AUDIO_INPUT)
+    {
+        // Setting default volume to unity
+        mVolumeData = (struct pal_volume_data *)malloc(sizeof(struct pal_volume_data)
+                          +(sizeof(struct pal_channel_vol_kv) * mStreamAttr->in_media_config.ch_info.channels));
+    }
+    else
+    {
+        // Setting default volume to unity
+        mVolumeData = (struct pal_volume_data *)malloc(sizeof(struct pal_volume_data)
+                          +(sizeof(struct pal_channel_vol_kv) * mStreamAttr->out_media_config.ch_info.channels));
+    }
+    if (!mVolumeData) {
+        PAL_ERR(LOG_TAG, "Failed to allocate memory for volume data");
+        mStreamMutex.unlock();
+        throw std::runtime_error("failed to allocate memory for volume data");
+    }
+
+    if (mStreamAttr->direction == PAL_AUDIO_INPUT)
+    {
+        mVolumeData->no_of_volpair = mStreamAttr->in_media_config.ch_info.channels;
+        for (int i = 0; i < mVolumeData->no_of_volpair; i++) {
+            mVolumeData->volume_pair[i].channel_mask = mStreamAttr->in_media_config.ch_info.ch_map[i];
+            mVolumeData->volume_pair[i].vol = 1.0f;
+        }
+    }
+    else
+    {
+        mVolumeData->no_of_volpair = mStreamAttr->out_media_config.ch_info.channels;
+        for (int i = 0; i < mVolumeData->no_of_volpair; i++) {
+            mVolumeData->volume_pair[i].channel_mask = mStreamAttr->out_media_config.ch_info.ch_map[i];
+            mVolumeData->volume_pair[i].vol = 1.0f;
+        }
+    }
 
     session = Session::makeSession(rm, sattr);
     if (session == NULL){
