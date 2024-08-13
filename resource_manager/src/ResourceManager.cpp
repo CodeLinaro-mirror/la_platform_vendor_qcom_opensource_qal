@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following lice
 nse:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 -2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -103,6 +103,7 @@ nse:
 // TODO: double check and confirm actual
 // values for max sessions number
 #define MAX_SESSIONS_LOW_LATENCY 8
+#define MAX_SESSIONS_VOICE_CALL 1
 #define MAX_SESSIONS_ULTRA_LOW_LATENCY 8
 #define MAX_SESSIONS_DEEP_BUFFER 3
 #define MAX_SESSIONS_COMPRESSED 10
@@ -1518,7 +1519,9 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
             cur_sessions = active_streams_proxy.size();
             max_sessions = MAX_SESSIONS_PROXY;
             break;
-         case PAL_STREAM_VOICE_CALL:
+        case PAL_STREAM_VOICE_CALL:
+            cur_sessions = active_streams_vc.size();
+            max_sessions = MAX_SESSIONS_VOICE_CALL;
             break;
         case PAL_STREAM_VOICE_CALL_MUSIC:
             cur_sessions = active_streams_incall_music.size();
@@ -1548,7 +1551,7 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
             PAL_ERR(LOG_TAG, "Invalid stream type = %d", type);
         return result;
     }
-    if (cur_sessions == max_sessions && type != PAL_STREAM_VOICE_CALL) {
+    if (cur_sessions == max_sessions) {
         PAL_ERR(LOG_TAG, "no new session allowed for stream %d", type);
         return result;
     }
@@ -1677,10 +1680,15 @@ int ResourceManager::registerStream(Stream *s)
         case PAL_STREAM_LOW_LATENCY:
         case PAL_STREAM_VOIP_RX:
         case PAL_STREAM_VOIP_TX:
-        case PAL_STREAM_VOICE_CALL:
         {
             StreamPCM* sPCM = dynamic_cast<StreamPCM*>(s);
             ret = registerstream(sPCM, active_streams_ll);
+            break;
+        }
+        case PAL_STREAM_VOICE_CALL:
+        {
+            StreamPCM* sPCM = dynamic_cast<StreamPCM*>(s);
+            ret = registerstream(sPCM, active_streams_vc);
             break;
         }
         case PAL_STREAM_PCM_OFFLOAD:
@@ -1835,10 +1843,15 @@ int ResourceManager::deregisterStream(Stream *s)
         case PAL_STREAM_LOW_LATENCY:
         case PAL_STREAM_VOIP_RX:
         case PAL_STREAM_VOIP_TX:
-        case PAL_STREAM_VOICE_CALL:
         {
             StreamPCM* sPCM = dynamic_cast<StreamPCM*>(s);
             ret = deregisterstream(sPCM, active_streams_ll);
+            break;
+        }
+        case PAL_STREAM_VOICE_CALL:
+        {
+            StreamPCM* sPCM = dynamic_cast<StreamPCM*>(s);
+            ret = deregisterstream(sPCM, active_streams_vc);
             break;
         }
         case PAL_STREAM_PCM_OFFLOAD:
@@ -3171,6 +3184,7 @@ int ResourceManager::getActiveStream_l(std::shared_ptr<Device> d,
     int ret = 0;
     // merge all types of active streams into activestreams
     getActiveStreams(d, activestreams, active_streams_ll);
+    getActiveStreams(d, activestreams, active_streams_vc);
     getActiveStreams(d, activestreams, active_streams_ull);
     getActiveStreams(d, activestreams, active_streams_ulla);
     getActiveStreams(d, activestreams, active_streams_db);
