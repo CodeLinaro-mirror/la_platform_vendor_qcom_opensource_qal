@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following
  * license:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -95,11 +95,13 @@ int  SndCardMonitor::onSndcardStateUpdate(sndcard_t *s)
     else {
         ret = -EINVAL;
         PAL_ERR(LOG_TAG, "unknown state, ret %d", ret);
+        free(rd_buf);
         return ret;
     }
 
     s->status = status;
     PAL_ERR(LOG_TAG, "state %d", status);
+    free(rd_buf);
 
     return status;
 }
@@ -124,8 +126,10 @@ char* SndCardMonitor::readState(int fd)
         return NULL;
 
     ssize_t bytes = read(fd, state, avail);
-    if (bytes <= 0)
+    if (bytes <= 0) {
+        free(state);
         return NULL;
+    }
 
     // trim trailing whitespace
     while (bytes && isspace(*(state+bytes-1))) {
@@ -153,6 +157,7 @@ int SndCardMonitor::addNewSndCard(int card, int fd)
     s = (sndcard_t *)calloc(sizeof(sndcard_t), 1);
     if (!s) {
         PAL_ERR(LOG_TAG, "Calloc failed to sndcard");
+        free(state);
         return -ENOMEM;
     }
     s->card = card;
