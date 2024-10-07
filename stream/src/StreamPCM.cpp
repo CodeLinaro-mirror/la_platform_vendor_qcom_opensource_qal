@@ -316,6 +316,9 @@ StreamPCM::~StreamPCM()
 int32_t StreamPCM::start()
 {
     int32_t status = 0, devStatus = 0;
+    uint8_t *payload = nullptr;
+    pal_param_payload *palParam  = nullptr;
+    pal_device_mute_t *muteParam = nullptr;
 
     mStreamMutex.lock();
     if (rm->cardState == CARD_STATUS_OFFLINE) {
@@ -484,6 +487,33 @@ int32_t StreamPCM::start()
          *so directly jump to STREAM_STARTED state.
          */
         currentState = STREAM_STARTED;
+        if(mMuteState) {
+            if(setMute(mMuteState))
+               PAL_ERR(LOG_TAG, "Failed to set mute state");
+       }
+
+        payload = (uint8_t *)calloc(1, sizeof(pal_param_payload) + sizeof(pal_device_mute_t));
+        if (!payload) {
+            PAL_ERR(LOG_TAG, "can't allocate pal_param_payload");
+            goto exit;
+        }
+
+        palParam  = (pal_param_payload *)payload;
+        muteParam = (pal_device_mute_t *)(payload + sizeof(pal_param_payload));
+        //palParam->payload_size = sizeof(pal_device_mute_t);
+
+        if(deviceMuteStateRx || deviceMuteStateTx) {
+            if(deviceMuteStateRx){
+               muteParam->dir = PAL_AUDIO_OUTPUT;
+            }
+            else if(deviceMuteStateTx){
+               muteParam->dir = PAL_AUDIO_INPUT;
+            }
+            muteParam->mute = true;
+            if(setDeviceParameters(PAL_PARAM_ID_DEVICE_MUTE,palParam))
+               PAL_ERR(LOG_TAG, "Failed to set mute state");
+        }
+
     } else if (currentState == STREAM_STARTED) {
         PAL_INFO(LOG_TAG, "Stream already started, state %d", currentState);
         goto exit;
@@ -1061,10 +1091,29 @@ int32_t StreamPCM::getParameters(uint32_t param_id, void ** payload)
     return 0;
 }
 
+int32_t StreamPCM::setDeviceParameters(uint32_t param_id, void*payload)
+{
+    int32_t status = 0;
+    pal_param_payload *param_payload = (pal_param_payload *)payload;
+    pal_device_mute_t *deviceMutePayload =
+            (pal_device_mute_t *)(param_payload->payload);
+
+    if(currentState == STREAM_STARTED) {
+       status = session->setParameters(this, DEVICE_MUTE,
+                                       param_id, payload);
+       if (status) {
+           PAL_ERR(LOG_TAG, "setParam for device mute failed with %d",
+                   status);
+       }
+   }
+   setDeviceMute(deviceMutePayload->dir, deviceMutePayload->mute);
+   return status;
+}
+
 int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
 {
     int32_t status = 0;
-    pal_param_payload *param_payload = NULL;
+    pal_param_payload *param_payload = nullptr;
     effect_pal_payload_t *effectPalPayload = nullptr;
     pal_device_mute_t *deviceMutePayload = nullptr;
 
@@ -1179,14 +1228,7 @@ int32_t  StreamPCM::setParameters(uint32_t param_id, void *payload)
         {
             param_payload = (pal_param_payload *)payload;
             deviceMutePayload = (pal_device_mute_t *)(param_payload->payload);
-            status = session->setParameters(this, DEVICE_MUTE,
-                                            param_id, payload);
-            if (status) {
-               PAL_ERR(LOG_TAG, "setParam for device mute failed with %d",
-                       status);
-            } else {
-               setDeviceMute(deviceMutePayload->dir, deviceMutePayload->mute);
-            }
+            setDeviceParameters(PAL_PARAM_ID_DEVICE_MUTE,param_payload);
             break;
         }
         default:
@@ -1201,24 +1243,31 @@ error:
     return status;
 }
 
+int32_t StreamPCM::setMute(bool state)
+{
+    int32_t status = 0;
+    if(currentState == STREAM_STARTED) {
+        if (state)
+            status = session->setConfig(this, MODULE, MUTE_TAG);
+        else
+            status = session->setConfig(this, MODULE, UNMUTE_TAG);
+
+        if (0 != status) {
+            PAL_ERR(LOG_TAG, "session setConfig for mute failed with status %d",
+                status);
+            return status;
+        }
+    }
+    mMuteState = state; // remember desired state for prestart mute.
+    return status;
+}
+
 int32_t StreamPCM::mute(bool state)
 {
     int32_t status = 0;
     PAL_DBG(LOG_TAG, "Enter. session handle - %pK state %d", session, state);
     mStreamMutex.lock();
-    if (state)
-        status = session->setConfig(this, MODULE, MUTE_TAG);
-    else
-        status = session->setConfig(this, MODULE, UNMUTE_TAG);
-
-    if (0 != status) {
-        PAL_ERR(LOG_TAG, "session setConfig for mute failed with status %d",
-                status);
-        goto exit;
-    }
-    mMuteState = state;
-    PAL_DBG(LOG_TAG, "Exit. session setConfig successful");
-exit:
+    setMute(state);
     mStreamMutex.unlock();
     return status;
 }
