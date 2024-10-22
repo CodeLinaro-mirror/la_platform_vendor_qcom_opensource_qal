@@ -455,7 +455,7 @@ int32_t Stream::getBufSize(size_t *in_buf_size, size_t *out_buf_size)
     int32_t status = 0;
     struct pal_stream_attributes *sattr = NULL;
     sattr = (struct pal_stream_attributes *)calloc(1, sizeof(struct pal_stream_attributes));
-    struct pal_device dAttr;
+    struct pal_device dAttr = {};
     if (!sattr) {
         status = -ENOMEM;
         PAL_ERR(LOG_TAG, "stream attribute malloc failed %s, status %d", strerror(errno), status);
