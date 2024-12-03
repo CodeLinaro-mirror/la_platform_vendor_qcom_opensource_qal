@@ -703,6 +703,13 @@ int32_t  StreamPCM::setVolume(struct pal_volume_data *volume)
      * till the pcm_open is not done or if sound card is
      * offline.
      */
+
+    if (!mStreamAttr){
+        PAL_ERR(LOG_TAG, "mStreamAttr info is NULL/not populated");
+        status = -EINVAL;
+        goto exit;
+    }
+
     stream_channel = mStreamAttr->in_media_config.ch_info.channels;
 
     if(stream_channel != volume->no_of_volpair){
@@ -713,6 +720,19 @@ int32_t  StreamPCM::setVolume(struct pal_volume_data *volume)
     for (int32_t i=(volume->no_of_volpair)-1 ; i>=0; i--) {
         PAL_INFO(LOG_TAG, "Volume payload mask:%x vol:%f",
                       (volume->volume_pair[i].channel_mask), (volume->volume_pair[i].vol));
+
+        if (volume->volume_pair[i].vol < 0.0 || volume->volume_pair[i].vol > 1.0) {
+            PAL_ERR(LOG_TAG, "volume level is not with in the range");
+            status = -EINVAL;
+            goto exit;
+        }
+
+        if (volume->no_of_volpair > 1 && volume->volume_pair[0].vol != volume->volume_pair[i].vol) {
+            PAL_ERR(LOG_TAG, "All channel mask values are not equal");
+            status = -EINVAL;
+            goto exit;
+        }
+
         vol_channel_mask = volume->volume_pair[i].channel_mask;
         stream_status = false;
         for (int32_t j=0; j < stream_channel; j++) {

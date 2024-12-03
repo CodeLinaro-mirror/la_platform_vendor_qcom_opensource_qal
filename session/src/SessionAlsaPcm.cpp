@@ -1190,9 +1190,11 @@ int SessionAlsaPcm::close(Stream * s)
                     PAL_DBG(LOG_TAG, "Tx dev not active");
                 }
             }
-            status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
-            if (status) {
-                PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+            if (mState != SESSION_IDLE) {
+                status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                }
             }
             if (SessionAlsaUtils::isMmapUsecase(sAttr) &&
                 !(sAttr.flags & PAL_STREAM_FLAG_MMAP_NO_IRQ_MASK))
@@ -1218,9 +1220,11 @@ int SessionAlsaPcm::close(Stream * s)
                     freeDeviceMetadata.push_back(std::make_pair(backendname, 1));
                 }
             }
-            status = SessionAlsaUtils::close(s, rm, pcmDevIds, rxAifBackEnds, freeDeviceMetadata);
-            if (status) {
-                PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+            if (mState != SESSION_IDLE) {
+                status = SessionAlsaUtils::close(s, rm, pcmDevIds, rxAifBackEnds, freeDeviceMetadata);
+                if (status) {
+                    PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                }
             }
             if (SessionAlsaUtils::isMmapUsecase(sAttr) &&
                 !(sAttr.flags & PAL_STREAM_FLAG_MMAP_NO_IRQ_MASK))
@@ -1236,16 +1240,20 @@ int SessionAlsaPcm::close(Stream * s)
         case PAL_AUDIO_INPUT | PAL_AUDIO_OUTPUT:
             if (sAttr.info.opt_stream_info.loopback_type ==
                     PAL_STREAM_LOOPBACK_CAPTURE_ONLY) {
-                status = SessionAlsaUtils::close(s, rm, pcmDevTxIds, txAifBackEnds, freeDeviceMetadata);
-                if (status) {
-                    PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                if (mState != SESSION_IDLE) {
+                    status = SessionAlsaUtils::close(s, rm, pcmDevTxIds, txAifBackEnds, freeDeviceMetadata);
+                    if (status) {
+                        PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                    }
                 }
             }
             else if (sAttr.info.opt_stream_info.loopback_type ==
                         PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) {
-                status = SessionAlsaUtils::close(s, rm, pcmDevRxIds, rxAifBackEnds, freeDeviceMetadata);
-                if (status) {
-                    PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                if (mState != SESSION_IDLE) {
+                    status = SessionAlsaUtils::close(s, rm, pcmDevRxIds, rxAifBackEnds, freeDeviceMetadata);
+                    if (status) {
+                        PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
+                    }
                 }
             }
             else {
