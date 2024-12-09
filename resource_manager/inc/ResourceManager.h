@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following lice
 nse:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023 -2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -302,6 +302,7 @@ protected:
     std::list <StreamPCM*> active_streams_db;
     std::list <StreamPCM*> active_streams_po;
     std::list <StreamPCM*> active_streams_proxy;
+    std::list <StreamPCM*> active_streams_vc;
     std::list <StreamInCall*> active_streams_incall_record;
     std::list <StreamInCall*> active_streams_incall_music;
     std::list <StreamInCall*> active_streams_hpcm_rx_pb;
