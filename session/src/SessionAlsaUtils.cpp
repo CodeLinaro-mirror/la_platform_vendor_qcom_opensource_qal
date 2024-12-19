@@ -1,7 +1,7 @@
 /*
 * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
 *
-* Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
 *
 * Redistribution and use in source and binary forms, with or without
 * modification, are permitted provided that the following conditions are
@@ -27,6 +27,10 @@
 * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+*
+* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
 #define LOG_TAG "PAL: SessionAlsaUtils"
@@ -769,7 +773,7 @@ int SessionAlsaUtils::getTimestamp(struct mixer *mixer, const std::vector<int> &
         status = mixer_ctl_get_array(ctl, payload, payloadSize);
         if (0 != status) {
              PAL_ERR(LOG_TAG, "Get failed status = %d", status);
-             free(payload);
+             delete[] payload;
              goto exit;
         }
     } else {

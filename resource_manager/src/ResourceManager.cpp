@@ -607,6 +607,9 @@ ResourceManager::~ResourceManager()
     listAllPcmVoice1TxFrontEnds.clear();
     listAllPcmVoice2RxFrontEnds.clear();
     listAllPcmVoice2TxFrontEnds.clear();
+    listAllPcmInCallRecordFrontEnds.clear();
+    listAllPcmInCallMusicFrontEnds.clear();
+    listAllPcmInCallCompressMusicFrontEnds.clear();
     devInfo.clear();
     txEcInfo.clear();
 
