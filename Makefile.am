@@ -211,7 +211,11 @@ libpal_la_CPPFLAGS += -std=c++14 -DHAVE_PTHREADS -DHAVE_ANDROID_OS
 libpal_la_CPPFLAGS += -DDEBUG_REFS_CALLSTACK_ENABLED=0
 libpal_la_CPPFLAGS += -DNDEBUG
 libpal_la_LDFLAGS   = -shared -avoid-version
-libpal_la_CPPFLAGS += $(GLIB_CFLAGS) -Dstrlcpy=g_strlcpy -Dstrlcat=g_strlcat -include glib.h
+libpal_la_CPPFLAGS += $(GLIB_CFLAGS) -include glib.h
+if USE_G_STRLCPY
+libpal_la_CPPFLAGS += -Dstrlcat=g_strlcat -Dstrlcpy=g_strlcpy
+endif
+
 if BUILDSYSTEM_OPENWRT
 libpal_la_LIBADD += -lglib-2.0
 endif
