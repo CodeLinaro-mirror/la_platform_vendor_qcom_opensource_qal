@@ -126,8 +126,10 @@ char* SndCardMonitor::readState(int fd)
         return NULL;
 
     ssize_t bytes = read(fd, state, avail);
-    if (bytes <= 0)
+    if (bytes <= 0) {
+        free(state);
         return NULL;
+    }
 
     // trim trailing whitespace
     while (bytes && isspace(*(state+bytes-1))) {
@@ -155,6 +157,7 @@ int SndCardMonitor::addNewSndCard(int card, int fd)
     s = (sndcard_t *)calloc(sizeof(sndcard_t), 1);
     if (!s) {
         PAL_ERR(LOG_TAG, "Calloc failed to sndcard");
+        free(state);
         return -ENOMEM;
     }
     s->card = card;
