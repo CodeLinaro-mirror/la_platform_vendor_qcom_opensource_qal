@@ -73,5 +73,13 @@ AC_ARG_WITH([compress],
     [with_compress=no])
 AM_CONDITIONAL([COMPILE_COMPRESS], [test "x${with_compress}" = "xyes"])
 
+AC_CHECK_FUNCS([strlcpy])
+
+if ! test "$ac_cv_func_strlcpy" = "yes"; then
+  AC_DEFINE([USE_G_STRLCPY], [1], Use g_strlcpy)
+fi
+
+AM_CONDITIONAL(USE_G_STRLCPY, [test "x${USE_G_STRLCPY}" = "x1"])
+
 AC_CONFIG_FILES([ Makefile pal.pc ])
 AC_OUTPUT
