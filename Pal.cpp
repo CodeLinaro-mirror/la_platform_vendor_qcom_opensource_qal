@@ -28,7 +28,7 @@
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -853,6 +853,38 @@ int32_t pal_stream_set_device(pal_stream_handle_t *stream_handle,
     rm->unlockActiveStream();
 
     s->getStreamAttributes(&sattr);
+
+    for (int i = 0; i < no_of_devices; i++) {
+        if (sattr.direction == PAL_AUDIO_OUTPUT) {
+            if ((devices[i].id > PAL_DEVICE_OUT_MIN) && (devices[i].id < PAL_DEVICE_OUT_MAX)) {
+                PAL_DBG(LOG_TAG, "Proper direction %d for the device %d", sattr.direction, devices[i].id);
+            } else {
+                PAL_ERR(LOG_TAG, "Wrong direction %d for the device %d", sattr.direction, devices[i].id);
+                status = -EINVAL;
+                return status;
+            }
+        } else if ((sattr.direction == PAL_AUDIO_INPUT)) {
+            if ((devices[i].id > PAL_DEVICE_IN_MIN) && (devices[i].id < PAL_DEVICE_IN_MAX)) {
+                PAL_DBG(LOG_TAG, "Proper direction %d for the device %d", sattr.direction, devices[i].id);
+            } else {
+                PAL_ERR(LOG_TAG, "Wrong direction %d for the device %d", sattr.direction, devices[i].id);
+                status = -EINVAL;
+                return status;
+            }
+        } else {
+            if ((devices[i].id > PAL_DEVICE_OUT_MIN) && (devices[i].id < PAL_DEVICE_OUT_MAX)) {
+               PAL_DBG(LOG_TAG, "Proper direction %d for the device %d", sattr.direction, devices[i].id);
+            } else {
+                if ((devices[i].id > PAL_DEVICE_IN_MIN) && (devices[i].id < PAL_DEVICE_IN_MAX)) {
+                    PAL_DBG(LOG_TAG, "Proper direction %d for the device %d", sattr.direction, devices[i].id);
+                } else {
+                    PAL_ERR(LOG_TAG, "Wrong direction %d for the device %d", sattr.direction, devices[i].id);
+                    status = -EINVAL;
+                    return status;
+                }
+            }
+        }
+    }
 
     // device switch will be handled in global param setting for SVA
     if (sattr.type == PAL_STREAM_VOICE_UI) {
