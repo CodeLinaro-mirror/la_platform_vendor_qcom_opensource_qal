@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following
  * license:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -742,6 +742,21 @@ int SessionAlsaVoice::setParameters(Stream *s, int tagId, uint32_t param_id , vo
             if (param_id == PAL_PARAM_ID_DTMF_GEN_WITH_PARAM)
             {
                 pal_param_dtmf_gen_tone_cfg_t *dtmf_payload = (pal_param_dtmf_gen_tone_cfg_t *)payload;
+                std::vector<std::shared_ptr<Device>> associatedDevices;
+
+                status = s->getAssociatedDevices(associatedDevices);
+                if (0 != status) {
+                    PAL_ERR(LOG_TAG,"getAssociatedDevices Failed \n");
+                    goto exit;
+                }
+
+                rm->getBackEndNames(associatedDevices, rxAifBackEnds, txAifBackEnds);
+
+                if (rxAifBackEnds.empty()) {
+                    status = -EINVAL;
+                    PAL_ERR(LOG_TAG, "no TX backend specified for this stream\n");
+                    goto exit;
+                }
                 status = SessionAlsaUtils::getModuleInstanceId(mixer, pcmDevRxIds.at(0),
                                    rxAifBackEnds[0].second.data(), DTMF_GENERATOR, &miid);
                 builder->payloadDTMFGenConfig(&paramData, &paramSize, miid, dtmf_payload);
