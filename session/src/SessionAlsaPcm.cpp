@@ -1,8 +1,6 @@
 /*
  * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  *
- * Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
  * met:
@@ -27,6 +25,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
+ * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: SessionAlsaPcm"
@@ -1905,6 +1907,13 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint
         case PAL_PARAM_ID_DTMF_GEN_WITH_PARAM:
         {
             pal_param_dtmf_gen_tone_cfg_t *dtmf_payload = (pal_param_dtmf_gen_tone_cfg_t *)payload;
+
+            if (rxAifBackEnds.empty()) {
+                status = -EINVAL;
+                PAL_ERR(LOG_TAG,"Rx device is not set");
+                return status;
+            }
+
             status = SessionAlsaUtils::getModuleInstanceId(mixer, pcmDevRxIds.at(0),
                                rxAifBackEnds[0].second.data(), DTMF_GENERATOR, &miid);
             builder->payloadDTMFGenConfig(&paramData, &paramSize, miid, dtmf_payload);
