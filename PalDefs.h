@@ -865,7 +865,7 @@ typedef struct pal_param_dtmf_gen_tone_cfg {
     uint16_t low_freq;
     /* gain and duration are unused params */
     uint16_t gain;
-    int16_t duration_ms;
+    uint16_t duration_ms;
 } pal_param_dtmf_gen_tone_cfg_t;
 
 /* Payload For ID: PAL_PARAM_ID_MODULE_ENABLE
