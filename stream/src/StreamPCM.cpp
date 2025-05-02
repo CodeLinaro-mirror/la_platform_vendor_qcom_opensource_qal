@@ -983,7 +983,7 @@ int32_t StreamPCM::getParameters(uint32_t param_id, void ** payload)
         case PAL_PARAM_ID_DEVICE_MUTE:
         {
             param_payload = (pal_param_payload *)(*payload);
-            pal_device_mute_t *deviceMutePayload = (pal_device_mute_t *) (param_payload + sizeof(pal_param_payload));
+            pal_device_mute_t *deviceMutePayload = (pal_device_mute_t *) ((char *)param_payload + sizeof(pal_param_payload));
             getDeviceMute(deviceMutePayload->dir, &(deviceMutePayload->mute));
             break;
         }
