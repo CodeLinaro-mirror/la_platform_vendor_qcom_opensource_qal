@@ -52,7 +52,7 @@
 /*Parameter used to enable module and send HPCM configuration */
 #define PARAM_ID_HPCM_CONFIG             0x08001378
  /** Parameter ID for DTMF generation */
-#define PARAM_ID_DTMF_GEN_TONE_CFG       0x08001121
+#define PARAM_ID_DTMF_GEN_TONE_CFG       0X08001AE8
 
 /* ID of the Output Media Format parameters used by MODULE_ID_MFC */
 #define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT            0x08001024

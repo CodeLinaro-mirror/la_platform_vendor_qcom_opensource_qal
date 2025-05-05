@@ -863,9 +863,10 @@ typedef struct pal_param_device_rotation {
 typedef struct pal_param_dtmf_gen_tone_cfg {
     uint16_t high_freq;
     uint16_t low_freq;
-    /* gain and duration are unused params */
+    /*  duration and gain are unused params */
+    int32_t duration_ms;
     uint16_t gain;
-    uint16_t duration_ms;
+    uint16_t reserved;
 } pal_param_dtmf_gen_tone_cfg_t;
 
 /* Payload For ID: PAL_PARAM_ID_MODULE_ENABLE
