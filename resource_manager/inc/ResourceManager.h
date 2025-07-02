@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following lice
 nse:
  *
- * Copyright (c) 2023 -2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -377,6 +377,7 @@ public:
     ~ResourceManager();
     enum card_status_t cardState;
     bool ssrStarted = false;
+    static bool mixerClosed;
     static bool isSpeakerProtectionEnabled;
     static bool isRasEnabled;
     static bool isGaplessEnabled;
