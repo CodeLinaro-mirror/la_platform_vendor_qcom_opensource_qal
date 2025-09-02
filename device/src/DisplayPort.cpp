@@ -161,7 +161,7 @@ int DisplayPort::configureDpEndpoint()
 {
     int status = 0;
     std::string backEndName;
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
     struct dpAudioConfig cfg;
     uint8_t* payload = NULL;
     Stream *stream = NULL;
