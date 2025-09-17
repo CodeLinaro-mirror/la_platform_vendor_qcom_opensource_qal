@@ -114,7 +114,7 @@ int USB::configureUsb()
     std::string backEndName;
     Stream *stream = NULL;
     std::shared_ptr<Device> dev = nullptr;
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
     struct usbAudioConfig cfg;
     uint8_t* payload = NULL;
     std::vector<Stream*> activestreams;
