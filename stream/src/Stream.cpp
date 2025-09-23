@@ -876,8 +876,8 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
         /* If mDevice[i] does not match with any of new device,
            then update disconnect list */
         if (matchFound == false) {
-            curDeviceSlots[disconnectCount] = i;
             disconnectCount++;
+            curDeviceSlots[disconnectCount] = i;
         }
     }
 
@@ -1012,10 +1012,14 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
             }
         }
         /* Add device associated with current stream to streamDevDisconnect/StreamDevConnect list */
-        for (int j = 0; j < disconnectCount; j++) {
+        matchFound = false;
+        for (int j = 1; j <= disconnectCount; j++) {
             // check to make sure device direction is the same
-            if (rm->matchDevDir(mDevices[curDeviceSlots[j]]->getSndDeviceId(), newDevices[newDeviceSlots[i]].id))
+            if (rm->matchDevDir(mDevices[curDeviceSlots[j]]->getSndDeviceId(), newDevices[newDeviceSlots[i]].id) &&
+                mDevices[curDeviceSlots[j]]->getSndDeviceId() != newDevices[newDeviceSlots[i]].id){
                 streamDevDisconnect.push_back({streamHandle, mDevices[curDeviceSlots[j]]->getSndDeviceId()});
+                matchFound = true;
+            }
         }
         if (strlen(newDevices[newDeviceSlots[i]].custom_config.custom_key)) {
             PAL_DBG(LOG_TAG, "new device has custom key %s",
@@ -1028,7 +1032,9 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
             rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type);
         }
 
-        StreamDevConnect.push_back({streamHandle, &newDevices[newDeviceSlots[i]]});
+        if (matchFound ||(disconnectCount == 0)) {
+            StreamDevConnect.push_back({streamHandle, &newDevices[newDeviceSlots[i]]});
+        }
     }
 
     /* Handle scenario when there is only device to disconnect.

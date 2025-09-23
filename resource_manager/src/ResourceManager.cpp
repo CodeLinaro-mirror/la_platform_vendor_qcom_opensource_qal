@@ -29,7 +29,7 @@
  * Changes from Qualcomm Innovation Center are provided under the following lice
 nse:
  *
- * Copyright (c) 2023 -2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -361,6 +361,7 @@ bool ResourceManager::isSpeakerProtectionEnabled;
 bool ResourceManager::isRasEnabled = false;
 int ResourceManager::spQuickCalTime;
 bool ResourceManager::isGaplessEnabled = false;
+bool ResourceManager::mixerClosed = false;
 
 //TODO:Needs to define below APIs so that functionality won't break
 #ifdef FEATURE_IPQ_OPENWRT
@@ -757,6 +758,11 @@ void ResourceManager::ssrHandler(card_status_t state)
 {
     PAL_DBG(LOG_TAG, "Enter. state %d", state);
     cvMutex.lock();
+    if (ResourceManager::mixerClosed) {
+        PAL_INFO(LOG_TAG, "mixerClosed, ignore pushing SSR state");
+        cvMutex.unlock();
+        return;
+    }
     msgQ.push(state);
     cvMutex.unlock();
     cv.notify_all();
@@ -3334,6 +3340,7 @@ void ResourceManager::deinit()
 {
     card_status_t state = CARD_STATUS_NONE;
 
+    mixerClosed = true;
     mixer_close(audio_virt_mixer);
     mixer_close(audio_hw_mixer);
     if (audio_route) {
