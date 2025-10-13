@@ -370,7 +370,7 @@ protected:
     static int concurrentRxStreamCount;
     static int concurrentTxStreamCount;
     std::map<int, std::pair<session_callback, uint64_t>> mixerEventCallbackMap;
-    std::thread mixerEventTread;
+    static std::thread mixerEventTread;
     std::shared_ptr<CaptureProfile> SVACaptureProfile;
     ResourceManager();
 public:
