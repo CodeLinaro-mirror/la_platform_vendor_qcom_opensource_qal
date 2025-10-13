@@ -103,7 +103,7 @@ int RTProxy::start() {
     std::vector<Stream*> activestreams;
     std::shared_ptr<Device> dev = nullptr;
     std::string backEndName;
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
 
     if (customPayload)
         free(customPayload);
@@ -147,7 +147,6 @@ int RTProxy::start() {
 start:
     status = Device::start();
 error:
-    delete builder;
     return status;
 }
 

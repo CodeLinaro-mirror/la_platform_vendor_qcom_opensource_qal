@@ -27,7 +27,8 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 /*
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -567,6 +568,10 @@ int32_t StreamCompress::getVolume(struct pal_volume_data *volume)
 int32_t StreamCompress::setVolume(struct pal_volume_data *volume)
 {
     int32_t status = 0;
+    int32_t num_stream_channel;
+    int32_t channel_mask;
+    int32_t vol_channel_mask;
+    bool stream_status = false;
 
     PAL_VERBOSE(LOG_TAG, "start, session handle - %p", session);
     if (!volume|| volume->no_of_volpair == 0) {
@@ -575,30 +580,64 @@ int32_t StreamCompress::setVolume(struct pal_volume_data *volume)
        goto exit;
     }
 
-    if (mVolumeData) {
-        //if mVolumeDate is already allocated- free it before updating
-        free(mVolumeData);
-        mVolumeData = (struct pal_volume_data *)NULL;
-    }
-
-    mVolumeData = (struct pal_volume_data *)calloc(1, sizeof(struct pal_volume_data) +
-                 (sizeof(struct pal_channel_vol_kv) * (volume->no_of_volpair)));
-    if (!mVolumeData) {
-        PAL_ERR(LOG_TAG, "failed to calloc for volume data");
-        status = -ENOMEM;
-        goto exit;
-    }
-
-    memcpy(mVolumeData, volume, (sizeof(struct pal_volume_data) +
-             (sizeof(struct pal_channel_vol_kv) * (volume->no_of_volpair))));
-    for(int32_t i = 0; i < (mVolumeData->no_of_volpair); i++) {
-       PAL_VERBOSE(LOG_TAG,"Volume payload mask:%x vol:%f\n",
-               (mVolumeData->volume_pair[i].channel_mask), (mVolumeData->volume_pair[i].vol));
-    }
     /* Allow caching of stream volume as part of mVolumeData
      * till the stream_start is not done or if sound card is
      * offline.
      */
+
+    if (!mStreamAttr){
+        PAL_ERR(LOG_TAG, "mStreamAttr info is NULL/not populated");
+        status = -EINVAL;
+        goto exit;
+    }
+
+    num_stream_channel = mStreamAttr->in_media_config.ch_info.channels;
+
+    if(num_stream_channel != volume->no_of_volpair){
+        PAL_ERR(LOG_TAG, "no of stream channels are not matching with volume channels");
+        status = -EINVAL;
+        goto exit;
+    }
+    for (int32_t i=(volume->no_of_volpair)-1 ; i>=0; i--) {
+        PAL_INFO(LOG_TAG, "Volume payload mask:%x vol:%f",
+                      (volume->volume_pair[i].channel_mask), (volume->volume_pair[i].vol));
+
+        if (volume->volume_pair[i].vol < 0.0 || volume->volume_pair[i].vol > 1.0) {
+            PAL_ERR(LOG_TAG, "volume level is not with in the range");
+            status = -EINVAL;
+            goto exit;
+        }
+
+        if (volume->no_of_volpair > 1 && volume->volume_pair[0].vol != volume->volume_pair[i].vol) {
+            PAL_ERR(LOG_TAG, "All channel mask values are not equal");
+            status = -EINVAL;
+            goto exit;
+        }
+
+        vol_channel_mask = volume->volume_pair[i].channel_mask;
+        stream_status = false;
+        for (int32_t j=0; j < num_stream_channel; j++) {
+                channel_mask = mStreamAttr->in_media_config.ch_info.ch_map[j];
+                if (vol_channel_mask == channel_mask) {
+                       stream_status = true;
+                       break;
+                }
+        }
+        if (stream_status == false) {
+                PAL_ERR(LOG_TAG, "vol_channel_mask %d is not supported",vol_channel_mask);
+                status = -EINVAL;
+                goto exit;
+        }
+    }
+    if (stream_status == true){
+       //mStreamMutex.lock();
+       ar_mem_cpy (mVolumeData, (sizeof(uint32_t) +
+                  (sizeof(struct pal_channel_vol_kv) *
+                  (volume->no_of_volpair))), volume, (sizeof(uint32_t) +
+                  (sizeof(struct pal_channel_vol_kv) *
+                  (volume->no_of_volpair))));
+
+       //mStreamMutex.unlock();
     if (rm->cardState == CARD_STATUS_ONLINE && currentState != STREAM_IDLE
         && currentState != STREAM_INIT) {
         status = session->setConfig(this, CALIBRATION, TAG_STREAM_VOLUME);
@@ -606,7 +645,14 @@ int32_t StreamCompress::setVolume(struct pal_volume_data *volume)
            PAL_ERR(LOG_TAG,"session setConfig for VOLUME_TAG failed with status %d",status);
            goto exit;
         }
+      }
+    }else {
+        PAL_ERR(LOG_TAG, "vol_channel_mask %d is not supported",vol_channel_mask);
+        status = -EINVAL;
+        goto exit;
+
     }
+
     PAL_VERBOSE(LOG_TAG,"Volume payload No.of vol pair:%d ch mask:%x gain:%f",
              (volume->no_of_volpair), (volume->volume_pair->channel_mask),(volume->volume_pair->vol));
 exit:
