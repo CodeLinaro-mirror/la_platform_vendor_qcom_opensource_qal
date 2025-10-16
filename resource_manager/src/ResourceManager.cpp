@@ -3997,26 +3997,37 @@ error:
 
 int32_t ResourceManager::streamDevConnect(std::vector <std::tuple<Stream *, struct pal_device *>> streamDevConnectList){
     int status = 0;
-    std::vector <std::tuple<Stream *, struct pal_device *>>::iterator sIter;
+    std::vector<std::tuple<Stream*, struct pal_device*>> connectedList;
 
-    /* connect active list from the current devices they are attached to */
-    for (sIter = streamDevConnectList.begin(); sIter != streamDevConnectList.end(); sIter++) {
-        if (isStreamActive(std::get<0>(*sIter), mActiveStreams)) {
-            status = std::get<0>(*sIter)->connectStreamDevice(std::get<0>(*sIter), std::get<1>(*sIter));
+    // Connect active streams to their devices
+    for (auto sIter = streamDevConnectList.begin(); sIter != streamDevConnectList.end(); ++sIter) {
+        Stream* stream = std::get<0>(*sIter);
+        struct pal_device* device = std::get<1>(*sIter);
+
+        if (isStreamActive(stream, mActiveStreams)) {
+            status = stream->connectStreamDevice(stream, device);
             if (status) {
-                PAL_ERR(LOG_TAG,"failed to connect stream %pK from device %d",
-                        std::get<0>(*sIter), (std::get<1>(*sIter))->id);
+                // Rollback: disconnect previously connected devices
+                PAL_ERR(LOG_TAG,
+                        "Failed to connect stream %pK to device %d (error %d)",
+                        stream, device->id, status);
+                for (auto& connected : connectedList) {
+                    Stream* connectedStream = std::get<0>(connected);
+                    struct pal_device* connectedDevice = std::get<1>(connected);
+                    connectedStream->disconnectStreamDevice(connectedStream, connectedDevice->id);
+                }
                 goto error;
             } else {
-                PAL_DBG(LOG_TAG,"connected stream %pK from device %d",
-                        std::get<0>(*sIter), (std::get<1>(*sIter))->id);
+                PAL_DBG(LOG_TAG,
+                        "Connected stream %pK to device %d",
+                        stream, device->id);
+                connectedList.push_back(*sIter);
             }
         }
     }
 error:
     return status;
 }
-
 
 int32_t ResourceManager::streamDevSwitch(std::vector <std::tuple<Stream *, uint32_t>> streamDevDisconnectList,
                                          std::vector <std::tuple<Stream *, struct pal_device *>> streamDevConnectList)
