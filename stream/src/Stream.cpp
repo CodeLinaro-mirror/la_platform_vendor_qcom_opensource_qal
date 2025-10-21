@@ -42,6 +42,7 @@
 #include "SessionAlsaPcm.h"
 #include "ResourceManager.h"
 #include "Device.h"
+#include <unordered_set>
 
 std::shared_ptr<ResourceManager> Stream::rm = nullptr;
 std::mutex Stream::mBaseStreamMutex;
@@ -830,6 +831,7 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
     uint32_t curDeviceSlots[PAL_DEVICE_IN_MAX], newDeviceSlots[PAL_DEVICE_IN_MAX];
     std::vector <std::tuple<Stream *, uint32_t>> streamDevDisconnect, sharedBEStreamDev;
     std::vector <std::tuple<Stream *, struct pal_device *>> StreamDevConnect;
+    std::unordered_set<pal_device_id_t> seen_ids;
     struct pal_device dAttr;
 
     mStreamMutex.lock();
@@ -1064,9 +1066,21 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
         PAL_DBG(LOG_TAG, "connectList: stream handler 0x%p, device id %d",
                 std::get<0>(elem), std::get<1>(elem)->id);
 
+    for (const auto& connection : StreamDevConnect) {
+        pal_device_id_t device_id = std::get<1>(connection)->id;
+        if (seen_ids.find(device_id) != seen_ids.end()) {
+            PAL_ERR(LOG_TAG, "Duplicate stream-device pair detected: device id %d",
+                   static_cast<int>(device_id));
+            status = -EINVAL;
+            goto done;
+         }
+        seen_ids.insert(device_id);
+    }
+
     /* Check if there is device to disconnect or connect */
     if (!streamDevDisconnect.size() && !StreamDevConnect.size()) {
         PAL_INFO(LOG_TAG, "No device to switch, returning");
+        status = -EINVAL;
         goto done;
     }
 
