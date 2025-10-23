@@ -408,6 +408,18 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
         mixer_ctl_set_array(feMixerCtrls[FE_METADATA], (void *)streamMetaData.buf,
                 streamMetaData.size);
 
+
+    for (std::vector<std::pair<int32_t, std::string>>::const_iterator be = BackEnds.begin();
+           be != BackEnds.end(); ++be) {
+        beMetaDataMixerCtrl = SessionAlsaUtils::getBeMixerControl(mixerHandle, be->second, BE_METADATA);
+        if (!beMetaDataMixerCtrl) {
+            PAL_ERR(LOG_TAG, "invalid mixer control: %s %s", be->second.data(),
+                    beCtrlNames[BE_METADATA]);
+            status = -EINVAL;
+            goto freeMetaData;
+         }
+
+    }
     for (std::vector<std::pair<int32_t, std::string>>::const_iterator be = BackEnds.begin();
            be != BackEnds.end(); ++be) {
         if ((status = builder->populateDeviceKV(streamHandle, be->first, deviceKV)) != 0) {
@@ -472,13 +484,6 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
                 status = -ENOMEM;
                 goto freeMetaData;
             }
-        }
-        beMetaDataMixerCtrl = SessionAlsaUtils::getBeMixerControl(mixerHandle, be->second, BE_METADATA);
-        if (!beMetaDataMixerCtrl) {
-            PAL_ERR(LOG_TAG, "invalid mixer control: %s %s", be->second.data(),
-                    beCtrlNames[BE_METADATA]);
-            status = -EINVAL;
-            goto freeMetaData;
         }
 
         /** set mixer controls */
