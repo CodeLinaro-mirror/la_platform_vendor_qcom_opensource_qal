@@ -28,8 +28,8 @@
 * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
 * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 *
-* Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
-* Copyright (c) 2022-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+* Changes from Qualcomm Technologies, Inc. are provided under the following license:
+* Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
 * SPDX-License-Identifier: BSD-3-Clause-Clear
 */
 
@@ -1109,7 +1109,7 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
         return status;
     }
 
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
 
     status = rmHandle->getVirtualAudioMixer(&mixerHandle);
     if (mixerHandle == nullptr) {
@@ -1573,7 +1573,7 @@ int SessionAlsaUtils::connectSessionDevice(Session* sess, Stream* streamHandle, 
     struct sessionToPayloadParam deviceData;
     StreamSoundTrigger *stHandle = nullptr;
     struct audio_dam_downstream_setup_duration *setupDuration;
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
     struct pal_stream_attributes sAttr;
     int sub = 1;
 
@@ -1730,8 +1730,8 @@ int SessionAlsaUtils::setupSessionDevice(Stream* streamHandle, pal_stream_type_t
     struct mixer_ctl *feCtrl = nullptr;
     struct mixer_ctl *feMdCtrl = nullptr;
     struct mixer_ctl *aifMdCtrl = nullptr;
-    PayloadBuilder* builder = new PayloadBuilder();
     struct mixer *mixerHandle = nullptr;
+    std::unique_ptr<PayloadBuilder> builder(new PayloadBuilder());
     uint32_t devicePropId[] = {0x08000010, 2, 0x2, 0x5};
     uint32_t streamDevicePropId[] = {0x08000010, 1, 0x3}; /** gsl_subgraph_platform_driver_props.xml */
     bool is_compress = false;
@@ -1912,7 +1912,6 @@ freeMetaData:
     free(streamDeviceMetaData.buf);
     free(deviceMetaData.buf);
 
-    delete builder;
     return status;
 }
 
