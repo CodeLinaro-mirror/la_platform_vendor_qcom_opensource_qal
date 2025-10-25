@@ -352,6 +352,7 @@ std::mutex ResourceManager::cvMutex;
 std::queue<card_status_t> ResourceManager::msgQ;
 std::condition_variable ResourceManager::cv;
 std::thread ResourceManager::workerThread;
+std::thread ResourceManager::mixerEventTread;
 int ResourceManager::mixerEventRegisterCount = 0;
 int ResourceManager::concurrentRxStreamCount = 0;
 int ResourceManager::concurrentTxStreamCount = 0;
@@ -895,6 +896,9 @@ int ResourceManager::init()
 
     // Initialize Speaker Protection calibration mode
     struct pal_device dattr;
+
+    mixerEventTread = std::thread(mixerEventWaitThreadLoop, rm);
+
     // Get the speaker instance and activate speaker protection
     dattr.id = PAL_DEVICE_OUT_SPEAKER;
     dev = std::dynamic_pointer_cast<Speaker>(Device::getInstance(&dattr , rm));
@@ -2564,10 +2568,7 @@ int ResourceManager::registerMixerEventCallback(const std::vector<int> &DevIds,
                 std::make_pair(callback, cookie)));
 
         }
-        if (mixerEventRegisterCount++ == 0) {
-            PAL_ERR(LOG_TAG, "Creating mixer event thread");
-            mixerEventTread = std::thread(mixerEventWaitThreadLoop, rm);
-        }
+        mixerEventRegisterCount++;
     } else {
         for (int i = 0; i < DevIds.size(); i++) {
             it = mixerEventCallbackMap.find(DevIds[i]);
@@ -2584,13 +2585,9 @@ int ResourceManager::registerMixerEventCallback(const std::vector<int> &DevIds,
                 PAL_ERR(LOG_TAG, "No callback found for pcm id %d", DevIds[i]);
             }
         }
-        if (mixerEventRegisterCount-- == 1) {
-            if (mixerEventTread.joinable()) {
-                mixerEventTread.join();
-            }
-            PAL_ERR(LOG_TAG, "Mixer event thread joined");
-        }
+        mixerEventRegisterCount--;
     }
+
     PAL_DBG(LOG_TAG, "Exit");
     return status;
 }
@@ -2614,30 +2611,27 @@ void ResourceManager::mixerEventWaitThreadLoop(
 
     while (1) {
         PAL_VERBOSE(LOG_TAG, "going to wait for event");
-        /* TODO: set timeout here to avoid stuck during stop
-         * Better if AGM side can provide one event indicating stop
-         */
-        ret = mixer_wait_event(mixer, 1000);
+        ret = mixer_wait_event(mixer, -1);
         PAL_DBG(LOG_TAG, "mixer_wait_event returns %d", ret);
         if (ret <= 0) {
             PAL_ERR(LOG_TAG, "mixer_wait_event err! ret = %d", ret);
         } else if (ret > 0) {
             ret = mixer_read_event(mixer, &mixer_event);
             if (ret >= 0) {
-                PAL_ERR(LOG_TAG, "Event Received %s",
-                    mixer_event.data.elem.id.name);
-                if (strstr((char *)mixer_event.data.elem.id.name, (char *)"event"))
+                if (strstr((char *)mixer_event.data.elem.id.name, (char *)"event")) {
+                    PAL_INFO(LOG_TAG, "Event Received %s",
+                             mixer_event.data.elem.id.name);
                     ret = rm->handleMixerEvent(mixer,
                         (char *)mixer_event.data.elem.id.name);
-                else
+                } else
                     PAL_ERR(LOG_TAG, "Unwanted event, Skipping");
             } else {
                 PAL_ERR(LOG_TAG, "mixer_read failed, ret = %d", ret);
             }
         }
-        if (!rm->isCallbackRegistered()) {
-            PAL_ERR(LOG_TAG, "Exit thread as no session registered");
-            break;
+        if (ResourceManager::mixerClosed) {
+            PAL_INFO(LOG_TAG, "mixerClosed, exit mixerEventWaitThreadLoop");
+            return;
         }
     }
     PAL_VERBOSE(LOG_TAG, "unsubscribing for event");
@@ -3346,6 +3340,10 @@ void ResourceManager::deinit()
     if (audio_route) {
        audio_route_free(audio_route);
     }
+    if (mixerEventTread.joinable()) {
+        mixerEventTread.join();
+    }
+    PAL_DBG(LOG_TAG, "Mixer event thread joined");
     if (sndmon)
         delete sndmon;
 
