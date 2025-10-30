@@ -1448,6 +1448,9 @@ int32_t StreamSoundTrigger::GenerateCallbackEvent(
     // TODO: handle for generic sound model
     PAL_DBG(LOG_TAG, "Exit");
 
+    if (phrase_event) {
+       free(phrase_event);
+    }
     return 0;
 }
 
@@ -1846,11 +1849,21 @@ int32_t StreamSoundTrigger::FillOpaqueConfLevels(
         }
     }
 
-    *out_payload = conf_levels;
-    *out_payload_size = num_conf_levels;
 exit:
-    if (user_id_tracker)
+    if (status != 0) {
+        if (conf_levels)
+            free(conf_levels);
+
+        conf_levels = nullptr;
+        num_conf_levels = 0;
+    }
+    if (user_id_tracker) {
         free(user_id_tracker);
+        user_id_tracker = nullptr;
+    }
+
+        *out_payload = conf_levels;
+        *out_payload_size = num_conf_levels;
 
     return status;
 }
