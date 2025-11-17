@@ -532,6 +532,8 @@ session_fail:
         rm->deregisterDevice(mDevices[i], this);
     }
 exit:
+    if(payload)
+        free(payload);
     mStreamMutex.unlock();
     return status;
 }
