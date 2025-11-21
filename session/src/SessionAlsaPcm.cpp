@@ -1190,11 +1190,9 @@ int SessionAlsaPcm::close(Stream * s)
                     PAL_DBG(LOG_TAG, "Tx dev not active");
                 }
             }
-            if (mState != SESSION_IDLE) {
-                status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
-                if (status) {
+            status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
+            if (status) {
                     PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
-                }
             }
             if (SessionAlsaUtils::isMmapUsecase(sAttr) &&
                 !(sAttr.flags & PAL_STREAM_FLAG_MMAP_NO_IRQ_MASK))
