@@ -1435,7 +1435,6 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
             PAL_ERR(LOG_TAG, "invalid mixer control: (%s%s)/(%s%s)",
                     rxFeName.str().data(), feCtrlNames[i],
                     txFeName.str().data(), feCtrlNames[i]);
-            status = -EINVAL;
             goto freeTxMetaData;
         }
     }
