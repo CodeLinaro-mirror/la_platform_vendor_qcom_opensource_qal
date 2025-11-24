@@ -26,8 +26,8 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center, Inc. are provided under the following license:
- * Copyright (c) 2022-2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -207,7 +207,7 @@ int SessionAlsaPcm::open(Stream * s)
                 status = SessionAlsaUtils::open(s, rm, pcmDevTxIds, txAifBackEnds);
                 if (status) {
                     PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
-                    rm->freeFrontEndIds(pcmDevIds, sAttr, TXLOOPBACK);
+                    rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
                 }
             }
             else if (sAttr.info.opt_stream_info.loopback_type ==
@@ -215,7 +215,7 @@ int SessionAlsaPcm::open(Stream * s)
                 status = SessionAlsaUtils::open(s, rm, pcmDevRxIds, rxAifBackEnds);
                 if (status) {
                     PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
-                    rm->freeFrontEndIds(pcmDevIds, sAttr, RXLOOPBACK);
+                    rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
                 }
             }
             else {
@@ -1192,11 +1192,9 @@ int SessionAlsaPcm::close(Stream * s)
                     PAL_DBG(LOG_TAG, "Tx dev not active");
                 }
             }
-            if (mState != SESSION_IDLE) {
-                status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
-                if (status) {
+            status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
+            if (status) {
                     PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
-                }
             }
             if (SessionAlsaUtils::isMmapUsecase(sAttr) &&
                 !(sAttr.flags & PAL_STREAM_FLAG_MMAP_NO_IRQ_MASK))
