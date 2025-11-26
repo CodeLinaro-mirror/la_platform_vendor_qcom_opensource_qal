@@ -240,7 +240,7 @@ int SpeakerProtection::spkrStartCalibration()
     struct agmMetaData deviceMetaData(nullptr, 0);
     uint32_t devicePropId[] = {0x08000010, 1, 0x2};
     struct mixer_ctl *beMetaDataMixerCtrl = nullptr;
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
     uint8_t* payload = NULL;
     size_t payloadSize = 0;
     param_id_sp_vi_op_mode_cfg_t modeConfg;
@@ -939,7 +939,7 @@ int32_t SpeakerProtection::spkrProtProcessingMode(std::shared_ptr<Device> devObj
                                                   bool flag)
 {
     int ret = 0, dir = TXLOOPBACK;
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
     uint8_t* payload = NULL;
     size_t payloadSize = 0;
     struct pal_device device;

@@ -26,10 +26,9 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following lice
-nse:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2023-2024, Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -43,6 +42,7 @@ nse:
 #include "SessionAlsaPcm.h"
 #include "ResourceManager.h"
 #include "Device.h"
+#include <unordered_set>
 
 std::shared_ptr<ResourceManager> Stream::rm = nullptr;
 std::mutex Stream::mBaseStreamMutex;
@@ -831,6 +831,7 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
     uint32_t curDeviceSlots[PAL_DEVICE_IN_MAX], newDeviceSlots[PAL_DEVICE_IN_MAX];
     std::vector <std::tuple<Stream *, uint32_t>> streamDevDisconnect, sharedBEStreamDev;
     std::vector <std::tuple<Stream *, struct pal_device *>> StreamDevConnect;
+    std::unordered_set<pal_device_id_t> seen_ids;
     struct pal_device dAttr;
 
     mStreamMutex.lock();
@@ -876,8 +877,8 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
         /* If mDevice[i] does not match with any of new device,
            then update disconnect list */
         if (matchFound == false) {
-            curDeviceSlots[disconnectCount] = i;
             disconnectCount++;
+            curDeviceSlots[disconnectCount] = i;
         }
     }
 
@@ -1012,10 +1013,14 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
             }
         }
         /* Add device associated with current stream to streamDevDisconnect/StreamDevConnect list */
-        for (int j = 0; j < disconnectCount; j++) {
+        matchFound = false;
+        for (int j = 1; j <= disconnectCount; j++) {
             // check to make sure device direction is the same
-            if (rm->matchDevDir(mDevices[curDeviceSlots[j]]->getSndDeviceId(), newDevices[newDeviceSlots[i]].id))
+            if (rm->matchDevDir(mDevices[curDeviceSlots[j]]->getSndDeviceId(), newDevices[newDeviceSlots[i]].id) &&
+                mDevices[curDeviceSlots[j]]->getSndDeviceId() != newDevices[newDeviceSlots[i]].id){
                 streamDevDisconnect.push_back({streamHandle, mDevices[curDeviceSlots[j]]->getSndDeviceId()});
+                matchFound = true;
+            }
         }
         if (strlen(newDevices[newDeviceSlots[i]].custom_config.custom_key)) {
             PAL_DBG(LOG_TAG, "new device has custom key %s",
@@ -1028,13 +1033,15 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
             rm->setDeviceInfo(newDevices[newDeviceSlots[i]].id, mStreamAttr->type);
         }
 
-        StreamDevConnect.push_back({streamHandle, &newDevices[newDeviceSlots[i]]});
+        if (matchFound ||(disconnectCount == 0)) {
+            StreamDevConnect.push_back({streamHandle, &newDevices[newDeviceSlots[i]]});
+        }
     }
 
     /* Handle scenario when there is only device to disconnect.
        e.g. case 3 : device switch from spkr+hs to spkr */
     if (connectCount == 0) {
-        for (int j = 0; j < disconnectCount; j++) {
+        for (int j = 1; j <= disconnectCount; j++) {
             if (rm->matchDevDir(mDevices[curDeviceSlots[j]]->getSndDeviceId(), newDevices[0].id))
                 streamDevDisconnect.push_back({streamHandle, mDevices[curDeviceSlots[j]]->getSndDeviceId()});
         }
@@ -1058,6 +1065,17 @@ int32_t Stream::switchDevice(Stream* streamHandle, uint32_t numDev, struct pal_d
     for (const auto &elem : StreamDevConnect)
         PAL_DBG(LOG_TAG, "connectList: stream handler 0x%p, device id %d",
                 std::get<0>(elem), std::get<1>(elem)->id);
+
+    for (const auto& connection : StreamDevConnect) {
+        pal_device_id_t device_id = std::get<1>(connection)->id;
+        if (seen_ids.find(device_id) != seen_ids.end()) {
+            PAL_ERR(LOG_TAG, "Duplicate stream-device pair detected: device id %d",
+                   static_cast<int>(device_id));
+            status = -EINVAL;
+            goto done;
+         }
+        seen_ids.insert(device_id);
+    }
 
     /* Check if there is device to disconnect or connect */
     if (!streamDevDisconnect.size() && !StreamDevConnect.size()) {

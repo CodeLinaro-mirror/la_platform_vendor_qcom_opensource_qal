@@ -221,7 +221,7 @@ int Bluetooth::configureA2dpEncoderDecoder(void *codec_info)
     Session *session = NULL;
     std::vector<Stream*> activestreams;
     bt_enc_payload_t *out_buf = NULL;
-    PayloadBuilder* builder = new PayloadBuilder();
+    std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
     std::string backEndName;
     uint8_t* paramData = NULL;
     size_t paramSize = 0;
