@@ -59,6 +59,7 @@ public:
    int32_t setVolume( struct pal_volume_data *volume) override;
    int32_t getVolume( struct pal_volume_data *volume) override;
    int32_t mute(bool state) override;
+   int32_t setMute(bool state);
    int32_t getMute(bool *state) override;
    int32_t getDeviceMute(pal_stream_direction_t dir, bool *state) override;
    int32_t setDeviceMute(pal_stream_direction_t dir, bool state) override;
@@ -73,6 +74,7 @@ public:
    int32_t getCallBack(pal_stream_callback *cb) override;
    int32_t getParameters(uint32_t param_id, void **payload) override;
    int32_t setParameters(uint32_t param_id, void *payload) override;
+   int32_t setDeviceParameters(uint32_t param_id, void *payload);
    int32_t setECRef(std::shared_ptr<Device> dev, bool is_enable) override;
    int32_t setECRef_l(std::shared_ptr<Device> dev, bool is_enable) override;
    int32_t ssrDownHandler() override;
