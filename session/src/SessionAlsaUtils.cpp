@@ -408,6 +408,18 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
         mixer_ctl_set_array(feMixerCtrls[FE_METADATA], (void *)streamMetaData.buf,
                 streamMetaData.size);
 
+
+    for (std::vector<std::pair<int32_t, std::string>>::const_iterator be = BackEnds.begin();
+           be != BackEnds.end(); ++be) {
+        beMetaDataMixerCtrl = SessionAlsaUtils::getBeMixerControl(mixerHandle, be->second, BE_METADATA);
+        if (!beMetaDataMixerCtrl) {
+            PAL_ERR(LOG_TAG, "invalid mixer control: %s %s", be->second.data(),
+                    beCtrlNames[BE_METADATA]);
+            status = -EINVAL;
+            goto freeMetaData;
+         }
+
+    }
     for (std::vector<std::pair<int32_t, std::string>>::const_iterator be = BackEnds.begin();
            be != BackEnds.end(); ++be) {
         if ((status = builder->populateDeviceKV(streamHandle, be->first, deviceKV)) != 0) {
@@ -472,13 +484,6 @@ int SessionAlsaUtils::open(Stream * streamHandle, std::shared_ptr<ResourceManage
                 status = -ENOMEM;
                 goto freeMetaData;
             }
-        }
-        beMetaDataMixerCtrl = SessionAlsaUtils::getBeMixerControl(mixerHandle, be->second, BE_METADATA);
-        if (!beMetaDataMixerCtrl) {
-            PAL_ERR(LOG_TAG, "invalid mixer control: %s %s", be->second.data(),
-                    beCtrlNames[BE_METADATA]);
-            status = -EINVAL;
-            goto freeMetaData;
         }
 
         /** set mixer controls */
@@ -907,7 +912,6 @@ int SessionAlsaUtils::setMixerParameter(struct mixer *mixer, int device,
     ctl_len = strlen(pcmDeviceName) + 1 + strlen(control) + 1;
     mixer_str = (char *)calloc(1, ctl_len);
     if (!mixer_str) {
-        free(payload);
         return -ENOMEM;
     }
     snprintf(mixer_str, ctl_len, "%s %s", pcmDeviceName, control);
@@ -1442,7 +1446,6 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
         PAL_ERR(LOG_TAG, "invalid mixer control: (%s%s)/(%s%s)",
                 rxBackEnds[0].second.data(), beCtrlNames[BE_METADATA],
                 txBackEnds[0].second.data(), beCtrlNames[BE_METADATA]);
-        status = -EINVAL;
         goto freeTxMetaData;
     }
 
