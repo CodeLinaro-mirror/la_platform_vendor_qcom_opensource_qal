@@ -1194,7 +1194,7 @@ int SessionAlsaPcm::close(Stream * s)
                     freeDeviceMetadata.push_back(std::make_pair(backendname, 1));
                 }
             }
-            if (mState != SESSION_IDLE) {
+            if ((mState != SESSION_IDLE)|| !pcmDevIds.empty()) {
                 status = SessionAlsaUtils::close(s, rm, pcmDevIds, rxAifBackEnds, freeDeviceMetadata);
                 if (status) {
                     PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
