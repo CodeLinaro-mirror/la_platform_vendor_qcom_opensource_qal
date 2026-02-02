@@ -28,11 +28,16 @@
  *
  * Changes from Qualcomm Innovation Center are provided under the following license:
  *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
 #define LOG_TAG "PAL: API"
+
+#ifdef USE_DLT
+#include <dlt/dlt.h>
+DltContext palContext;
+#endif
 
 #include <unistd.h>
 #include <stdlib.h>
@@ -80,6 +85,14 @@ static void notify_concurrent_stream(pal_stream_type_t type,
  */
 int32_t pal_init(void)
 {
+    #ifdef USE_DLT
+    char app_id[DLT_ID_SIZE] = {0};
+    DLT_GET_APPID(app_id);
+    if (app_id[0] == '\0') {
+        DLT_REGISTER_APP("PALX", "PAL Audio Logging");
+    }
+    DLT_REGISTER_CONTEXT(palContext, "PALC", "PAL Context");
+    #endif
     PAL_DBG(LOG_TAG, "Enter.");
     int32_t ret = 0;
     std::shared_ptr<ResourceManager> ri = NULL;
@@ -112,6 +125,10 @@ void pal_deinit(void)
     PAL_INFO(LOG_TAG, "Enter.");
     ResourceManager::deinit();
     PAL_INFO(LOG_TAG, "Exit.");
+    #ifdef USE_DLT
+    DLT_UNREGISTER_CONTEXT(palContext);
+    DLT_UNREGISTER_APP();
+    #endif
     return;
 }
 
