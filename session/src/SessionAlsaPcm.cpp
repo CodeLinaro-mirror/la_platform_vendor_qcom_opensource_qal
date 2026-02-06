@@ -1906,6 +1906,11 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint
         {
             pal_param_dtmf_gen_tone_cfg_t *dtmf_payload = (pal_param_dtmf_gen_tone_cfg_t *)payload;
 
+            if (!txAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG,"Tone not supported on TX path ");
+                status = -EINVAL;
+                return status;
+            }
             if (rxAifBackEnds.empty()) {
                 status = -EINVAL;
                 PAL_ERR(LOG_TAG,"Rx device is not set");
