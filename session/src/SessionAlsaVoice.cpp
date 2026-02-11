@@ -465,16 +465,17 @@ int SessionAlsaVoice::start(Stream * s)
 
     SessionAlsaVoice::setConfig(s, MODULE, VSID, RXDIR);
     /*if no volume is set set a default volume*/
+    volume = (struct pal_volume_data *)malloc(sizeof(uint32_t) +
+                                              (sizeof(struct pal_channel_vol_kv)));
+    if (!volume) {
+        status = -ENOMEM;
+        PAL_ERR(LOG_TAG, "volume malloc failed %s", strerror(errno));
+        goto err_pcm_open;
+    }
+
     if ((s->getVolumeData(volume))) {
         PAL_INFO(LOG_TAG, "no volume set, setting default vol to %f",
                  default_volume);
-        volume = (struct pal_volume_data *)malloc(sizeof(uint32_t) +
-                                                  (sizeof(struct pal_channel_vol_kv)));
-        if (!volume) {
-            status = -ENOMEM;
-            PAL_ERR(LOG_TAG, "volume malloc failed %s", strerror(errno));
-            goto err_pcm_open;
-        }
         volume->no_of_volpair = 1;
         volume->volume_pair[0].channel_mask = 1;
         volume->volume_pair[0].vol = default_volume;
