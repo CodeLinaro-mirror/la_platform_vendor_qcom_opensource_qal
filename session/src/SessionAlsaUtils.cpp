@@ -792,7 +792,7 @@ int SessionAlsaUtils::getTimestamp(struct mixer *mixer, const std::vector<int> &
             goto exit;
         } else {
             PAL_ERR(LOG_TAG, "Payloadsize exceeds max permissible value");
-            delete payload;
+            delete[] payload;
             status = -EINVAL;
             goto exit;
         }
