@@ -26,10 +26,8 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following
- * license:
- *
- * Copyright (c) 2023, 2025 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -467,16 +465,17 @@ int SessionAlsaVoice::start(Stream * s)
 
     SessionAlsaVoice::setConfig(s, MODULE, VSID, RXDIR);
     /*if no volume is set set a default volume*/
+    volume = (struct pal_volume_data *)malloc(sizeof(uint32_t) +
+                                              (sizeof(struct pal_channel_vol_kv)));
+    if (!volume) {
+        status = -ENOMEM;
+        PAL_ERR(LOG_TAG, "volume malloc failed %s", strerror(errno));
+        goto err_pcm_open;
+    }
+
     if ((s->getVolumeData(volume))) {
         PAL_INFO(LOG_TAG, "no volume set, setting default vol to %f",
                  default_volume);
-        volume = (struct pal_volume_data *)malloc(sizeof(uint32_t) +
-                                                  (sizeof(struct pal_channel_vol_kv)));
-        if (!volume) {
-            status = -ENOMEM;
-            PAL_ERR(LOG_TAG, "volume malloc failed %s", strerror(errno));
-            goto err_pcm_open;
-        }
         volume->no_of_volpair = 1;
         volume->volume_pair[0].channel_mask = 1;
         volume->volume_pair[0].vol = default_volume;
@@ -1521,7 +1520,6 @@ int SessionAlsaVoice::setVoiceMixerParameter(Stream * s, struct mixer *mixer,
     ctl_len = strlen(stream) + 4 + strlen(control) + 1;
     mixer_str = (char *)calloc(1, ctl_len);
     if (!mixer_str) {
-        free(payload);
         return -ENOMEM;
     }
     snprintf(mixer_str, ctl_len, "%s %s", stream, control);

@@ -1192,11 +1192,9 @@ int SessionAlsaPcm::close(Stream * s)
                     PAL_DBG(LOG_TAG, "Tx dev not active");
                 }
             }
-            if (mState != SESSION_IDLE) {
-                status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
-                if (status) {
+            status = SessionAlsaUtils::close(s, rm, pcmDevIds, txAifBackEnds, freeDeviceMetadata);
+            if (status) {
                     PAL_ERR(LOG_TAG, "session alsa close failed with %d", status);
-                }
             }
             if (SessionAlsaUtils::isMmapUsecase(sAttr) &&
                 !(sAttr.flags & PAL_STREAM_FLAG_MMAP_NO_IRQ_MASK))
@@ -1908,6 +1906,11 @@ int SessionAlsaPcm::setParameters(Stream *streamHandle, int tagId __unused, uint
         {
             pal_param_dtmf_gen_tone_cfg_t *dtmf_payload = (pal_param_dtmf_gen_tone_cfg_t *)payload;
 
+            if (!txAifBackEnds.empty()) {
+                PAL_ERR(LOG_TAG,"Tone not supported on TX path ");
+                status = -EINVAL;
+                return status;
+            }
             if (rxAifBackEnds.empty()) {
                 status = -EINVAL;
                 PAL_ERR(LOG_TAG,"Rx device is not set");

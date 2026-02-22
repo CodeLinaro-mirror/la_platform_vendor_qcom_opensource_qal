@@ -792,7 +792,7 @@ int SessionAlsaUtils::getTimestamp(struct mixer *mixer, const std::vector<int> &
             goto exit;
         } else {
             PAL_ERR(LOG_TAG, "Payloadsize exceeds max permissible value");
-            delete payload;
+            delete[] payload;
             status = -EINVAL;
             goto exit;
         }
@@ -912,7 +912,6 @@ int SessionAlsaUtils::setMixerParameter(struct mixer *mixer, int device,
     ctl_len = strlen(pcmDeviceName) + 1 + strlen(control) + 1;
     mixer_str = (char *)calloc(1, ctl_len);
     if (!mixer_str) {
-        free(payload);
         return -ENOMEM;
     }
     snprintf(mixer_str, ctl_len, "%s %s", pcmDeviceName, control);
@@ -1447,7 +1446,6 @@ int SessionAlsaUtils::close(Stream * streamHandle, std::shared_ptr<ResourceManag
         PAL_ERR(LOG_TAG, "invalid mixer control: (%s%s)/(%s%s)",
                 rxBackEnds[0].second.data(), beCtrlNames[BE_METADATA],
                 txBackEnds[0].second.data(), beCtrlNames[BE_METADATA]);
-        status = -EINVAL;
         goto freeTxMetaData;
     }
 
