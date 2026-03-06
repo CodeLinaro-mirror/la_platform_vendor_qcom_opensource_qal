@@ -6204,7 +6204,12 @@ void ResourceManager::process_device_info(struct xml_userdata *data, const XML_C
     if ((data->tag == TAG_IN_DEVICE) || (data->tag == TAG_OUT_DEVICE)) {
         if (!strcmp(tag_name, "id")) {
             std::string deviceName(data->data_buf);
-            dev.deviceId  = deviceIdLUT.at(deviceName);
+            auto it = deviceIdLUT.find(deviceName);
+            if (it == deviceIdLUT.end()) {
+                PAL_ERR(LOG_TAG, "Error: Invalid device id '%s' in XML", deviceName.c_str());
+                return;
+            }
+            dev.deviceId = it->second;
             deviceInfo.push_back(dev);
         } else if (!strcmp(tag_name, "back_end_name")) {
             std::string backendname(data->data_buf);
@@ -6234,12 +6239,27 @@ void ResourceManager::process_device_info(struct xml_userdata *data, const XML_C
             std::string userIdname(data->data_buf);
             size = deviceInfo.size() - 1;
             sizeusecase = deviceInfo[size].usecase.size() - 1;
-            deviceInfo[size].usecase[sizeusecase].type = usecaseIdLUT.at(userIdname);
+            auto it = usecaseIdLUT.find(userIdname);
+            if (it != usecaseIdLUT.end()) {
+               deviceInfo[size].usecase[sizeusecase].type = it->second;
+            } else {
+               PAL_ERR(LOG_TAG, "Error: Invalid Usecase Name '%s' in XML.", userIdname.c_str());
+               // Handle error safely, e.g., set to a default or return
+               return;
+            }
         } else if (!strcmp(tag_name, "sidetone_mode")) {
             std::string mode(data->data_buf);
             size = deviceInfo.size() - 1;
             sizeusecase = deviceInfo[size].usecase.size() - 1;
-            deviceInfo[size].usecase[sizeusecase].sidetoneMode = sidetoneModetoId.at(mode);
+            // FIX: Use find() to check if the mode string is valid
+            auto it = sidetoneModetoId.find(mode);
+            if (it != sidetoneModetoId.end()) {
+                deviceInfo[size].usecase[sizeusecase].sidetoneMode = it->second;
+            } else {
+                // Log the error and use a safe default instead of crashing
+                PAL_ERR(LOG_TAG, "Error: Invalid sidetone_mode '%s' in XML. Defaulting to SIDETONE_OFF", mode.c_str());
+                deviceInfo[size].usecase[sizeusecase].sidetoneMode = SIDETONE_OFF;
+            }
         }else if (!strcmp(tag_name, "snd_device_name")) {
             std::string sndDev(data->data_buf);
             size = deviceInfo.size() - 1;
@@ -6267,7 +6287,14 @@ void ResourceManager::process_device_info(struct xml_userdata *data, const XML_C
             size = deviceInfo.size() - 1;
             sizeusecase = deviceInfo[size].usecase.size() - 1;
             sizecustomconfig = deviceInfo[size].usecase[sizeusecase].config.size() - 1;
-            deviceInfo[size].usecase[sizeusecase].config[sizecustomconfig].sidetoneMode = sidetoneModetoId.at(mode);
+              // FIX: Use find() here as well
+            auto it = sidetoneModetoId.find(mode);
+            if (it != sidetoneModetoId.end()) {
+                 deviceInfo[size].usecase[sizeusecase].config[sizecustomconfig].sidetoneMode = it->second;
+            } else {
+                  PAL_ERR(LOG_TAG, "Error: Invalid sidetone_mode '%s' in XML (CustomConfig). Defaulting to SIDETONE_OFF", mode.c_str());
+                  deviceInfo[size].usecase[sizeusecase].config[sizecustomconfig].sidetoneMode = SIDETONE_OFF;
+            }
         }
 
     }
