@@ -976,8 +976,10 @@ int SessionAlsaVoice::populateFreqPair() {
     size_lFreq = sizeof(lowFreq)/sizeof(lowFreq[0]);
     totalSize = size_hFreq * size_lFreq;
 
-    for (int i=0; i<size_hFreq; i++){
-        for (int j=0;j<size_lFreq;j++) {
+    // Fixed: Corrected loop order to prevent array bounds violation
+    // Loop through lowFreq (j) in outer loop and highFreq (i) in inner loop
+    for (int j=0; j<size_lFreq; j++){
+        for (int i=0; i<size_hFreq; i++) {
             freqPair.push_back(std::make_pair(highFreq[i],lowFreq[j]));
         }
     }

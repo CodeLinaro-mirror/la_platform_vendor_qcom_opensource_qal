@@ -3874,6 +3874,7 @@ void ResourceManager::getBackEndNames(
         PAL_DBG(LOG_TAG, "getBackEndNames (RX): %s", rxBackEndNames[i].second.c_str());
     for (int i = 0; i < txBackEndNames.size(); i++)
         PAL_DBG(LOG_TAG, "getBackEndNames (TX): %s", txBackEndNames[i].second.c_str());
+    return;
 }
 #if 0
 const bool ResourceManager::shouldDeviceSwitch(const pal_stream_attributes* sExistingAttr,
