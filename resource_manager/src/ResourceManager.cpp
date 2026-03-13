@@ -4066,39 +4066,39 @@ int32_t ResourceManager::streamDevSwitch(std::vector <std::tuple<Stream *, uint3
         }
     }
 
-    // Perform disconnects (no RM lock held during Stream::* calls)
-    mActiveStreamMutex.lock();
-    status = streamDevDisconnect(streamDevDisconnectList);
-    if (status) {
-        PAL_ERR(LOG_TAG, "disconnect failed, status %d", status);
-        return status;
-    }
+    {
+        // Perform disconnects (no RM lock held during Stream::* calls)
+        std::lock_guard<std::mutex> lk(mActiveStreamMutex);
+        status = streamDevDisconnect(streamDevDisconnectList);
+        if (status) {
+            PAL_ERR(LOG_TAG, "disconnect failed, status %d", status);
+            return status;
+        }
 
-    // Attempt connects (function already rolls back newly connected devices on failure)
-    status = streamDevConnect(streamDevConnectList);
-    if (status) {
-        PAL_ERR(LOG_TAG, "connect failed, status %d; restoring previous devices", status);
+        // Attempt connects (function already rolls back newly connected devices on failure)
+        status = streamDevConnect(streamDevConnectList);
+        if (status) {
+            PAL_ERR(LOG_TAG, "connect failed, status %d; restoring previous devices", status);
 
-        // Reconnect all streams to their original devices
-        for (auto& entry : rollbackOldDevs) {
-            Stream* s = entry.first;
-            pal_device& oldAttr = entry.second;
+            // Reconnect all streams to their original devices
+            for (auto& entry : rollbackOldDevs) {
+                Stream* s = entry.first;
+                pal_device& oldAttr = entry.second;
 
-            int rc = s->connectStreamDevice(s, &oldAttr);
-            // Keep trying others; final status reflects original connect failure
-            if (rc) {
-                PAL_ERR(LOG_TAG,
-                        "rollback reconnect failed for stream %pK to device %d (rc=%d)",
-                        s, oldAttr.id, rc);
-            } else {
-                PAL_DBG(LOG_TAG,
-                        "rollback: reconnected stream %pK to device %d",
-                        s, oldAttr.id);
+                int rc = s->connectStreamDevice(s, &oldAttr);
+                // Keep trying others; final status reflects original connect failure
+                if (rc) {
+                    PAL_ERR(LOG_TAG,
+                            "rollback reconnect failed for stream %pK to device %d (rc=%d)",
+                            s, oldAttr.id, rc);
+                } else {
+                    PAL_DBG(LOG_TAG,
+                            "rollback: reconnected stream %pK to device %d",
+                            s, oldAttr.id);
+                }
             }
         }
     }
-
-    mActiveStreamMutex.unlock();
     return status;
 }
 
@@ -5984,7 +5984,7 @@ void ResourceManager::processDeviceIdProp(struct xml_userdata *data, const XML_C
         devInfo.push_back(dev);
     } else if (!strcmp(tag_name, "name")) {
         size = devInfo.size() - 1;
-        strlcpy(devInfo[size].name, data->data_buf, strlen(data->data_buf)+1);
+        strlcpy(devInfo[size].name, data->data_buf, MAX_PCM_NAME_SIZE);
         if(strstr(data->data_buf,"PCM")) {
             devInfo[size].type = PCM;
         } else if (strstr(data->data_buf,"COMP")) {
