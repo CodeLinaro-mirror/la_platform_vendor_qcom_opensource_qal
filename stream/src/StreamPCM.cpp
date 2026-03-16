@@ -26,9 +26,9 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2023-2024 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -1369,18 +1369,24 @@ int32_t StreamPCM::isSampleRateSupported(uint32_t sampleRate)
     PAL_DBG(LOG_TAG, "sampleRate %u", sampleRate);
     switch(sampleRate) {
         case SAMPLINGRATE_8K:
+        case 11025:
+        case 12000:
         case SAMPLINGRATE_16K:
         case SAMPLINGRATE_22K:
+        case SAMPLINGRATE_24K:
         case SAMPLINGRATE_32K:
         case SAMPLINGRATE_44K:
         case SAMPLINGRATE_48K:
+        case 88200:
         case SAMPLINGRATE_96K:
+        case 176400:
         case SAMPLINGRATE_192K:
+        case SAMPLINGRATE_352K:
         case SAMPLINGRATE_384K:
             break;
        default:
-            rc = 0;
-            PAL_VERBOSE(LOG_TAG, "sample rate received %d rc %d", sampleRate, rc);
+            rc = -EINVAL;
+            PAL_ERR(LOG_TAG, "sample rate received invalid %d rc %d", sampleRate, rc);
             break;
     }
     return rc;
