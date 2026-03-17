@@ -320,6 +320,12 @@ struct mixer_ctl* SessionAlsaPcm::getFEMixerCtl(const char *controlName, int *de
 uint32_t SessionAlsaPcm::getMIID(const char *backendName, uint32_t tagId, uint32_t *miid)
 {
     int status = 0;
+
+    if (pcmDevIds.empty()) {
+        PAL_ERR(LOG_TAG, "%s: pcmDevIds empty, cannot query MIID", __func__);
+        return -EINVAL;
+    }
+
     int device = pcmDevIds.at(0);
 /* REPLACE THIS WITH STORED INFO DURING INITIAL SETUP */
     status = SessionAlsaUtils::getModuleInstanceId(mixer, device,
