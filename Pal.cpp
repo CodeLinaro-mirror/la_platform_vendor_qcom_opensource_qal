@@ -219,6 +219,7 @@ int32_t pal_stream_close(pal_stream_handle_t *stream_handle)
     status = s->close();
     if (0 != status) {
         PAL_ERR(LOG_TAG, "stream closed failed. status %d", status);
+        delete s;
         return status;
     }
 
