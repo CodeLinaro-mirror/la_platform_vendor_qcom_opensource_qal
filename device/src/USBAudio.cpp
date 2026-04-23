@@ -357,6 +357,7 @@ int USBCardConfig::getCapability(usb_usecase_type_t type,
     char path[128];
     int ret = 0;
     char *bit_width_str = NULL;
+    size_t bytes_read = 0;
     //std::shared_ptr<USBDeviceConfig> usb_device_info = nullptr;
 
     bool check = false;
@@ -387,11 +388,13 @@ int USBCardConfig::getCapability(usb_usecase_type_t type,
         goto done;
     }
 
-    if (fread(read_buf, 1, USB_BUFF_SIZE, fd) < 0) {
+    bytes_read = fread(read_buf, 1, USB_BUFF_SIZE, fd);
+    if (ferror(fd) && bytes_read == 0) {
         PAL_ERR(LOG_TAG, "file read error\n");
         goto done;
     }
 
+    read_buf[bytes_read] = '\0';
     str_start = strstr(read_buf, ((type == USB_PLAYBACK) ?
                        PLAYBACK_PROFILE_STR : CAPTURE_PROFILE_STR));
     if (str_start == NULL) {
