@@ -3335,41 +3335,24 @@ void ResourceManager::deinit()
     card_status_t state = CARD_STATUS_NONE;
 
     mixerClosed = true;
-
-    if (mixerEventTread.joinable()) {
-        mixerEventTread.join();
-        PAL_DBG(LOG_TAG, "Mixer event thread joined");
-    }
-
-    if (audio_virt_mixer) {
-        mixer_close(audio_virt_mixer);
-        audio_virt_mixer = nullptr;
-    }
-    if (audio_hw_mixer) {
-        mixer_close(audio_hw_mixer);
-        audio_hw_mixer = nullptr;
-    }
-
-    // Free the audio route (which internally uses the mixer handles)
+    mixer_close(audio_virt_mixer);
+    mixer_close(audio_hw_mixer);
     if (audio_route) {
        audio_route_free(audio_route);
-       audio_route = nullptr;
     }
-
-    if (sndmon) {
+    if (mixerEventTread.joinable()) {
+        mixerEventTread.join();
+    }
+    PAL_DBG(LOG_TAG, "Mixer event thread joined");
+    if (sndmon)
         delete sndmon;
-        sndmon = nullptr;
-    }
 
     cvMutex.lock();
     msgQ.push(state);
     cvMutex.unlock();
     cv.notify_all();
 
-    if (workerThread.joinable()) {
-        workerThread.join();
-    }
-
+    workerThread.join();
     while (!msgQ.empty())
         msgQ.pop();
 
