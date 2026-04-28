@@ -26,9 +26,9 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following license:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
- * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
  * SPDX-License-Identifier: BSD-3-Clause-Clear
  */
 
@@ -53,6 +53,19 @@
 #define PARAM_ID_HPCM_CONFIG             0x08001378
  /** Parameter ID for DTMF generation */
 #define PARAM_ID_DTMF_GEN_TONE_CFG       0x08001121
+#define PARAM_ID_DTMF_GEN_TONE_CFG_V2    0x08001AE8
+#define DTMF_DURATION_V1_MAX             INT16_MAX
+#define DTMF_DURATION_INFINITE           UINT16_MAX
+/* Payload For ID: PARAM_ID_DTMF_GEN_TONE_CFG_V2
+ * Description   : Internal DTMF Generator module parameters V2
+ */
+typedef struct param_id_dtmf_gen_tone_cfg_v2 {
+    uint16_t high_freq;
+    uint16_t low_freq;
+    int32_t  duration_ms;
+    uint16_t gain;
+    uint16_t reserved;
+} param_id_dtmf_gen_tone_cfg_v2_t;
 
 /* ID of the Output Media Format parameters used by MODULE_ID_MFC */
 #define PARAM_ID_MFC_OUTPUT_MEDIA_FORMAT            0x08001024
@@ -708,12 +721,19 @@ void PayloadBuilder::payloadDTMFGenConfig(uint8_t **payload, size_t *size,
     uint32_t moduleId, pal_param_dtmf_gen_tone_cfg_t *dtmf_payload)
 {
     struct apm_module_param_data_t* header;
-    pal_param_dtmf_gen_tone_cfg_t *dtmf_config;
     uint8_t* payloadInfo = NULL;
     size_t payloadSize = 0, padBytes = 0;
+    bool is_v2_required = false;
 
-    payloadSize = sizeof(struct apm_module_param_data_t) +
-                  sizeof(pal_param_dtmf_gen_tone_cfg_t);
+    if (!dtmf_payload || !payload || !size) {
+        PAL_ERR(LOG_TAG,"Invalid parameters ");
+        return;
+    }
+
+    int32_t duration_ms = (uint16_t)dtmf_payload->duration_ms;
+    is_v2_required = (duration_ms > DTMF_DURATION_V1_MAX && duration_ms < DTMF_DURATION_INFINITE);
+    payloadSize = sizeof(struct apm_module_param_data_t) + ((is_v2_required)?
+      sizeof(param_id_dtmf_gen_tone_cfg_v2_t) : sizeof(pal_param_dtmf_gen_tone_cfg_t));
     padBytes = PAL_PADDING_8BYTE_ALIGN(payloadSize);
     payloadInfo = new uint8_t[payloadSize + padBytes]();
     if (!payloadInfo) {
@@ -722,28 +742,36 @@ void PayloadBuilder::payloadDTMFGenConfig(uint8_t **payload, size_t *size,
     }
     header = (struct apm_module_param_data_t*)payloadInfo;
     header->module_instance_id = moduleId;
-    header->param_id = PARAM_ID_DTMF_GEN_TONE_CFG;
+    header->param_id = (is_v2_required) ? PARAM_ID_DTMF_GEN_TONE_CFG_V2: PARAM_ID_DTMF_GEN_TONE_CFG;
     header->error_code = 0x0;
     header->param_size = payloadSize - sizeof(struct apm_module_param_data_t);
     PAL_DBG(LOG_TAG, "header params \n IID:%x param_id:%x error_code:%d param_size:%d",
                        header->module_instance_id, header->param_id,
                        header->error_code, header->param_size);
-    dtmf_config = (pal_param_dtmf_gen_tone_cfg_t*)(payloadInfo +
-                   sizeof(struct apm_module_param_data_t));
-    dtmf_config->high_freq = dtmf_payload->high_freq;
-    dtmf_config->low_freq = dtmf_payload->low_freq;
-
-    if (dtmf_config->high_freq == 0) {
-        dtmf_config->high_freq = dtmf_payload->low_freq;
-    } else if (dtmf_config->low_freq == 0) {
-        dtmf_config->low_freq = dtmf_payload->high_freq;
-    }
-
-    dtmf_config->gain = dtmf_payload->gain;
-    dtmf_config->duration_ms = dtmf_payload->duration_ms;
-    PAL_DBG(LOG_TAG, "high_freq:%d, low_freq:%d, gain:%d,duration_ms:%d",
+    uint16_t high_freq = (dtmf_payload->high_freq == 0)? dtmf_payload->low_freq:dtmf_payload->high_freq;
+    uint16_t low_freq = (dtmf_payload->low_freq == 0)? dtmf_payload->high_freq:dtmf_payload->low_freq;
+    if (is_v2_required) {
+        param_id_dtmf_gen_tone_cfg_v2_t *dtmf_config = (param_id_dtmf_gen_tone_cfg_v2_t*)
+                                    (payloadInfo + sizeof(struct apm_module_param_data_t));
+        dtmf_config->high_freq = high_freq;
+        dtmf_config->low_freq = low_freq;
+        dtmf_config->gain = dtmf_payload->gain;
+        dtmf_config->reserved = 0;
+        dtmf_config->duration_ms = duration_ms;
+        PAL_DBG(LOG_TAG, "V2 config: high_freq:%d, low_freq:%d, gain:%d,duration_ms:%d",
             dtmf_config->high_freq, dtmf_config->low_freq, dtmf_config->gain,
             dtmf_config->duration_ms);
+    } else {
+        pal_param_dtmf_gen_tone_cfg_t *dtmf_config = (pal_param_dtmf_gen_tone_cfg_t*)
+                               (payloadInfo + sizeof(struct apm_module_param_data_t));
+        dtmf_config->high_freq = high_freq;
+        dtmf_config->low_freq = low_freq;
+        dtmf_config->gain = dtmf_payload->gain;
+        dtmf_config->duration_ms = (duration_ms == -1 || duration_ms == 0xFFFF) ? -1:(int16_t)duration_ms;
+        PAL_DBG(LOG_TAG, "V1 config: high_freq:%d, low_freq:%d, gain:%d,duration_ms:%d",
+            dtmf_config->high_freq, dtmf_config->low_freq, dtmf_config->gain,
+            dtmf_config->duration_ms);
+    }
 
     *size = payloadSize + padBytes;
     *payload = payloadInfo;
