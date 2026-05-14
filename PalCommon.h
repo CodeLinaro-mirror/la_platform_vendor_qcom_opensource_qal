@@ -34,6 +34,12 @@
 
 #include <log/log.h>
 
+#ifdef USE_DLT
+#include <stdio.h>
+#include <dlt/dlt.h>
+extern DltContext palContext;
+#endif
+
 #define PAL_LOG_ERR             (0x1) /**< error message, represents code bugs that should be debugged and fixed.*/
 #define PAL_LOG_INFO            (0x2) /**< info message, additional info to support debug */
 #define PAL_LOG_DBG             (0x4) /**< debug message, required at minimum for debug.*/
@@ -41,7 +47,25 @@
 
 extern uint32_t pal_log_lvl;
 
+#ifdef USE_DLT
+/*
+ * Helper Macro:
+ * 1. Creates a temporary buffer.
+ * 2. Formats the variables (%d, %s) into the string using snprintf.
+ * 3. Sends the final formatted string to DLT.
+ */
+#define PAL_DLT_WRAPPER(level, fmt, ...) do { \
+    char _buf[256]; \
+    snprintf(_buf, sizeof(_buf), "%s:%d: " fmt,  __func__, __LINE__, ##__VA_ARGS__); \
+    DLT_LOG(palContext, level, DLT_STRING(_buf)); \
+} while(0)
 
+// Map your macros to the helper
+#define PAL_ERR(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_ERROR, fmt, ##__VA_ARGS__)
+#define PAL_DBG(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_DEBUG, fmt, ##__VA_ARGS__)
+#define PAL_INFO(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_INFO,  fmt, ##__VA_ARGS__)
+#define PAL_VERBOSE(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_VERBOSE, fmt, ##__VA_ARGS__)
+#else
 #define PAL_ERR(log_tag, arg,...)                                          \
     if (pal_log_lvl & PAL_LOG_ERR) {                              \
         ALOGE("%s: %d: "  arg, __func__, __LINE__, ##__VA_ARGS__);\
@@ -58,3 +82,4 @@ extern uint32_t pal_log_lvl;
     if (pal_log_lvl & PAL_LOG_VERBOSE) {                          \
         ALOGV("%s: %d: "  arg, __func__, __LINE__, ##__VA_ARGS__);\
     }
+#endif

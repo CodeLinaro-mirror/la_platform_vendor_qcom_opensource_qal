@@ -799,34 +799,37 @@ void BtA2dp::init_a2dp_source()
             return;
         }
     }
-    bt_audio_pre_init = (bt_audio_pre_init_t)
-                  dlsym(bt_lib_source_handle, "bt_audio_pre_init");
-    audio_source_open = (audio_source_open_t)
-                  dlsym(bt_lib_source_handle, "audio_stream_open");
-    audio_source_start = (audio_source_start_t)
-                  dlsym(bt_lib_source_handle, "audio_start_stream");
-    audio_get_enc_config = (audio_get_enc_config_t)
-                  dlsym(bt_lib_source_handle, "audio_get_codec_config");
-    audio_source_suspend = (audio_source_suspend_t)
-                  dlsym(bt_lib_source_handle, "audio_suspend_stream");
-    audio_source_handoff_triggered = (audio_source_handoff_triggered_t)
-                  dlsym(bt_lib_source_handle, "audio_handoff_triggered");
-    clear_source_a2dpsuspend_flag = (clear_source_a2dpsuspend_flag_t)
-                  dlsym(bt_lib_source_handle, "clear_a2dpsuspend_flag");
-    audio_source_stop = (audio_source_stop_t)
-                  dlsym(bt_lib_source_handle, "audio_stop_stream");
-    audio_source_close = (audio_source_close_t)
-                  dlsym(bt_lib_source_handle, "audio_stream_close");
-    audio_source_check_a2dp_ready = (audio_source_check_a2dp_ready_t)
-                  dlsym(bt_lib_source_handle, "audio_check_a2dp_ready");
-    audio_sink_get_a2dp_latency = (audio_sink_get_a2dp_latency_t)
-                  dlsym(bt_lib_source_handle, "audio_sink_get_a2dp_latency");
-    audio_is_tws_mono_mode_enable = (audio_is_tws_mono_mode_enable_t)
-                  dlsym(bt_lib_source_handle, "isTwsMonomodeEnable");
+    // Only proceed with symbol loading if library handle is valid
+    if (bt_lib_source_handle) {
+        bt_audio_pre_init = (bt_audio_pre_init_t)
+                      dlsym(bt_lib_source_handle, "bt_audio_pre_init");
+        audio_source_open = (audio_source_open_t)
+                      dlsym(bt_lib_source_handle, "audio_stream_open");
+        audio_source_start = (audio_source_start_t)
+                      dlsym(bt_lib_source_handle, "audio_start_stream");
+        audio_get_enc_config = (audio_get_enc_config_t)
+                      dlsym(bt_lib_source_handle, "audio_get_codec_config");
+        audio_source_suspend = (audio_source_suspend_t)
+                      dlsym(bt_lib_source_handle, "audio_suspend_stream");
+        audio_source_handoff_triggered = (audio_source_handoff_triggered_t)
+                      dlsym(bt_lib_source_handle, "audio_handoff_triggered");
+        clear_source_a2dpsuspend_flag = (clear_source_a2dpsuspend_flag_t)
+                      dlsym(bt_lib_source_handle, "clear_a2dpsuspend_flag");
+        audio_source_stop = (audio_source_stop_t)
+                      dlsym(bt_lib_source_handle, "audio_stop_stream");
+        audio_source_close = (audio_source_close_t)
+                      dlsym(bt_lib_source_handle, "audio_stream_close");
+        audio_source_check_a2dp_ready = (audio_source_check_a2dp_ready_t)
+                      dlsym(bt_lib_source_handle, "audio_check_a2dp_ready");
+        audio_sink_get_a2dp_latency = (audio_sink_get_a2dp_latency_t)
+                      dlsym(bt_lib_source_handle, "audio_sink_get_a2dp_latency");
+        audio_is_tws_mono_mode_enable = (audio_is_tws_mono_mode_enable_t)
+                      dlsym(bt_lib_source_handle, "isTwsMonomodeEnable");
 
-    if (bt_lib_source_handle && bt_audio_pre_init) {
-        PAL_DBG(LOG_TAG, "calling BT module preinit");
-        bt_audio_pre_init();
+        if (bt_audio_pre_init) {
+            PAL_DBG(LOG_TAG, "calling BT module preinit");
+            bt_audio_pre_init();
+        }
     }
     usleep(20 * 1000); //TODO: to add interval properly
     open_a2dp_source();
