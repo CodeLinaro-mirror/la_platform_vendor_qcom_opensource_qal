@@ -26,11 +26,10 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following lice
-nse:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #define LOG_TAG "PAL: ResourceManager"
@@ -5391,16 +5390,18 @@ int ResourceManager::handleDtmfDetectModuleEnable(pal_param_module_enable_t
     struct pal_stream_attributes sAttr;
     Session *session = NULL;
     int status = 0;
+    bool voice_session_found = false;
 
 
     /**Get the active device list and check if voice call devices are present.
      */
     for (int i = 0; i < active_devices.size(); i++) {
+        activestreams.clear();
         status = getActiveStream_l(active_devices[i].first, activestreams);
         if ((0 != status) || (activestreams.size() == 0)) {
             PAL_ERR(LOG_TAG, "no other active streams found");
-            status = -EINVAL;
-            goto exit;
+            status = 0;
+            continue;
         }
         for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
             status = (*sIter)->getStreamAttributes(&sAttr);
@@ -5417,9 +5418,12 @@ int ResourceManager::handleDtmfDetectModuleEnable(pal_param_module_enable_t
                     PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
                     goto exit;
                 }
+                voice_session_found = true;
+                break;
             }
         }
-        break;
+        if (voice_session_found)
+            break;
     }
 exit:
     PAL_INFO(LOG_TAG, "Exit handleDtmfDetectModuleEnable");
@@ -5435,14 +5439,16 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
     struct pal_stream_attributes sAttr;
     Session *session = NULL;
     int status = 0;
+    bool voice_session_found = false;
 
     /*Get the active device list and check if voice call devices are present*/
     for (int i = 0; i < active_devices.size(); i++) {
+        activestreams.clear();
         status = getActiveStream_l(active_devices[i].first, activestreams);
         if ((0 != status) || (activestreams.size() == 0)) {
             PAL_ERR(LOG_TAG, "no other active streams found");
-            status = -EINVAL;
-            goto exit;
+            status = 0;
+            continue;
         }
         for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
             status = (*sIter)->getStreamAttributes(&sAttr);
@@ -5459,9 +5465,15 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
                     PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
                     goto exit;
                 }
+                if ((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                    (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX)) {
+                    voice_session_found = true;
+                    break;
+                }
             }
         }
-        break;
+        if (voice_session_found)
+            break;
     }
 exit:
     return status;
