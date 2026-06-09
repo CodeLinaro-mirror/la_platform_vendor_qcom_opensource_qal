@@ -175,6 +175,32 @@ int SessionAlsaPcm::open(Stream * s)
             break;
         case PAL_AUDIO_INPUT | PAL_AUDIO_OUTPUT:
             if (sAttr.info.opt_stream_info.loopback_type ==
+                    PAL_STREAM_LOOPBACK_PLAYBACK_ONLY) {
+                if (rxAifBackEnds.size() != 1 || !txAifBackEnds.empty()) {
+                    PAL_ERR(LOG_TAG,
+                        "Invalid devices for PLAYBACK_ONLY loopback: rx=%zu tx=%zu",
+                        rxAifBackEnds.size(), txAifBackEnds.size());
+                    if (pcmDevRxIds.size()) {
+                        rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
+                    }
+                    status = -EINVAL;
+                    break;
+                }
+            }
+            if (sAttr.info.opt_stream_info.loopback_type ==
+                    PAL_STREAM_LOOPBACK_CAPTURE_ONLY) {
+                if (txAifBackEnds.size() != 1 || !rxAifBackEnds.empty()) {
+                    PAL_ERR(LOG_TAG,
+                        "Invalid devices for CAPTURE_ONLY loopback: rx=%zu tx=%zu",
+                        rxAifBackEnds.size(), txAifBackEnds.size());
+                    if (pcmDevTxIds.size()) {
+                        rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
+                    }
+                    status = -EINVAL;
+                    break;
+                }
+            }
+            if (sAttr.info.opt_stream_info.loopback_type ==
                     PAL_STREAM_LOOPBACK_CAPTURE_ONLY) {
                 status = SessionAlsaUtils::open(s, rm, pcmDevTxIds, txAifBackEnds);
                 if (status) {
