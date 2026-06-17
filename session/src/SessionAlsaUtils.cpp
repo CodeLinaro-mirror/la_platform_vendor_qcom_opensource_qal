@@ -839,7 +839,7 @@ int SessionAlsaUtils::getModuleInstanceId(struct mixer *mixer, int device, const
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
-        return ENOENT;
+        return -ENOENT;
     }
 
     payload = calloc(1024, sizeof(char));
@@ -913,7 +913,7 @@ int SessionAlsaUtils::setMixerParameter(struct mixer *mixer, int device,
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
-        return ENOENT;
+        return -ENOENT;
     }
     ret = mixer_ctl_set_array(ctl, payload, size);
 
@@ -950,7 +950,7 @@ int SessionAlsaUtils::setStreamMetadataType(struct mixer *mixer, int device, con
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
-        return ENOENT;
+        return -ENOENT;
     }
 
     ret = mixer_ctl_set_enum_by_string(ctl, val);
@@ -982,7 +982,7 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
     status = SessionAlsaUtils::getModuleInstanceId(mixer, device, intf_name, tag_id, &miid);
     if (status) {
         PAL_ERR(LOG_TAG, "Failed to get tage info %x, status = %d", tag_id, status);
-        return EINVAL;
+        return -EINVAL;
     }
     PAL_DBG(LOG_TAG, "Get miid success");
 
@@ -998,7 +998,7 @@ int SessionAlsaUtils::registerMixerEvent(struct mixer *mixer, int device, const 
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
-        return ENOENT;
+        return -ENOENT;
     }
     PAL_DBG(LOG_TAG, " mixer control: %s\n", mixer_str);
 
@@ -1042,7 +1042,7 @@ int SessionAlsaUtils::setECRefPath(struct mixer *mixer, int device, const char *
     if (!ctl) {
         printf("Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
-        return ENOENT;
+        return -ENOENT;
     }
 
     ret = mixer_ctl_set_enum_by_string(ctl, intf_name);
@@ -1912,4 +1912,3 @@ unsigned int SessionAlsaUtils::bytesToFrames(size_t bufSizeInBytes, unsigned int
 
     return (bufSizeInBytes * 8)/(ch*bits);
 }
-

@@ -51,6 +51,28 @@ extern "C" {
 #endif
 
 /**
+ * PAL Error Mapping Notes:
+ * - PAL APIs return negative errno values on failure.
+ * - Error mappings currently used by PAL stream APIs:
+ *   -EINVAL    : Invalid input/state (for example NULL handle/payload).
+ *   -EEXIST    : Stream creation failed in pal_stream_open(),
+                   duplicate stream creation is not allowed.
+ *   -ENETRESET : Stale stream handle when sound card is offline (SSR path).
+ *   -ENOENT    : Required backend path/resource/control not found.
+ * pal_stream_start()/pal_stream_stop() can return the errno values below
+ *   when there are voice device/stream creation or configuration failures:
+ *   -ECONNREFUSED : Voice-call device create/config failure.
+ *   -ECONNABORTED : Voice-call stream create/config failure.
+ *   -EISCONN      : Voice stream already exists.
+ *   -ENOSPC       : Voice device memory/resource failure.
+ *   -ENOSR        : Voice stream memory/resource failure.
+ *   -EBADRQC      : Invalid voice device operation parameters.
+ *   -EBADR        : Invalid voice stream operation parameters.
+ *  These errno values and descriptions can be used to interpret
+ *   voice-related failures returned by PAL audio APIs.
+ */
+
+/**
  *  Get PAL version in the form of Major and Minor number
  *  seperated by period.
  *
