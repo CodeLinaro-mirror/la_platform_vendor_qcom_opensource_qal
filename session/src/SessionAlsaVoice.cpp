@@ -1533,7 +1533,7 @@ int SessionAlsaVoice::setVoiceMixerParameter(Stream * s, struct mixer *mixer,
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
-        return ENOENT;
+        return -ENOENT;
     }
 
 
@@ -1604,4 +1604,3 @@ int SessionAlsaVoice::getTXDeviceId(Stream *s, int *id)
     }
     return status;
 }
-

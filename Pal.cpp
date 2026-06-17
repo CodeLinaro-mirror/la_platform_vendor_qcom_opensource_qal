@@ -74,6 +74,13 @@ static void notify_concurrent_stream(pal_stream_type_t type,
     rm->ConcurrentStreamStatus(type, dir, active);
 }
 
+static inline int32_t pal_map_stale_stream_error(
+        const std::shared_ptr<ResourceManager>& rm)
+{
+    return (rm && rm->cardState == CARD_STATUS_OFFLINE) ?
+            -ENETRESET : -EINVAL;
+}
+
 /*
  * pal_init - Initialize PAL
  *
@@ -159,7 +166,7 @@ int32_t pal_stream_open(struct pal_stream_attributes *attributes,
                            no_of_modifiers);
     } catch (const std::exception& e) {
         PAL_ERR(LOG_TAG, "Stream create failed: %s", e.what());
-        return -EINVAL;
+        return -EEXIST;
     }
     if (!s) {
         status = -EINVAL;
@@ -223,7 +230,7 @@ int32_t pal_stream_close(pal_stream_handle_t *stream_handle)
 
     rm->lockActiveStream();
     if (!rm->isActiveStream(stream_handle)) {
-        status = -EINVAL;
+        status = pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
         return status;
     }
@@ -267,7 +274,7 @@ int32_t pal_stream_start(pal_stream_handle_t *stream_handle)
     rm->lockActiveStream();
     if (!rm->isActiveStream(stream_handle)) {
         rm->unlockActiveStream();
-        status = -EINVAL;
+        status = pal_map_stale_stream_error(rm);
         return status;
     }
 
@@ -310,7 +317,7 @@ int32_t pal_stream_stop(pal_stream_handle_t *stream_handle)
     rm->lockActiveStream();
     if (!rm->isActiveStream(stream_handle)) {
         rm->unlockActiveStream();
-        status = -EINVAL;
+        status = pal_map_stale_stream_error(rm);
         return status;
     }
 
@@ -345,10 +352,16 @@ ssize_t pal_stream_write(pal_stream_handle_t *stream_handle, struct pal_buffer *
         return status;
     }
     rm->lockActiveStream();
-    if (!stream_handle || !rm->isActiveStream(stream_handle) || !buf) {
+    if (!stream_handle || !buf) {
         rm->unlockActiveStream();
         status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid input parameters status %d", status);
+        return status;
+    }
+    if (!rm->isActiveStream(stream_handle)) {
+        rm->unlockActiveStream();
+        status = pal_map_stale_stream_error(rm);
+        PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
     rm->unlockActiveStream();
@@ -377,10 +390,16 @@ ssize_t pal_stream_read(pal_stream_handle_t *stream_handle, struct pal_buffer *b
         return status;
     }
     rm->lockActiveStream();
-    if (!stream_handle || !rm->isActiveStream(stream_handle) || !buf) {
+    if (!stream_handle || !buf) {
         rm->unlockActiveStream();
         status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid input parameters status %d", status);
+        return status;
+    }
+    if (!rm->isActiveStream(stream_handle)) {
+        rm->unlockActiveStream();
+        status = pal_map_stale_stream_error(rm);
+        PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
     rm->unlockActiveStream();
@@ -412,9 +431,9 @@ int32_t pal_stream_get_param(pal_stream_handle_t *stream_handle,
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
-        PAL_ERR(LOG_TAG,  "Invalid input parameters status %d", status);
+        PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
     rm->unlockActiveStream();
@@ -446,9 +465,9 @@ int32_t pal_stream_set_param(pal_stream_handle_t *stream_handle, uint32_t param_
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
-        PAL_ERR(LOG_TAG,  "Invalid stream handle, status %d", status);
+        PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
     rm->unlockActiveStream();
@@ -487,7 +506,7 @@ int32_t pal_stream_set_volume(pal_stream_handle_t *stream_handle,
     rm->lockActiveStream();
     if (!rm->isActiveStream(stream_handle)) {
         rm->unlockActiveStream();
-        status = -EINVAL;
+        status = pal_map_stale_stream_error(rm);
         return status;
     }
 
@@ -525,7 +544,7 @@ int32_t pal_stream_set_mute(pal_stream_handle_t *stream_handle, bool state)
     rm->lockActiveStream();
     if (!rm->isActiveStream(stream_handle)) {
         rm->unlockActiveStream();
-        status = -EINVAL;
+        status = pal_map_stale_stream_error(rm);
         return status;
     }
 
@@ -555,8 +574,8 @@ int32_t pal_stream_pause(pal_stream_handle_t *stream_handle)
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
@@ -588,8 +607,8 @@ int32_t pal_stream_resume(pal_stream_handle_t *stream_handle)
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
@@ -632,7 +651,7 @@ int32_t pal_stream_drain(pal_stream_handle_t *stream_handle, pal_drain_type_t ty
     rm->lockActiveStream();
     if (!rm->isActiveStream(stream_handle)) {
         rm->unlockActiveStream();
-        status = -EINVAL;
+        status = pal_map_stale_stream_error(rm);
         goto exit;
     }
 
@@ -664,8 +683,8 @@ int32_t pal_stream_flush(pal_stream_handle_t *stream_handle)
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
@@ -701,8 +720,8 @@ int32_t pal_stream_set_buffer_size (pal_stream_handle_t *stream_handle,
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
@@ -735,8 +754,8 @@ int32_t pal_stream_get_buffer_size(pal_stream_handle_t *stream_handle,
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
@@ -777,6 +796,7 @@ int32_t pal_get_timestamp(pal_stream_handle_t *stream_handle,
         s =  reinterpret_cast<Stream *>(stream_handle);
         status = s->getTimestamp(stime);
     } else {
+        status = pal_map_stale_stream_error(rm);
         PAL_ERR(LOG_TAG, "stream handle in stale state.\n");
     }
     rm->unlockActiveStream();
@@ -808,8 +828,8 @@ int32_t pal_add_remove_effect(pal_stream_handle_t *stream_handle,
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
@@ -859,7 +879,7 @@ int32_t pal_stream_set_device(pal_stream_handle_t *stream_handle,
     rm->lockActiveStream();
     if (!rm->isActiveStream(stream_handle)) {
         rm->unlockActiveStream();
-        status = -EINVAL;
+        status = pal_map_stale_stream_error(rm);
         return status;
     }
 
@@ -1006,8 +1026,8 @@ int32_t pal_stream_get_mmap_position(pal_stream_handle_t *stream_handle,
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }
@@ -1041,8 +1061,8 @@ int32_t pal_stream_create_mmap_buffer(pal_stream_handle_t *stream_handle,
 
     rm->lockActiveStream();
     if (!stream_handle || !rm->isActiveStream(stream_handle)) {
+        status = !stream_handle ? -EINVAL : pal_map_stale_stream_error(rm);
         rm->unlockActiveStream();
-        status = -EINVAL;
         PAL_ERR(LOG_TAG, "Invalid stream handle status %d", status);
         return status;
     }

@@ -797,7 +797,7 @@ int32_t  StreamPCM::read(struct pal_buffer* buf)
 
         if(rm->getSkipStreamRestart() == 1) {
             PAL_ERR(LOG_TAG, "SSR occured skip further processing");
-            status =  -EINVAL;
+            status =  -ENETRESET;
             goto exit;
         }
 
@@ -896,7 +896,7 @@ int32_t StreamPCM::write(struct pal_buffer* buf)
         if(rm->getSkipStreamRestart() == 1) {
             PAL_ERR(LOG_TAG, "SSR occured skip further processing");
             mStreamMutex.unlock();
-            return -EINVAL;
+            return -ENETRESET;
         }
         byteWidth = mStreamAttr->out_media_config.bit_width / 8;
         sampleRate = mStreamAttr->out_media_config.sample_rate;
@@ -1640,4 +1640,3 @@ int32_t StreamPCM::GetMmapPosition(struct pal_mmap_position *position)
 
     return status;
 }
-

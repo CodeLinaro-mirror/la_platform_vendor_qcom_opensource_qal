@@ -2093,7 +2093,7 @@ int SessionAlsaPcm::getParameters(Stream *s __unused, int tagId, uint32_t param_
             break;
         }
         default:
-            status = EINVAL;
+            status = -EINVAL;
             PAL_ERR(LOG_TAG, "Unsupported param id %u status %d", param_id, status);
             goto exit;
     }
