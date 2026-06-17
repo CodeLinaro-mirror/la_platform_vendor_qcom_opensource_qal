@@ -624,7 +624,7 @@ int32_t Stream::getTimestamp(struct pal_session_time *stime)
         goto exit;
     }
     if (rm->cardState == CARD_STATUS_OFFLINE) {
-        status = -EINVAL;
+        status = -ENETRESET;
         PAL_ERR(LOG_TAG, "Sound card offline, status %d", status);
         goto exit;
     }
@@ -635,7 +635,7 @@ int32_t Stream::getTimestamp(struct pal_session_time *stime)
             rm->cardState != CARD_STATUS_OFFLINE) {
             PAL_ERR(LOG_TAG, "Sound card offline, informing RM");
             rm->ssrHandler(CARD_STATUS_OFFLINE);
-            status = -EINVAL;
+            status = -ENETRESET;
         }
     }
 exit:
@@ -1131,4 +1131,3 @@ bool Stream::checkStreamMatch(pal_device_id_t pal_device_id,
 
     return match;
 }
-
