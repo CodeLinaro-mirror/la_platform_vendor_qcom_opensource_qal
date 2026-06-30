@@ -680,9 +680,9 @@ int32_t StreamPCM::getVolume(struct pal_volume_data *volume)
 int32_t  StreamPCM::setVolume(struct pal_volume_data *volume)
 {
     int32_t status = 0;
-    int32_t stream_channel;
-    int32_t channel_mask;
-    int32_t vol_channel_mask;
+    int32_t stream_channel = 0;
+    int32_t channel_mask = 0;
+    int32_t vol_channel_mask = 0;
     bool stream_status = false;
 
     PAL_DBG(LOG_TAG, "Enter. session handle - %pK", session);
@@ -785,11 +785,12 @@ exit:
 int32_t  StreamPCM::read(struct pal_buffer* buf)
 {
     int32_t status = 0;
-    int32_t size;
-    uint32_t streamSize;
-    uint32_t byteWidth;
-    uint32_t sampleRate;
+    int32_t size = 0;
+    uint32_t streamSize = 0;
+    uint32_t byteWidth = 0;
+    uint32_t sampleRate = 0;
     struct pal_channel_info chInfo;
+    memset(&chInfo, 0, sizeof(chInfo));
     PAL_VERBOSE(LOG_TAG, "Enter. session handle - %pK, state %d",
             session, currentState);
 

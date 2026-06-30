@@ -1746,6 +1746,7 @@ int ResourceManager::registerStream(Stream *s)
         case PAL_STREAM_VOICE_CALL_MUSIC:
         {
             struct pal_stream_attributes sAttr;
+            memset(&sAttr, 0, sizeof(sAttr));
             ret = s->getStreamAttributes(&sAttr);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG, "getStreamAttributes failed with status = %d", ret);
@@ -1914,6 +1915,7 @@ int ResourceManager::deregisterStream(Stream *s)
         case PAL_STREAM_VOICE_CALL_MUSIC:
         {
             struct pal_stream_attributes sAttr;
+            memset(&sAttr, 0, sizeof(sAttr));
             ret = s->getStreamAttributes(&sAttr);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG, "getStreamAttributes failed with status = %d", ret);
@@ -2006,6 +2008,7 @@ int ResourceManager::registerDevice(std::shared_ptr<Device> d, Stream *s)
 {
     int status = 0;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     std::shared_ptr<Device> dev = nullptr;
     std::vector<std::shared_ptr<Device>> associatedDevices;
     std::vector<Stream*> str_list;
@@ -2106,6 +2109,7 @@ int ResourceManager::deregisterDevice(std::shared_ptr<Device> d, Stream *s)
 {
     int status = 0;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     std::shared_ptr<Device> dev = nullptr;
     std::vector<std::shared_ptr<Device>> associatedDevices;
     std::vector<Stream*> str_list;
@@ -2303,6 +2307,7 @@ bool ResourceManager::IsVoiceUILPISupported() {
 bool ResourceManager::CheckForActiveConcurrentNonLPIStream() {
     bool has_nlpi_concurrency = false;
     pal_stream_attributes st_attr;
+    memset(&st_attr, 0, sizeof(st_attr));
 
     mResourceManagerMutex.lock();
     if (concurrentRxStreamCount > 0) {
@@ -3154,7 +3159,7 @@ void ResourceManager::getHigherPriorityActiveStreams(const int inComingStreamPri
 {
     int existingStreamPriority = 0;
     pal_stream_attributes sAttr;
-
+    memset(&sAttr, 0, sizeof(sAttr));
 
     typename std::vector<T>::iterator iter = sourcestreams.begin();
 
@@ -4086,6 +4091,7 @@ bool ResourceManager::updateDeviceConfig(std::shared_ptr<Device> inDev,
     if (sharedBEStreamDev.size() > 0) {
         for (const auto &elem : sharedBEStreamDev) {
             struct pal_stream_attributes sAttr;
+            memset(&sAttr, 0, sizeof(sAttr));
             Stream *sharedStream = std::get<0>(elem);
             struct pal_device curDevAttr;
             std::shared_ptr<Device> curDev = nullptr;
@@ -4621,6 +4627,7 @@ int32_t ResourceManager::a2dpResume()
     std::vector <Stream *> activeStreams;
     std::vector<Stream*>::iterator sIter;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
 
     dattr.id = PAL_DEVICE_OUT_SPEAKER;
     dev = Device::getInstance(&dattr , rm);
@@ -5131,8 +5138,10 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
             if (param_bt_a2dp->a2dp_suspended == false) {
                 /* Handle bt sco mic running usecase */
                 struct pal_device sco_tx_dattr;
-                struct pal_device_info devinfo = {};
+                struct pal_device_info devinfo;
+                memset(&devinfo, 0, sizeof(devinfo));
                 struct pal_stream_attributes sAttr;
+                memset(&sAttr, 0, sizeof(sAttr));
                 Stream *stream = NULL;
                 std::vector<Stream*> activestreams;
 
@@ -5389,6 +5398,7 @@ int ResourceManager::handleDtmfDetectModuleEnable(pal_param_module_enable_t
     pal_stream_type_t streamType;
     struct pal_device dattr;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     Session *session = NULL;
     int status = 0;
 
@@ -5433,6 +5443,7 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
     pal_stream_type_t streamType;
     struct pal_device dattr;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     Session *session = NULL;
     int status = 0;
 

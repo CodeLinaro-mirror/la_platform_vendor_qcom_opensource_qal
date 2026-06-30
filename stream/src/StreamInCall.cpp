@@ -539,7 +539,7 @@ exit:
 int32_t  StreamInCall::read(struct pal_buffer* buf)
 {
     int32_t status = 0;
-    int32_t size;
+    int32_t size = 0;
     PAL_DBG(LOG_TAG, "Enter. session handle - %pK, state %d",
             session, currentState);
 

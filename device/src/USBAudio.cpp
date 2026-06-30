@@ -636,6 +636,7 @@ int USBCardConfig::readBestConfig(struct pal_media_config *config,
     int bitwidth = 16;
     int ret = -EINVAL;
     struct pal_media_config media_config;
+    memset(&media_config, 0, sizeof(media_config));
 
     for (iter = usb_device_config_list_.begin();
          iter != usb_device_config_list_.end(); iter++) {
@@ -758,6 +759,7 @@ int USBDeviceConfig::getBestChInfo(struct pal_channel_info *requested_ch_info,
                                         struct pal_channel_info *best_ch_info)
 {
     struct pal_channel_info usb_ch_info;
+    memset(&usb_ch_info, 0, sizeof(usb_ch_info));
 
     usb_ch_info.channels = channels_;
     for (int i = 0; i < channels_; i++) {

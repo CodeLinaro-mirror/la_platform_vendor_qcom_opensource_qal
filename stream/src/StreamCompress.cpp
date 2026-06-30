@@ -570,7 +570,7 @@ int32_t StreamCompress::setVolume(struct pal_volume_data *volume)
     int32_t status = 0;
     int32_t num_stream_channel;
     int32_t channel_mask;
-    int32_t vol_channel_mask;
+    int32_t vol_channel_mask = 0;
     bool stream_status = false;
 
     PAL_VERBOSE(LOG_TAG, "start, session handle - %p", session);

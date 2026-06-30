@@ -406,6 +406,7 @@ void Bluetooth::startAbr()
     int ret = 0, dir;
     struct pal_device fbDevice;
     struct pal_channel_info ch_info;
+    memset(&ch_info, 0, sizeof(ch_info));
     struct pal_stream_attributes sAttr;
     std::string backEndName;
     std::vector <std::pair<int, int>> keyVector;
