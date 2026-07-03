@@ -332,6 +332,7 @@ int SessionAlsaCompress::open(Stream * s)
 {
     int status = -EINVAL;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     std::vector<std::shared_ptr<Device>> associatedDevices;
     std::vector<std::pair<int32_t, std::string>> emptyBackEnds;
 
@@ -805,6 +806,7 @@ int SessionAlsaCompress::start(Stream * s)
 {
     struct compr_config compress_config;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     int32_t status = 0;
     size_t in_buf_size, in_buf_count, out_buf_size, out_buf_count;
     std::vector<std::shared_ptr<Device>> associatedDevices;
@@ -979,6 +981,7 @@ int SessionAlsaCompress::stop(Stream * s __unused)
 int SessionAlsaCompress::close(Stream * s)
 {
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     std::ostringstream disconnectCtrlName;
     s->getStreamAttributes(&sAttr);
     if (!compress) {
