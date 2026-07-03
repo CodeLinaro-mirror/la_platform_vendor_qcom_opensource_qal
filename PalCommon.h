@@ -61,10 +61,10 @@ extern uint32_t pal_log_lvl;
 } while(0)
 
 // Map your macros to the helper
-#define PAL_ERR(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_ERROR, fmt, ##__VA_ARGS__)
-#define PAL_DBG(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_DEBUG, fmt, ##__VA_ARGS__)
-#define PAL_INFO(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_INFO,  fmt, ##__VA_ARGS__)
-#define PAL_VERBOSE(tag, fmt, ...) PAL_DLT_WRAPPER(DLT_LOG_VERBOSE, fmt, ##__VA_ARGS__)
+#define PAL_ERR(tag, fmt, ...) PAL_DLT_WRAPPER(PAL_LOG_ERR, DLT_LOG_ERROR, fmt, ##__VA_ARGS__)
+#define PAL_DBG(tag, fmt, ...) PAL_DLT_WRAPPER(PAL_LOG_DBG, DLT_LOG_DEBUG, fmt, ##__VA_ARGS__)
+#define PAL_INFO(tag, fmt, ...) PAL_DLT_WRAPPER(PAL_LOG_INFO, DLT_LOG_INFO, fmt, ##__VA_ARGS__)
+#define PAL_VERBOSE(tag, fmt, ...) PAL_DLT_WRAPPER(PAL_LOG_VERBOSE, DLT_LOG_VERBOSE, fmt, ##__VA_ARGS__)
 #else
 #define PAL_ERR(log_tag, arg,...)                                          \
     if (pal_log_lvl & PAL_LOG_ERR) {                              \
