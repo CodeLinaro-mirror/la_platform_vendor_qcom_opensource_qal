@@ -26,11 +26,10 @@
  * OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * Changes from Qualcomm Innovation Center are provided under the following lice
-nse:
+ * Changes from Qualcomm Technologies, Inc. are provided under the following license:
  *
  * Copyright (c) Qualcomm Technologies, Inc. and/or its subsidiaries.
- * SPDX-License-Identifier: BSD-3-Clause-Clear
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 #define LOG_TAG "PAL: ResourceManager"
@@ -1746,6 +1745,7 @@ int ResourceManager::registerStream(Stream *s)
         case PAL_STREAM_VOICE_CALL_MUSIC:
         {
             struct pal_stream_attributes sAttr;
+            memset(&sAttr, 0, sizeof(sAttr));
             ret = s->getStreamAttributes(&sAttr);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG, "getStreamAttributes failed with status = %d", ret);
@@ -1914,6 +1914,7 @@ int ResourceManager::deregisterStream(Stream *s)
         case PAL_STREAM_VOICE_CALL_MUSIC:
         {
             struct pal_stream_attributes sAttr;
+            memset(&sAttr, 0, sizeof(sAttr));
             ret = s->getStreamAttributes(&sAttr);
             if (0 != ret) {
                 PAL_ERR(LOG_TAG, "getStreamAttributes failed with status = %d", ret);
@@ -2006,6 +2007,7 @@ int ResourceManager::registerDevice(std::shared_ptr<Device> d, Stream *s)
 {
     int status = 0;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     std::shared_ptr<Device> dev = nullptr;
     std::vector<std::shared_ptr<Device>> associatedDevices;
     std::vector<Stream*> str_list;
@@ -2106,6 +2108,7 @@ int ResourceManager::deregisterDevice(std::shared_ptr<Device> d, Stream *s)
 {
     int status = 0;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     std::shared_ptr<Device> dev = nullptr;
     std::vector<std::shared_ptr<Device>> associatedDevices;
     std::vector<Stream*> str_list;
@@ -2303,6 +2306,7 @@ bool ResourceManager::IsVoiceUILPISupported() {
 bool ResourceManager::CheckForActiveConcurrentNonLPIStream() {
     bool has_nlpi_concurrency = false;
     pal_stream_attributes st_attr;
+    memset(&st_attr, 0, sizeof(st_attr));
 
     mResourceManagerMutex.lock();
     if (concurrentRxStreamCount > 0) {
@@ -3154,7 +3158,7 @@ void ResourceManager::getHigherPriorityActiveStreams(const int inComingStreamPri
 {
     int existingStreamPriority = 0;
     pal_stream_attributes sAttr;
-
+    memset(&sAttr, 0, sizeof(sAttr));
 
     typename std::vector<T>::iterator iter = sourcestreams.begin();
 
@@ -4086,6 +4090,7 @@ bool ResourceManager::updateDeviceConfig(std::shared_ptr<Device> inDev,
     if (sharedBEStreamDev.size() > 0) {
         for (const auto &elem : sharedBEStreamDev) {
             struct pal_stream_attributes sAttr;
+            memset(&sAttr, 0, sizeof(sAttr));
             Stream *sharedStream = std::get<0>(elem);
             struct pal_device curDevAttr;
             std::shared_ptr<Device> curDev = nullptr;
@@ -4621,6 +4626,7 @@ int32_t ResourceManager::a2dpResume()
     std::vector <Stream *> activeStreams;
     std::vector<Stream*>::iterator sIter;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
 
     dattr.id = PAL_DEVICE_OUT_SPEAKER;
     dev = Device::getInstance(&dattr , rm);
@@ -5131,8 +5137,10 @@ int ResourceManager::setParameter(uint32_t param_id, void *param_payload,
             if (param_bt_a2dp->a2dp_suspended == false) {
                 /* Handle bt sco mic running usecase */
                 struct pal_device sco_tx_dattr;
-                struct pal_device_info devinfo = {};
+                struct pal_device_info devinfo;
+                memset(&devinfo, 0, sizeof(devinfo));
                 struct pal_stream_attributes sAttr;
+                memset(&sAttr, 0, sizeof(sAttr));
                 Stream *stream = NULL;
                 std::vector<Stream*> activestreams;
 
@@ -5389,18 +5397,21 @@ int ResourceManager::handleDtmfDetectModuleEnable(pal_param_module_enable_t
     pal_stream_type_t streamType;
     struct pal_device dattr;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     Session *session = NULL;
     int status = 0;
+    bool voice_session_found = false;
 
 
     /**Get the active device list and check if voice call devices are present.
      */
     for (int i = 0; i < active_devices.size(); i++) {
+        activestreams.clear();
         status = getActiveStream_l(active_devices[i].first, activestreams);
         if ((0 != status) || (activestreams.size() == 0)) {
             PAL_ERR(LOG_TAG, "no other active streams found");
-            status = -EINVAL;
-            goto exit;
+            status = 0;
+            continue;
         }
         for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
             status = (*sIter)->getStreamAttributes(&sAttr);
@@ -5417,9 +5428,12 @@ int ResourceManager::handleDtmfDetectModuleEnable(pal_param_module_enable_t
                     PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
                     goto exit;
                 }
+                voice_session_found = true;
+                break;
             }
         }
-        break;
+        if (voice_session_found)
+            break;
     }
 exit:
     PAL_INFO(LOG_TAG, "Exit handleDtmfDetectModuleEnable");
@@ -5433,16 +5447,19 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
     pal_stream_type_t streamType;
     struct pal_device dattr;
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
     Session *session = NULL;
     int status = 0;
+    bool voice_session_found = false;
 
     /*Get the active device list and check if voice call devices are present*/
     for (int i = 0; i < active_devices.size(); i++) {
+        activestreams.clear();
         status = getActiveStream_l(active_devices[i].first, activestreams);
         if ((0 != status) || (activestreams.size() == 0)) {
             PAL_ERR(LOG_TAG, "no other active streams found");
-            status = -EINVAL;
-            goto exit;
+            status = 0;
+            continue;
         }
         for (sIter = activestreams.begin(); sIter != activestreams.end(); sIter++) {
             status = (*sIter)->getStreamAttributes(&sAttr);
@@ -5459,9 +5476,15 @@ int ResourceManager::handleDtmfToneGeneration (pal_param_dtmf_gen_tone_cfg_t
                     PAL_ERR(LOG_TAG, "setParameters Failed with status %d", status);
                     goto exit;
                 }
+                if ((sAttr.type == PAL_STREAM_VOICE_CALL) ||
+                    (sAttr.type == PAL_STREAM_VOICE_CALL_RX_TX)) {
+                    voice_session_found = true;
+                    break;
+                }
             }
         }
-        break;
+        if (voice_session_found)
+            break;
     }
 exit:
     return status;

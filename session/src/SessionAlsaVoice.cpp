@@ -1533,7 +1533,7 @@ int SessionAlsaVoice::setVoiceMixerParameter(Stream * s, struct mixer *mixer,
     if (!ctl) {
         PAL_ERR(LOG_TAG, "Invalid mixer control: %s\n", mixer_str);
         free(mixer_str);
-        return ENOENT;
+        return -ENOENT;
     }
 
 
@@ -1547,6 +1547,7 @@ int SessionAlsaVoice::setVoiceMixerParameter(Stream * s, struct mixer *mixer,
 char* SessionAlsaVoice::getMixerVoiceStream(Stream *s, int dir){
     char *stream = (char*)"VOICEMMODE1p";
     struct pal_stream_attributes sAttr;
+    memset(&sAttr, 0, sizeof(sAttr));
 
     s->getStreamAttributes(&sAttr);
     if (sAttr.info.voice_call_info.VSID == VOICEMMODE1 ||
@@ -1604,4 +1605,3 @@ int SessionAlsaVoice::getTXDeviceId(Stream *s, int *id)
     }
     return status;
 }
-

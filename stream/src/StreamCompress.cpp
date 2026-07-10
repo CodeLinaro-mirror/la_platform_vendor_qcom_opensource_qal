@@ -570,7 +570,7 @@ int32_t StreamCompress::setVolume(struct pal_volume_data *volume)
     int32_t status = 0;
     int32_t num_stream_channel;
     int32_t channel_mask;
-    int32_t vol_channel_mask;
+    int32_t vol_channel_mask = 0;
     bool stream_status = false;
 
     PAL_VERBOSE(LOG_TAG, "start, session handle - %p", session);
@@ -698,7 +698,7 @@ int32_t StreamCompress::pause()
 
     //AF will try to pause the stream during SSR.
     if (rm->cardState == CARD_STATUS_OFFLINE) {
-        status = -EINVAL;
+        status = -ENETRESET;
         PAL_ERR(LOG_TAG, "Sound card offline, can not pause, status %d", status);
         isPaused = true;
         return status;
@@ -726,7 +726,7 @@ int32_t StreamCompress::resume()
     int32_t status = 0;
 
     if (rm->cardState == CARD_STATUS_OFFLINE) {
-        status = -EINVAL;
+        status = -ENETRESET;
         PAL_ERR(LOG_TAG, "Sound card offline, can not resume, status %d", status);
         return status;
     }
@@ -752,7 +752,7 @@ int32_t StreamCompress::drain(pal_drain_type_t type)
 {
     if (rm->cardState == CARD_STATUS_OFFLINE) {
         PAL_ERR(LOG_TAG, "Sound card offline or session is null");
-        return -EINVAL;
+        return -ENETRESET;
     }
     return session->drain(type);
 }
