@@ -148,6 +148,7 @@ int32_t pal_stream_open(struct pal_stream_attributes *attributes,
     uint64_t *stream = NULL;
     Stream *s = NULL;
     int status;
+    int stream_create_status;
     const char *param_tag;
     pal_param_hpcm_cfg_t param_hpcm_cfg;
     std::shared_ptr<ResourceManager> rm = NULL;
@@ -160,16 +161,15 @@ int32_t pal_stream_open(struct pal_stream_attributes *attributes,
     }
 
     PAL_INFO(LOG_TAG, "Enter.");
-
     try {
         s = Stream::create(attributes, devices, no_of_devices, modifiers,
-                           no_of_modifiers);
+                           no_of_modifiers, &stream_create_status);
     } catch (const std::exception& e) {
         PAL_ERR(LOG_TAG, "Stream create failed: %s", e.what());
         return -EEXIST;
     }
     if (!s) {
-        status = -EINVAL;
+        status = stream_create_status ? stream_create_status : -EINVAL;
         PAL_ERR(LOG_TAG, "stream creation failed status %d", status);
         return status;
     }

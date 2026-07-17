@@ -1466,21 +1466,21 @@ int32_t ResourceManager::getDeviceConfig(struct pal_device *deviceattr,
     return status;
 }
 
-bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes,
-                                        struct pal_device *devices, int no_of_devices)
+int32_t ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes,
+                                          struct pal_device *devices, int no_of_devices)
 {
-    bool result = false;
+    int32_t status = -EINVAL;
     uint16_t channels;
     uint32_t samplerate, bitwidth;
-    uint32_t rc;
+    int32_t rc;
     size_t cur_sessions = 0;
     size_t max_sessions = 0;
 
     if (!attributes || !devices ||
         (!no_of_devices && (attributes->type != PAL_STREAM_VOICE_CALL_MUSIC)
          && (attributes->type != PAL_STREAM_VOICE_CALL_RECORD))) {
-        PAL_ERR(LOG_TAG, "Invalid input parameter ret %d", result);
-        return result;
+        PAL_ERR(LOG_TAG, "Invalid input parameter ret %d", status);
+        return status;
     }
 
     // check if stream type is supported
@@ -1557,11 +1557,12 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
             break;
         default:
             PAL_ERR(LOG_TAG, "Invalid stream type = %d", type);
-        return result;
+            return status;
     }
-    if (cur_sessions == max_sessions) {
+    if (cur_sessions >= max_sessions) {
+        status = -EEXIST;
         PAL_ERR(LOG_TAG, "no new session allowed for stream %d", type);
-        return result;
+        return status;
     }
 
     // check if param supported by audio configruation
@@ -1596,10 +1597,10 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
                   StreamPCM::isChannelSupported(channels));
             if (0 != rc) {
                PAL_ERR(LOG_TAG, "config not supported rc %d", rc);
-               return result;
+               return status;
             }
             PAL_INFO(LOG_TAG, "config suppported");
-            result = true;
+            status = 0;
             break;
         case PAL_STREAM_COMPRESSED:
             if (attributes->direction == PAL_AUDIO_INPUT) {
@@ -1616,10 +1617,10 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
                   StreamCompress::isChannelSupported(channels));
             if (0 != rc) {
                PAL_ERR(LOG_TAG, "config not supported rc %d", rc);
-               return result;
+               return status;
             }
             PAL_INFO(LOG_TAG, "config suppported");
-            result = true;
+            status = 0;
             break;
         case PAL_STREAM_VOICE_UI:
             if (attributes->direction == PAL_AUDIO_INPUT) {
@@ -1636,10 +1637,10 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
                   StreamSoundTrigger::isChannelSupported(channels));
             if (0 != rc) {
                PAL_ERR(LOG_TAG, "config not supported rc %d", rc);
-               return result;
+               return status;
             }
             PAL_INFO(LOG_TAG, "config suppported");
-            result = true;
+            status = 0;
             break;
         case PAL_STREAM_VOICE_CALL:
             channels = attributes->out_media_config.ch_info.channels;
@@ -1650,18 +1651,18 @@ bool ResourceManager::isStreamSupported(struct pal_stream_attributes *attributes
                   StreamPCM::isChannelSupported(channels));
             if (0 != rc) {
                PAL_ERR(LOG_TAG, "config not supported rc %d", rc);
-               return result;
+               return status;
             }
             PAL_INFO(LOG_TAG, "config suppported");
-            result = true;
+            status = 0;
             break;
 
         default:
             PAL_ERR(LOG_TAG, "unknown type");
-            return false;
+            return status;
     }
-    PAL_DBG(LOG_TAG, "Exit. result %d", result);
-    return result;
+    PAL_DBG(LOG_TAG, "Exit. result %d", !status);
+    return status;
 }
 
 template <class T>
@@ -1992,6 +1993,23 @@ int ResourceManager::isActiveStream(pal_stream_handle_t *handle) {
             return true;
         }
     }
+    return false;
+}
+
+bool ResourceManager::isStreamTypeActive(pal_stream_type_t type, Stream *ignore)
+{
+    std::lock_guard<std::mutex> lock(mActiveStreamMutex);
+
+    for (auto &stream : mActiveStreams) {
+        pal_stream_type_t active_type;
+
+        if (!stream || stream == ignore)
+            continue;
+
+        if (!stream->getStreamType(&active_type) && active_type == type)
+            return true;
+    }
+
     return false;
 }
 

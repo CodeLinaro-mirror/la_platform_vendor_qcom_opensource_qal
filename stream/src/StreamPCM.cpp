@@ -218,6 +218,12 @@ int32_t  StreamPCM::open()
                 mDevices.size());
         status = session->open(this);
         if (0 != status) {
+            if ((status == -EINVAL) &&
+                rm->isStreamTypeActive(mStreamAttr->type, this)) {
+                PAL_ERR(LOG_TAG, "duplicate stream open detected for type %d",
+                        mStreamAttr->type);
+                status = -EEXIST;
+            }
             PAL_ERR(LOG_TAG, "session open failed with status %d", status);
             goto exit;
         }
