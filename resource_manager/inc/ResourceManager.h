@@ -404,8 +404,8 @@ public:
     void *admLibHdl = NULL;
 
     /* checks config for both stream and device */
-    bool isStreamSupported(struct pal_stream_attributes *attributes,
-                           struct pal_device *devices, int no_of_devices);
+    int32_t isStreamSupported(struct pal_stream_attributes *attributes,
+                              struct pal_device *devices, int no_of_devices);
     int32_t getDeviceConfig(struct pal_device *deviceattr,
                             struct pal_stream_attributes *attributes, int32_t channel);
     /*getDeviceInfo - updates channels, fluence info of the device*/
@@ -422,6 +422,7 @@ public:
     int registerStream(Stream *s);
     int deregisterStream(Stream *s);
     int isActiveStream(pal_stream_handle_t *handle);
+    bool isStreamTypeActive(pal_stream_type_t type, Stream *ignore);
     int registerDevice(std::shared_ptr<Device> d, Stream *s);
     int deregisterDevice(std::shared_ptr<Device> d, Stream *s);
     int registerDevice_l(std::shared_ptr<Device> d, Stream *s);

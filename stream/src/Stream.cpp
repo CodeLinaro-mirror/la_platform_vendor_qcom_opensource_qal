@@ -48,11 +48,12 @@ std::mutex Stream::mBaseStreamMutex;
 struct pal_device* Stream::mPalDevice = nullptr;
 
 Stream* Stream::create(struct pal_stream_attributes *sAttr, struct pal_device *dAttr,
-    uint32_t noOfDevices, struct modifier_kv *modifiers, uint32_t noOfModifiers)
+    uint32_t noOfDevices, struct modifier_kv *modifiers, uint32_t noOfModifiers,
+    int32_t *streamStatus)
 {
     std::lock_guard<std::mutex> lock(mBaseStreamMutex);
     Stream* stream = NULL;
-    int status = 0;
+    int status = -EINVAL;
     uint32_t count = 0;
 
 
@@ -122,7 +123,8 @@ Stream* Stream::create(struct pal_stream_attributes *sAttr, struct pal_device *d
 
 stream_create:
     PAL_DBG(LOG_TAG, "stream type 0x%x", sAttr->type);
-    if (rm->isStreamSupported(sAttr, mPalDevice, count)) {
+    status = rm->isStreamSupported(sAttr, mPalDevice, count);
+    if (!status) {
         switch (sAttr->type) {
             case PAL_STREAM_LOW_LATENCY:
             case PAL_STREAM_DEEP_BUFFER:
@@ -174,12 +176,15 @@ stream_create:
 exit:
     if (stream) {
         PAL_DBG(LOG_TAG, "Exit. stream creation success");
+        status = 0;
     } else {
         if (mPalDevice)
             delete mPalDevice;
         PAL_ERR(LOG_TAG, "stream creation failed");
     }
 
+    if (streamStatus)
+        *streamStatus = status;
     PAL_DBG(LOG_TAG, "stream %pK created", stream);
     return stream;
 }
