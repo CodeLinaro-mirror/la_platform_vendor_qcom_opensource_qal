@@ -374,6 +374,8 @@ int SessionAlsaCompress::open(Stream * s)
     compressDevIds = rm->allocateFrontEndIds(sAttr, 0);
     if (compressDevIds.size() == 0) {
         PAL_ERR(LOG_TAG, "no more FE vailable");
+        if (rm->isStreamTypeActive(sAttr.type, s))
+            return -EEXIST;
         return -EINVAL;
     }
     for (int i = 0; i < compressDevIds.size(); i++) {
@@ -1572,4 +1574,3 @@ int SessionAlsaCompress::setECRef(Stream *s __unused, std::shared_ptr<Device> rx
 {
     return 0;
 }
-
