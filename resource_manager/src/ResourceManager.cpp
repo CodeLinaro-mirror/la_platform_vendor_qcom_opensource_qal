@@ -3356,25 +3356,40 @@ int ResourceManager::getPcmDeviceId(int deviceId)
 
 void ResourceManager::deinit()
 {
-    card_status_t state = CARD_STATUS_NONE;
-
     mixerClosed = true;
-    mixer_close(audio_virt_mixer);
-    mixer_close(audio_hw_mixer);
-    if (audio_route) {
-       audio_route_free(audio_route);
+
+    {
+        std::lock_guard<std::mutex> lock(cvMutex);
+        while (!msgQ.empty())
+            msgQ.pop();
+        msgQ.push(CARD_STATUS_NONE);
     }
-    if (sndmon)
-        delete sndmon;
-
-    cvMutex.lock();
-    msgQ.push(state);
-    cvMutex.unlock();
     cv.notify_all();
+    if (workerThread.joinable())
+        workerThread.join();
 
-    workerThread.join();
-    while (!msgQ.empty())
-        msgQ.pop();
+    if (sndmon) {
+        delete sndmon;
+        sndmon = nullptr;
+    }
+
+    if (audio_virt_mixer) {
+        mixer_close(audio_virt_mixer);
+        audio_virt_mixer = nullptr;
+    }
+    if (audio_hw_mixer) {
+        mixer_close(audio_hw_mixer);
+        audio_hw_mixer = nullptr;
+    }
+    if (audio_route) {
+        audio_route_free(audio_route);
+        audio_route = nullptr;
+    }
+    {
+        std::lock_guard<std::mutex> lock(cvMutex);
+        while (!msgQ.empty())
+            msgQ.pop();
+    }
 
     deviceInfo.clear();
     listAllBackEndIds.clear();
