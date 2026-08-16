@@ -226,7 +226,8 @@ public:
     int getGainLevel() { return mGainLevel; };
     /* static so that this method can be accessed wihtout object */
     static Stream* create(struct pal_stream_attributes *sattr, struct pal_device *dattr,
-         uint32_t no_of_devices, struct modifier_kv *modifiers, uint32_t no_of_modifiers);
+         uint32_t no_of_devices, struct modifier_kv *modifiers, uint32_t no_of_modifiers,
+         int32_t *status = nullptr);
     bool isStreamAudioOutFmtSupported(pal_audio_fmt_t format);
     int32_t getTimestamp(struct pal_session_time *stime);
     int disconnectStreamDevice(Stream* streamHandle,  pal_device_id_t dev_id);
