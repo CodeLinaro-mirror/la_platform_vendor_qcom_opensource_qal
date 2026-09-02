@@ -116,6 +116,7 @@ nse:
 #define MAX_SESSIONS_INCALL_RECORD 1
 #define MAX_SESSIONS_HPCM_RX 1
 #define MAX_SESSIONS_HPCM_TX 1
+#define MIXER_EVENT_WAIT_TIMEOUT 1000
 
 /*this can be over written by the config file settings*/
 uint32_t pal_log_lvl = (PAL_LOG_ERR|PAL_LOG_INFO);
@@ -2611,9 +2612,17 @@ void ResourceManager::mixerEventWaitThreadLoop(
 
     while (1) {
         PAL_VERBOSE(LOG_TAG, "going to wait for event");
-        ret = mixer_wait_event(mixer, -1);
+        ret = mixer_wait_event(mixer, MIXER_EVENT_WAIT_TIMEOUT);
         PAL_DBG(LOG_TAG, "mixer_wait_event returns %d", ret);
-        if (ret <= 0) {
+
+        if (ResourceManager::mixerClosed) {
+            PAL_INFO(LOG_TAG, "mixerClosed, exit mixerEventWaitThreadLoop");
+            break;
+        }
+
+        if (ret == 0) {
+            continue;
+        } else if (ret < 0) {
             PAL_ERR(LOG_TAG, "mixer_wait_event err! ret = %d", ret);
         } else if (ret > 0) {
             ret = mixer_read_event(mixer, &mixer_event);
@@ -2628,10 +2637,6 @@ void ResourceManager::mixerEventWaitThreadLoop(
             } else {
                 PAL_ERR(LOG_TAG, "mixer_read failed, ret = %d", ret);
             }
-        }
-        if (ResourceManager::mixerClosed) {
-            PAL_INFO(LOG_TAG, "mixerClosed, exit mixerEventWaitThreadLoop");
-            return;
         }
     }
     PAL_VERBOSE(LOG_TAG, "unsubscribing for event");
@@ -3335,26 +3340,49 @@ void ResourceManager::deinit()
     card_status_t state = CARD_STATUS_NONE;
 
     mixerClosed = true;
-    mixer_close(audio_virt_mixer);
-    mixer_close(audio_hw_mixer);
-    if (audio_route) {
-       audio_route_free(audio_route);
+
+    mActiveStreamMutex.lock();
+    if (rm) {
+        rm->globalCb = nullptr;
+        rm->cookie = 0;
     }
-    if (mixerEventTread.joinable()) {
-        mixerEventTread.join();
-    }
-    PAL_DBG(LOG_TAG, "Mixer event thread joined");
-    if (sndmon)
-        delete sndmon;
+    mActiveStreamMutex.unlock();
 
     cvMutex.lock();
+    while (!msgQ.empty())
+        msgQ.pop();
     msgQ.push(state);
     cvMutex.unlock();
     cv.notify_all();
 
-    workerThread.join();
-    while (!msgQ.empty())
-        msgQ.pop();
+    if (workerThread.joinable()) {
+        workerThread.join();
+    }
+
+    if (sndmon) {
+        delete sndmon;
+        sndmon = nullptr;
+    }
+
+    if (mixerEventTread.joinable()) {
+        mixerEventTread.join();
+        PAL_DBG(LOG_TAG, "Mixer event thread joined");
+    }
+
+    // Free the audio route before closing mixer handles because it uses them internally.
+    if (audio_route) {
+       audio_route_free(audio_route);
+       audio_route = nullptr;
+    }
+
+    if (audio_virt_mixer) {
+        mixer_close(audio_virt_mixer);
+        audio_virt_mixer = nullptr;
+    }
+    if (audio_hw_mixer) {
+        mixer_close(audio_hw_mixer);
+        audio_hw_mixer = nullptr;
+    }
 
     deviceInfo.clear();
     listAllBackEndIds.clear();
