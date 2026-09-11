@@ -530,7 +530,7 @@ void Bluetooth::startAbr()
         custom_block_t *blk = NULL;
         uint8_t* paramData = NULL;
         size_t paramSize = 0;
-        PayloadBuilder* builder = new PayloadBuilder();
+        std::unique_ptr<PayloadBuilder> builder = std::make_unique<PayloadBuilder>();
 
         fbDev = std::dynamic_pointer_cast<BtSco>(BtSco::getInstance(&fbDevice, rm));
         if (!fbDev) {
