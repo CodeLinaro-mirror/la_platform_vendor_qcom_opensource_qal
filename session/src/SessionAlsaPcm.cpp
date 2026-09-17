@@ -140,12 +140,16 @@ int SessionAlsaPcm::open(Stream * s)
         pcmDevIds = rm->allocateFrontEndIds(sAttr, 0);
         if (pcmDevIds.size() == 0) {
             PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
+            if (rm->isStreamTypeActive(sAttr.type, s))
+                return -EEXIST;
             return -EINVAL;
         }
     } else if (sAttr.direction == PAL_AUDIO_OUTPUT) {
         pcmDevIds = rm->allocateFrontEndIds(sAttr, 0);
         if (pcmDevIds.size() == 0) {
             PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
+            if (rm->isStreamTypeActive(sAttr.type, s))
+                return -EEXIST;
             return -EINVAL;
         }
     } else {
@@ -156,6 +160,8 @@ int SessionAlsaPcm::open(Stream * s)
             pcmDevRxIds = rm->allocateFrontEndIds(sAttr, RXLOOPBACK);
             if (!pcmDevRxIds.size()) {
                 PAL_ERR(LOG_TAG, "allocateFrontEndIds for RX loopback failed");
+                if (rm->isStreamTypeActive(sAttr.type, s))
+                    return -EEXIST;
                 return -EINVAL;
             }
         }
@@ -166,6 +172,8 @@ int SessionAlsaPcm::open(Stream * s)
             pcmDevTxIds = rm->allocateFrontEndIds(sAttr, TXLOOPBACK);
             if (!pcmDevTxIds.size()) {
                 PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
+                if (rm->isStreamTypeActive(sAttr.type, s))
+                    return -EEXIST;
                 return -EINVAL;
             }
         }
@@ -182,6 +190,8 @@ int SessionAlsaPcm::open(Stream * s)
                     rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
                 }
                 PAL_ERR(LOG_TAG, "allocateFrontEndIds failed");
+                if (rm->isStreamTypeActive(sAttr.type, s))
+                    return -EEXIST;
                 return -EINVAL;
             }
         }
@@ -208,6 +218,8 @@ int SessionAlsaPcm::open(Stream * s)
                 if (status) {
                     PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
                     rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
+                    if (rm->isStreamTypeActive(sAttr.type, s))
+                        status = -EEXIST;
                 }
             }
             else if (sAttr.info.opt_stream_info.loopback_type ==
@@ -216,6 +228,8 @@ int SessionAlsaPcm::open(Stream * s)
                 if (status) {
                     PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
                     rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
+                    if (rm->isStreamTypeActive(sAttr.type, s))
+                        status = -EEXIST;
                 }
             }
             else {
@@ -231,6 +245,8 @@ int SessionAlsaPcm::open(Stream * s)
                     PAL_ERR(LOG_TAG, "session alsa open failed with %d", status);
                     rm->freeFrontEndIds(pcmDevRxIds, sAttr, RXLOOPBACK);
                     rm->freeFrontEndIds(pcmDevTxIds, sAttr, TXLOOPBACK);
+                    if (rm->isStreamTypeActive(sAttr.type, s))
+                        status = -EEXIST;
                 }
             }
             break;
