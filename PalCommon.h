@@ -27,12 +27,22 @@
  * IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PAL_COMMON_H
+#define PAL_COMMON_H
+
 #include "ar_osal_mem_op.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
 #include <log/log.h>
+
+#ifdef USE_CLOG
+#include <clog.h>
+#include <clog_ids.h>
+#undef ON
+#undef OFF
+#endif
 
 #ifdef USE_DLT
 #include <stdio.h>
@@ -47,7 +57,56 @@ extern DltContext palContext;
 
 extern uint32_t pal_log_lvl;
 
-#ifdef USE_DLT
+#ifdef USE_CLOG
+
+#define PAL_CLOG_CONTEXT_ID CLOG_LCTX_PALC
+#define PAL_CLOG_APP_NAME "PALX"
+#define PAL_CLOG_APP_DESC "PAL Audio Logging"
+#define PAL_CLOG_CONTEXT_NAME "PALC"
+#define PAL_CLOG_CONTEXT_DESC "PAL Context"
+
+static inline clog_context_t pal_get_clog_context(void)
+{
+    static clog_context_t pal_clog_ctx = NULL;
+    static int pal_clog_init_done = 0;
+
+    if (!pal_clog_init_done) {
+        if (CLOG_IS_INITIALIZED() != CLOG_RETURN_TRUE) {
+            if (CLOG_REGISTER_APP((clog_app_id_t)0,
+                                  PAL_CLOG_APP_NAME,
+                                  PAL_CLOG_APP_DESC) != CLOG_RETURN_OK) {
+                CLOG_REGISTER_LIBRARY();
+            }
+        }
+
+        if (CLOG_IS_INITIALIZED() == CLOG_RETURN_TRUE) {
+            pal_clog_ctx = CLOG_REGISTER_CONTEXT(PAL_CLOG_CONTEXT_ID,
+                                                 PAL_CLOG_CONTEXT_NAME,
+                                                 PAL_CLOG_CONTEXT_DESC,
+                                                 CLOG_DIAG_SSID_NOT_AVAILABLE,
+                                                 PAL_CLOG_APP_NAME,
+                                                 PAL_CLOG_APP_NAME);
+        }
+        pal_clog_init_done = 1;
+    }
+
+    return pal_clog_ctx;
+}
+
+#define PAL_CLOG_WRAPPER(clog_fn, alog_fn, fmt, ...) do { \
+    clog_context_t _ctx = pal_get_clog_context(); \
+    if (_ctx) \
+        clog_fn(_ctx, "%s: %d: " fmt, __func__, __LINE__, ##__VA_ARGS__); \
+    else \
+        alog_fn("%s: %d: " fmt, __func__, __LINE__, ##__VA_ARGS__); \
+} while (0)
+
+#define PAL_ERR(tag, fmt, ...) PAL_CLOG_WRAPPER(CLOGE, ALOGE, fmt, ##__VA_ARGS__)
+#define PAL_DBG(tag, fmt, ...) PAL_CLOG_WRAPPER(CLOGD, ALOGD, fmt, ##__VA_ARGS__)
+#define PAL_INFO(tag, fmt, ...) PAL_CLOG_WRAPPER(CLOGI, ALOGI, fmt, ##__VA_ARGS__)
+#define PAL_VERBOSE(tag, fmt, ...) PAL_CLOG_WRAPPER(CLOGV, ALOGV, fmt, ##__VA_ARGS__)
+
+#elif defined(USE_DLT)
 /*
  * Helper Macro:
  * 1. Creates a temporary buffer.
@@ -83,3 +142,5 @@ extern uint32_t pal_log_lvl;
         ALOGV("%s: %d: "  arg, __func__, __LINE__, ##__VA_ARGS__);\
     }
 #endif
+
+#endif /* PAL_COMMON_H */

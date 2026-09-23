@@ -76,14 +76,21 @@ AM_CONDITIONAL([COMPILE_COMPRESS], [test "x${with_compress}" = "xyes"])
 AC_CHECK_FUNCS([strlcpy])
 AM_CONDITIONAL(USE_G_STRLCPY, [test  "$ac_cv_func_strlcpy" = "no"])
 
+AC_ARG_WITH([clog],
+    AC_HELP_STRING([--with-clog], [with CLOG (commonlog) logging enabled]))
+
 AC_ARG_WITH([dltlogging],
-    AC_HELP_STRING([--with-dltlogging], [Enable DLT logging support]),
-    [with_dltlogging="$withval"],
-    [with_dltlogging=no])
+    AC_HELP_STRING([--with-dltlogging], [with DLT logging enabled]))
 
-AM_CONDITIONAL(USE_DLT, test "x${with_dltlogging}" = "xyes")
+AM_CONDITIONAL(USE_CLOG, test "x${with_clog}" = "xyes")
+AM_CONDITIONAL(USE_DLT, test "x${with_dltlogging}" = "xyes" && test "x${with_clog}" != "xyes")
 
-if test "x${with_dltlogging}" = "xyes"; then
+if test "x${with_clog}" = "xyes"; then
+    PKG_CHECK_MODULES([CLOG], [libclog])
+    AC_DEFINE([USE_CLOG], [1], [Define if using Common Logging Framework])
+    AC_SUBST([CLOG_CFLAGS])
+    AC_SUBST([CLOG_LIBS])
+elif test "x${with_dltlogging}" = "xyes"; then
     PKG_CHECK_MODULES([DLTLOG], [automotive-dlt])
     AC_DEFINE([USE_DLT], [1], [Define if using DLT logging])
     AC_SUBST([DLTLOG_CFLAGS])
