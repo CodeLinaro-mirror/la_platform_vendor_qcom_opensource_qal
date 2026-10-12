@@ -211,6 +211,10 @@ if USE_DLT
 libpal_la_LIBADD    += $(DLTLOG_LIBS)
 libpal_la_CPPFLAGS += -DUSE_DLT @DLTLOG_CFLAGS@
 endif
+if USE_CLOG
+libpal_la_LIBADD    += $(CLOG_LIBS)
+libpal_la_CPPFLAGS += -DUSE_CLOG @CLOG_CFLAGS@
+endif
 libpal_la_CPPFLAGS += -std=c++14 -DHAVE_PTHREADS -DHAVE_ANDROID_OS
 libpal_la_CPPFLAGS += -DDEBUG_REFS_CALLSTACK_ENABLED=0
 libpal_la_CPPFLAGS += -DNDEBUG
